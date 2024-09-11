@@ -21,7 +21,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transparency-dev/trillian-tessera/personalities/sctfe/testdata"
+	"github.com/transparency-dev/static-ct/testdata"
 )
 
 var (

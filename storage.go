@@ -24,7 +24,7 @@ import (
 	"github.com/google/certificate-transparency-go/x509"
 	tessera "github.com/transparency-dev/trillian-tessera"
 	"github.com/transparency-dev/trillian-tessera/ctonly"
-	"github.com/transparency-dev/trillian-tessera/personalities/sctfe/modules/dedup"
+	"github.com/transparency-dev/static-ct/modules/dedup"
 	"k8s.io/klog/v2"
 )
 

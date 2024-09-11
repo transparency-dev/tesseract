@@ -24,7 +24,7 @@ import (
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/transparency-dev/formats/log"
-	"github.com/transparency-dev/trillian-tessera/personalities/sctfe/modules/dedup"
+	"github.com/transparency-dev/static-ct/modules/dedup"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/mod/sumdb/note"
 

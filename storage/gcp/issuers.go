@@ -21,7 +21,7 @@ import (
 	"path"
 
 	gcs "cloud.google.com/go/storage"
-	"github.com/transparency-dev/trillian-tessera/personalities/sctfe"
+	"github.com/transparency-dev/static-ct"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/iterator"
 	"k8s.io/klog/v2"

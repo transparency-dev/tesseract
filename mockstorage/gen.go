@@ -15,4 +15,4 @@
 // Package mockclient provides a mockable version of the Trillian log client API.
 package mockstorage
 
-//go:generate mockgen -package mockstorage -destination mock_ct_storage.go github.com/transparency-dev/trillian-tessera/personalities/sctfe Storage
+//go:generate mockgen -package mockstorage -destination mock_ct_storage.go github.com/transparency-dev/static-ct Storage

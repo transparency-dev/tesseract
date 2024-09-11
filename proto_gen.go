@@ -3,4 +3,4 @@
 
 package sctfe
 
-//go:generate sh -c "protoc -I=. -I$(go list -f '{{ .Dir }}' github.com/google/trillian) -I$(go list -f '{{ .Dir }}' github.com/transparency-dev/trillian-tessera/personalities/sctfe) --go_out=paths=source_relative:. configpb/config.proto"
+//go:generate sh -c "protoc -I=. -I$(go list -f '{{ .Dir }}' github.com/google/trillian) -I$(go list -f '{{ .Dir }}' github.com/transparency-dev/static-ct) --go_out=paths=source_relative:. configpb/config.proto"

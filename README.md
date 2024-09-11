@@ -27,7 +27,7 @@ To re-generate these files, first install the right tools:
 
 Then, generate the files:
 ```bash
-cd $(go list -f '{{ .Dir }}' github.com/transparency-dev/trillian-tessera/personalities/sctfe); \
+cd $(go list -f '{{ .Dir }}' github.com/transparency-dev/static-ct); \
 go generate -x ./...  # hunts for //go:generate comments and runs them
 ```
 

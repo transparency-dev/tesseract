@@ -31,7 +31,7 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/transparency-dev/trillian-tessera/personalities/sctfe/modules/dedup"
+	"github.com/transparency-dev/static-ct/modules/dedup"
 
 	bolt "go.etcd.io/bbolt"
 	"k8s.io/klog/v2"
