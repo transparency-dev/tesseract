@@ -1,7 +1,5 @@
 locals {
   docker_env = "staging"
-  # TODO(phboneff): parametrise this
-  base_name  = "arche2025h1" 
 }
 
 include "root" {

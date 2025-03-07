@@ -54,7 +54,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     name  = "static-ct"
   }
 
-  build {
+  build  {
     ## Build the SCTFE GCP Docker image.
     ## This will be used by the building the conformance Docker image which includes 
     ## the test data.
@@ -116,4 +116,5 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
       wait_for = ["preclean_env", "docker_push_conformance_gcp"]
     }
+  }
 }
