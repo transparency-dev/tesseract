@@ -147,7 +147,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           --operations=10000 \
           --rate_limit=150 \
           --log_config=/workspace/hammer.cfg \
-          --src_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1/ct/v1/get-sth
+          --src_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1
       EOT
       wait_for = ["terraform_apply_arche2025h1"]
     }
