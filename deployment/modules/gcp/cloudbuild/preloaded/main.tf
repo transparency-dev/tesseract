@@ -120,5 +120,14 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
       wait_for = ["preclean_env", "docker_push_conformance_gcp"]
     }
+
+    options {
+      logging      = "CLOUD_LOGGING_ONLY"
+      machine_type = "E2_HIGHCPU_8"
+    }
   }
+
+  depends_on = [
+    module.artifactregistry
+  ]
 }
