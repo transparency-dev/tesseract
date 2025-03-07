@@ -8,11 +8,6 @@ variable "location" {
   type        = string
 }
 
-variable "env" {
-  description = "Unique identifier for the env, e.g. dev or ci or prod"
-  type        = string
-}
-
 variable "docker_env" {
   description = "Unique identifier for the Docker env, e.g. dev or ci or prod"
   type        = string
