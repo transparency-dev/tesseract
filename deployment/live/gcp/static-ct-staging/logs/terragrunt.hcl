@@ -3,6 +3,7 @@ locals {
   location       = get_env("GOOGLE_REGION", "us-central1")
   base_name      = path_relative_to_include()
   origin_suffix  = get_env("TESSERA_ORIGIN_SUFFIX", "")
+  github_owner   = get_env("GITHUB_OWNER", "phbnf")
 }
 
 remote_state {

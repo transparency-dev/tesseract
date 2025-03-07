@@ -129,10 +129,10 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script   = <<EOT
         apt update && apt install -y retry
 
-	cp internal/testdata/hammer.cfg /workspace/hammercfg
+	cp internal/testdata/hammer.cfg /workspace/hammer.cfg
 	sed -i 's-""-"/workspace/arche2025h1_roots.pem"-g' /workspace/hammer.cfg
 
-	go run ./trillian/integration/ct_hammer/ \
+	go run github.com/google/certificate-transparency-go/client/ctclient@master \
           --ct_http_servers="$(cat /workspace/arche2025h1_url)/arche2025h1.ct.transparency.dev" \
           --max_retry=2m \
           --invalid_chance=0 \
