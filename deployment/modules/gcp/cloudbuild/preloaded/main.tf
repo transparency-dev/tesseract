@@ -132,7 +132,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 	cp internal/testdata/hammer.cfg /workspace/hammer.cfg
 	sed -i 's-""-"/workspace/arche2025h1_roots.pem"-g' /workspace/hammer.cfg
 
-	go run github.com/google/certificate-transparency-go/client/ctclient@master \
+	go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
           --ct_http_servers="$(cat /workspace/arche2025h1_url)/arche2025h1.ct.transparency.dev" \
           --max_retry=2m \
           --invalid_chance=0 \
