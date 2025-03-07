@@ -1,8 +1,7 @@
 locals {
-  env            = path_relative_to_include()
   project_id     = get_env("GOOGLE_PROJECT", "static-ct-staging")
   location       = get_env("GOOGLE_REGION", "us-central1")
-  base_name      = get_env("TESSERA_BASE_NAME", "")
+  base_name      = path_relative_to_include()
   origin_suffix  = get_env("TESSERA_ORIGIN_SUFFIX", "")
 }
 
@@ -17,7 +16,7 @@ remote_state {
 
     gcs_bucket_labels = {
       name = "terraform_state"
-      env  = "${local.env}"
+      env  = "${local.base_name}"
     }
   }
 }
