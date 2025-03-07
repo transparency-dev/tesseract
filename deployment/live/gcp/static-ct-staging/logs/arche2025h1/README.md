@@ -3,21 +3,18 @@
 ## Overview
 
 This config uses the [gcp/conformance](/deployment/modules/gcp/tesseract/conformance) module to
-define a CI environment to run the SCTFE on Cloud Run, backed by Trillian Tessera.
+define a Tesseract log Cloud Run, backed by Trillian Tessera and preloaded with argon2025h1 entries.
 
-At a high level, this environment consists of:
-- One Spanner instance with two databases:
-  - one for Tessera
-  - one for deduplication
-- A GCS Bucket
-- Secret Manager
-- Cloud Run
+### Update the roots
+Run `run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=https://ct.googleapis.com/logs/us1/argon2025h1/ --text=false > roots.pem`
 
 ### Automatic Deployment
+TODO(phboneff): edit
 
 This GCP SCTFE conformance CI environment is designed to be deployed by the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/), [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
 
 ### Manual Deployment
+TODO(phboneff): edit
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
 the project:
