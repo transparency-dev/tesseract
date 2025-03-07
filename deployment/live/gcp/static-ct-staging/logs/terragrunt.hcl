@@ -1,8 +1,8 @@
 locals {
   env            = path_relative_to_include()
-  project_id     = get_env("GOOGLE_PROJECT", "static-ct")
+  project_id     = get_env("GOOGLE_PROJECT", "static-ct-staging")
   location       = get_env("GOOGLE_REGION", "us-central1")
-  base_name      = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
+  base_name      = get_env("TESSERA_BASE_NAME", "")
   origin_suffix  = get_env("TESSERA_ORIGIN_SUFFIX", "")
 }
 
