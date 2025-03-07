@@ -52,6 +52,10 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   github {
     owner = var.github_owner
     name  = "static-ct"
+    # TODO(phboneff): improve this, by re-using a Docker container or a different branch, reviewed.
+    push {
+      tag    = "^staging-deploy$"
+    }
   }
 
   build  {
