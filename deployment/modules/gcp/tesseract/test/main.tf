@@ -3,7 +3,7 @@ terraform {
 }
 
 module "storage" {
-  source = "../storage"
+  source = "../../storage"
 
   project_id = var.project_id
   base_name  = var.base_name
@@ -12,7 +12,7 @@ module "storage" {
 }
 
 module "secretmanager" {
-  source = "../secretmanager"
+  source = "../../secretmanager"
 
   base_name = var.base_name
 }
