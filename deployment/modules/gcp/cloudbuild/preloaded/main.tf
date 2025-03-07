@@ -118,7 +118,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
-      wait_for = ["preclean_env", "docker_push_conformance_gcp"]
+      wait_for = ["docker_push_conformance_gcp"]
     }
 
     options {
