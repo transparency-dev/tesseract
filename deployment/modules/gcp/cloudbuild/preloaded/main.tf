@@ -129,7 +129,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script   = <<EOT
         apt update && apt install -y retry
 
-	cp internal/testdata/hammer.cfg /workspace/hammercfg.cfg
+	cp internal/testdata/hammer.cfg /workspace/hammercfg
 	sed -i 's-""-"/workspace/arche2025h1_roots.pem"-g' /workspace/hammer.cfg
 
 	go run ./trillian/integration/ct_hammer/ \
