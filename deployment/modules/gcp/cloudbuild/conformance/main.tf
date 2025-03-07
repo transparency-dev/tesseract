@@ -12,7 +12,7 @@ terraform {
 # Artifact Registry
 
 module "artifactregistry" {
-  source = "../artifactregistry"
+  source = "../../artifactregistry"
 
   location   = var.location
   docker_env = var.docker_env
