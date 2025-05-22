@@ -27,6 +27,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/go-sql-driver/mysql"
 	"github.com/transparency-dev/tessera"
 	taws "github.com/transparency-dev/tessera/storage/aws"
@@ -62,7 +63,7 @@ var (
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	inMemoryAntispamCacheSize = flag.Uint("inmemory_antispam_cache_size", 256<<10, "Maximum number of entries to keep in the in-memory antispam cache.")
+	inMemoryAntispamCacheSize = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
 	checkpointInterval        = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between checkpoint publishing")
 	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
@@ -168,10 +169,18 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		}
 	}
 
+	antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
+	if unit != "" {
+		return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
+	}
+	if error != nil {
+		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
+	}
+
 	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(*inMemoryAntispamCacheSize, antispam).
+		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)

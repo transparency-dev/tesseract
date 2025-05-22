@@ -49,7 +49,7 @@ resource "google_cloud_run_v2_service" "default" {
         "--origin=${var.base_name}${var.origin_suffix}",
         "--signer_public_key_secret_name=${var.signer_public_key_secret_name}",
         "--signer_private_key_secret_name=${var.signer_private_key_secret_name}",
-      	"--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
+        "--inmemory_antispam_cache_size=256k",
         "--not_after_start=${var.not_after_start}",
         "--not_after_limit=${var.not_after_limit}",
         "--trace_fraction=${var.trace_fraction}",
