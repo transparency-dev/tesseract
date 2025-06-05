@@ -72,3 +72,13 @@ variable "trace_fraction" {
   description = "Fraction of open-telemetry span traces to sample."
   type        = number
 }
+
+variable "batch_max_size" {
+  description = "Maximum number of entries to process in a single sequencing batch."
+  type = number
+}
+
+variable "batch_max_age" {
+  description = "Maximum age of entries in a single sequencing batch."
+  type = string
+}

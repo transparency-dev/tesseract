@@ -51,6 +51,18 @@ variable "spanner_pu" {
   default = 100
 }
 
+variable "batch_max_size" {
+  description = "Maximum number of entries to process in a single sequencing batch."
+  type = number
+  default = 1024
+}
+
+variable "batch_max_age" {
+  description = "Maximum age of entries in a single sequencing batch."
+  type = string
+  default = "500ms"
+}
+
 variable "ephemeral" {
   description = "Set to true if this is a throwaway/temporary log instance. Will set attributes on created resources to allow them to be disabled/deleted more easily."
   default     = false
