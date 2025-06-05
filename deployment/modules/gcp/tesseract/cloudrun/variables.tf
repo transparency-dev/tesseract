@@ -56,3 +56,9 @@ variable "ephemeral" {
   default     = false
   type        = bool
 }
+
+variable "trace_fraction" {
+  description = "Fraction of open-telemetry span traces to sample."
+  default     = 0
+  type        = number
+}

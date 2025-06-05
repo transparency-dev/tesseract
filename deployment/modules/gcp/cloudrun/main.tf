@@ -52,6 +52,7 @@ resource "google_cloud_run_v2_service" "default" {
       	"--inmemory_antispam_cache_size=25000000", # About 1GB of memory.
         "--not_after_start=${var.not_after_start}",
         "--not_after_limit=${var.not_after_limit}",
+        "--trace_fraction=${var.trace_fraction}"
       ]
       ports {
         container_port = 6962
