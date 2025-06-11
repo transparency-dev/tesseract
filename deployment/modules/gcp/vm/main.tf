@@ -20,6 +20,79 @@ resource "google_project_service" "cloudrun_api" {
   disable_on_destroy = false
 }
 
+module "gce-container" {
+  # https://github.com/terraform-google-modules/terraform-google-container-vm
+  source = "terraform-google-modules/container-vm/google"
+  version = "~> 2.0"
+
+  container = {
+    image = var.server_docker_image
+    args = [
+      "--logtostderr",
+      "--v=3",
+      "--http_endpoint=:6962",
+      "--bucket=${var.bucket}",
+      "--spanner_db_path=${local.spanner_log_db_path}",
+      "--spanner_antispam_db_path=${local.spanner_antispam_db_path}",
+      "--roots_pem_file=/bin/test_root_ca_cert.pem",
+      "--origin=${var.base_name}${var.origin_suffix}",
+      "--signer_public_key_secret_name=${var.signer_public_key_secret_name}",
+      "--signer_private_key_secret_name=${var.signer_private_key_secret_name}",
+      "--inmemory_antispam_cache_size=256k",
+      "--not_after_start=${var.not_after_start}",
+      "--not_after_limit=${var.not_after_limit}",
+      "--trace_fraction=${var.trace_fraction}",
+      "--batch_max_size=${var.batch_max_size}",
+      "--batch_max_age=${var.batch_max_age}",
+    ]
+    tty : true # maybe remove this
+  }
+
+  restart_policy = "Always"
+}
+
+resource "google_compute_region_instance_template" "tesseract_instance_template_2" {
+  name        = "tesseract-template-2"
+  description = "This template is used to create TesseraCT instances."
+  region      = var.location
+
+  tags = ["thisisatag"]
+
+  labels = {
+    environment = var.env
+  }
+
+  instance_description = "TesseraCT"
+  machine_type         = "n2-standard-4"
+  can_ip_forward       = false # come back to this
+
+  scheduling {
+    automatic_restart   = true # come back to this
+    on_host_maintenance = "MIGRATE" # come back to his
+  }
+
+  // Create a new boot disk from an image
+  disk {
+    source_image      = module.gce-container.source_image # come back to this
+    auto_delete       = true
+    boot              = true
+  }
+
+  network_interface {
+    network = "default"
+  }
+
+  metadata = {
+    foo = "foo metadata"
+  }
+
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    email = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
+    scopes = ["cloud-platform"] # come back to this
+  }
+}
+
 resource "google_compute_region_instance_template" "tesseract_instance_template" {
   name        = "tesseract-template"
   description = "This template is used to create TesseraCT instances."
@@ -66,7 +139,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   name               = "${var.base_name}-instance-group-manager"
   region             = var.location
   version {
-    instance_template  = google_compute_region_instance_template.tesseract_instance_template.id
+    instance_template  = google_compute_region_instance_template.tesseract_instance_template_2.id
   }
   base_instance_name = var.base_name
   target_size        = "3"
