@@ -26,7 +26,7 @@ module "gce-container" {
   version = "~> 2.0"
 
   container = {
-    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/conformance-gcp@sha256:fd4457a75fd4ccad9678a5e56a659206006deb33f14fc2fb2a727f3ba02c78dc"
+    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/tesseract-gcp@sha256:e52521d3160a28859a5917f8bccd937548714019812f333132daa32f5ae962e3"
     args = [
       "--logtostderr",
       "--v=3",
