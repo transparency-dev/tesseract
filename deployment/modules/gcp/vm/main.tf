@@ -27,6 +27,7 @@ module "gce-container" {
 
   container = {
     image = var.server_docker_image
+    command = "/bin/tesseract-gcp"
     args = [
       "--logtostderr",
       "--v=3",
