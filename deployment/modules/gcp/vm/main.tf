@@ -131,7 +131,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
   metadata = {
     foo = "foo metadata"
     gce-container-declaration = module.gce-container.metadata_value
-    google-loging-enabled = "true"
+    google-logging-enabled = "true"
     google-monitoring-enabled = "true"
   }
 
