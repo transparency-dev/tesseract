@@ -26,7 +26,7 @@ module "gce-container" {
   version = "~> 2.0"
 
   container = {
-    image = var.server_docker_image
+    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/conformance-gcp@sha256:fd4457a75fd4ccad9678a5e56a659206006deb33f14fc2fb2a727f3ba02c78dc"
     command = "/bin/tesseract-gcp"
     args = [
       "--logtostderr",
@@ -132,6 +132,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
     foo = "foo metadata"
     gce-container-declaration = module.gce-container.metadata_value
     google-loging-enabled = "true"
+    google-monitoring-enabled = "true"
   }
 
   service_account {
