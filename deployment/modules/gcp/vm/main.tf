@@ -105,6 +105,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
 
   labels = {
     environment = var.env
+    container-vm = module.gce-container.vm_container_label
   }
 
   instance_description = "TesseraCT"
@@ -118,7 +119,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
 
   // Create a new boot disk from an image
   disk {
-    source_image      = "debian-cloud/debian-11" # come back to this
+    source_image      = module.gce-container.source_image # come back to this
     auto_delete       = true
     boot              = true
   }
@@ -129,6 +130,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
 
   metadata = {
     foo = "foo metadata"
+    gce-container-declaration = module.gce-container.metadata_value
   }
 
   service_account {
