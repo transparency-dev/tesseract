@@ -60,6 +60,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template_
 
   labels = {
     environment = var.env
+    container-vm = module.gce-container.vm_container_label
   }
 
   instance_description = "TesseraCT"
@@ -84,6 +85,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template_
 
   metadata = {
     foo = "foo metadata"
+    gce-container-declaration = module.gce-container.metadata_value
   }
 
   service_account {
