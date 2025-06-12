@@ -51,8 +51,16 @@ module "gce-container" {
   restart_policy = "Always"
 }
 
-resource "google_compute_region_instance_template" "tesseract_instance_template" {
-  name        = "tesseract-template-4"
+resource "random_string" "random" {
+  length           = 6
+  lower            = true
+  upper            = false
+  special          = false
+}
+
+resource "google_compute_region_instance_template" "tesseract" {
+  // Templates cannot be updated, so we generate a new one every time.
+  name        = "tesseract-template-${random_string.random.result}"
   description = "This template is used to create TesseraCT instances."
   region      = var.location
 
@@ -101,15 +109,38 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
   }
 }
 
+#resource "google_compute_region_per_instance_config" "with_disk" {
+#  region = var.location
+#  region_instance_group_manager = google_compute_region_instance_group_manager.instance_group_manager.name
+#  name = "instance-1"
+#  preserved_state {
+#    metadata = {
+#      foo = "bar"
+#      // Adding a reference to the instance template used causes the stateful instance to update
+#      // if the instance template changes. Otherwise there is no explicit dependency and template
+#      // changes may not occur on the stateful instance
+#      instance_template = google_compute_region_instance_template.tesseract.self_link
+#    }
+#  }
+#}
+
 // TODO(phbnf): should we use https://github.com/terraform-google-modules/terraform-google-vm/ instead
 resource "google_compute_region_instance_group_manager" "instance_group_manager" {
   name               = "${var.base_name}-instance-group-manager"
   region             = var.location
+
   version {
-    instance_template  = google_compute_region_instance_template.tesseract_instance_template.id
+    instance_template  = google_compute_region_instance_template.tesseract.id
   }
+
   base_instance_name = var.base_name
   target_size        = "3"
+
+  update_policy {
+    type = "PROACTIVE"
+    minimal_action = "REFRESH"
+  }
+
   named_port {
     name = "http"
     port = 6962
