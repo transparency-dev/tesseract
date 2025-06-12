@@ -96,7 +96,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template_
 }
 
 resource "google_compute_region_instance_template" "tesseract_instance_template" {
-  name        = "tesseract-template-3"
+  name        = "tesseract-template-4"
   description = "This template is used to create TesseraCT instances."
   region      = var.location
 
