@@ -74,7 +74,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template_
 
   // Create a new boot disk from an image
   disk {
-    source_image      = module.gce-container.source_image # come back to this
+    source_image      = module.gce-container.source_image
     auto_delete       = true
     boot              = true
   }
@@ -141,6 +141,7 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
   }
 }
 
+// TODO(phbnf): should we use https://github.com/terraform-google-modules/terraform-google-vm/ instead
 resource "google_compute_region_instance_group_manager" "instance_group_manager" {
   name               = "${var.base_name}-instance-group-manager"
   region             = var.location
@@ -153,6 +154,42 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     name = "http"
     port = 6962
   }
+}
+
+// TODO(phbnf): move to external load balancer, or maybe forward to this one.
+module "gce-ilb" {
+  source            = "GoogleCloudPlatform/lb-internal/google"
+  version           = "~> 7.0"
+  region            = var.location
+  name              = "${var.base_name}-ilb"
+  ports             = ["6962"]
+  source_tags       = ["source-tag"]
+  target_tags       = ["target-tag"]
+
+  health_check = {
+    type                = "http"
+    check_interval_sec  = 1
+    healthy_threshold   = 4
+    timeout_sec         = 1
+    unhealthy_threshold = 5
+    response            = ""
+    proxy_header        = "NONE"
+    port                = 6962
+    port_name           = "health-check-port"
+    request             = ""
+    request_path        = "/"
+    host                = "1.2.3.4"
+    enable_log          = false
+  }
+
+  backends = [
+    {
+      group       = google_compute_region_instance_group_manager.instance_group_manager.instance_group
+      description = ""
+      failover    = false
+      balancing_mode = "CONNECTION"
+    },
+  ]
 }
 
 # resource "google_cloud_run_v2_service" "default" {
