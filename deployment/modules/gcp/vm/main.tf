@@ -26,7 +26,7 @@ module "gce-container" {
   version = "~> 2.0"
 
   container = {
-    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/tesseract-gcp@sha256:e52521d3160a28859a5917f8bccd937548714019812f333132daa32f5ae962e3"
+    image = var.server_docker_image
     args = [
       "--logtostderr",
       "--v=3",
@@ -177,7 +177,7 @@ module "gce-ilb" {
     port                = 6962
     port_name           = "health-check-port"
     request             = ""
-    request_path        = "/"
+    request_path        = "/healthz"
     host                = "1.2.3.4"
     enable_log          = false
   }
