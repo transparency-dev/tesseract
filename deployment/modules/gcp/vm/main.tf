@@ -60,8 +60,8 @@ resource "random_string" "random" {
 
 resource "google_compute_region_instance_template" "tesseract" {
   // Templates cannot be updated, so we generate a new one every time.
-  name        = "tesseract-template-${random_string.random.result}"
-  description = "This template is used to create TesseraCT instances."
+  name_prefix = "tesseract-template-"
+  description = "This template is used to create TesseraCT instances. Modification test"
   region      = var.location
 
   lifecycle {
