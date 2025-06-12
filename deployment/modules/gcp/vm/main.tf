@@ -109,6 +109,20 @@ resource "google_compute_region_instance_template" "tesseract" {
   }
 }
 
+resource "google_compute_health_check" "healthz" {
+  name                = "${var.base_name}-health-check"
+  timeout_sec         = 10
+  check_interval_sec  = 30
+  healthy_threshold   = 1
+  unhealthy_threshold = 3
+  
+  http_health_check {
+    request_path = "/healthz"
+    response     = "ok"
+    port         = 6962
+  }
+}
+
 #resource "google_compute_region_per_instance_config" "with_disk" {
 #  region = var.location
 #  region_instance_group_manager = google_compute_region_instance_group_manager.instance_group_manager.name
@@ -149,6 +163,11 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   named_port {
     name = "http"
     port = 6962
+  }
+  
+  auto_healing_policies {
+    health_check      = google_compute_health_check.healthz.id
+    initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
   }
 }
 
