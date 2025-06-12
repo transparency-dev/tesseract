@@ -100,6 +100,10 @@ resource "google_compute_region_instance_template" "tesseract_instance_template"
   description = "This template is used to create TesseraCT instances."
   region      = var.location
 
+  lifecycle {
+    create_before_destroy = true
+  }
+
   tags = ["thisisatag"]
 
   labels = {
