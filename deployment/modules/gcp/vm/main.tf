@@ -146,7 +146,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   name               = "${var.base_name}-instance-group-manager"
   region             = var.location
   version {
-    instance_template  = google_compute_region_instance_template.tesseract_instance_template_2.id
+    instance_template  = google_compute_region_instance_template.tesseract_instance_template.id
   }
   base_instance_name = var.base_name
   target_size        = "3"
