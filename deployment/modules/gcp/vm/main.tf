@@ -123,22 +123,6 @@ resource "google_compute_health_check" "healthz" {
   }
 }
 
-#resource "google_compute_region_per_instance_config" "with_disk" {
-#  region = var.location
-#  region_instance_group_manager = google_compute_region_instance_group_manager.instance_group_manager.name
-#  name = "instance-1"
-#  preserved_state {
-#    metadata = {
-#      foo = "bar"
-#      // Adding a reference to the instance template used causes the stateful instance to update
-#      // if the instance template changes. Otherwise there is no explicit dependency and template
-#      // changes may not occur on the stateful instance
-#      instance_template = google_compute_region_instance_template.tesseract.self_link
-#    }
-#  }
-#}
-
-// TODO(phbnf): should we use https://github.com/terraform-google-modules/terraform-google-vm/ instead
 resource "google_compute_region_instance_group_manager" "instance_group_manager" {
   name               = "${var.base_name}-instance-group-manager"
   region             = var.location
@@ -165,10 +149,11 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     port = 6962
   }
   
-  auto_healing_policies {
-    health_check      = google_compute_health_check.healthz.id
-    initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
-  }
+# TODO(phbnf): re-enable this once we have approval to have custom firewall allowing these probes.
+#   auto_healing_policies {
+#     health_check      = google_compute_health_check.healthz.id
+#     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
+#   }
 }
 
 // TODO(phbnf): move to external load balancer, or maybe forward to this one.
