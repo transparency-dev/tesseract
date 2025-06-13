@@ -190,6 +190,27 @@ module "gce-ilb" {
   ]
 }
 
+module "preloader-container" {
+  # https://github.com/terraform-google-modules/terraform-google-container-vm
+  source = "terraform-google-modules/container-vm/google"
+  version = "~> 2.0"
+
+  container = {
+    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader@sha256:4fd99df0ba68b726cef52d41c05a2e58dbd077ee4eddd7396e871a91caa46394"
+    args = [
+      "--target_log_uri=http://${module.gce-ilb.ip_address}:6962/${var.base_name}${var.origin_suffix}",
+      "--source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1",
+      "--start_index=300000",
+      "--num_workers=20", 
+      "--parallel_fetch=20", 
+      "--parallel_submit=20",
+    ]
+    tty : true # maybe remove this
+  }
+
+  restart_policy = "Always"
+}
+
 resource "google_compute_instance" "preloader" {
   name         = "${var.base_name}-preloader"
   machine_type = "n2-standard-2"
@@ -199,40 +220,33 @@ resource "google_compute_instance" "preloader" {
 
   boot_disk {
     initialize_params {
-      image = "debian-cloud/debian-11"
+      image  = module.preloader-container.source_image # come back to this
       labels = {
         my_label = "value"
       }
     }
   }
 
-  // Local SSD disk
-  scratch_disk {
-    interface = "NVME"
-  }
-
   network_interface {
     network = "default"
   }
 
-  metadata = {
-    foo = "bar"
+  labels = {
+    environment = var.env
+    container-vm = module.preloader-container.vm_container_label
   }
 
-  metadata_startup_script =  <<EOF
-    apt update && apt install -y retry
-    wget https://go.dev/dl/go1.24.4.linux-amd64.tar.gz
-    rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.4.linux-amd64.tar.gz
-    export PATH=$PATH:/usr/local/go/bin
+  scheduling {
+    automatic_restart   = true # come back to this
+    on_host_maintenance = "MIGRATE" # come back to his
+  }
 
-    go run github.com/google/certificate-transparency-go/preload/preloader@master \
-    --target_log_uri=${module.gce-ilb.ip_address}:6962/${var.base_name}${var.origin_suffix} \
-    --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1 \
-    --start_index=300000 \
-    --num_workers=20 \
-    --parallel_fetch=20 \
-    --parallel_submit=20
-  EOF
+  metadata = {
+    foo = "foo metadata"
+    gce-container-declaration = module.preloader-container.metadata_value
+    google-logging-enabled = "true"
+    google-monitoring-enabled = "true"
+  }
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
