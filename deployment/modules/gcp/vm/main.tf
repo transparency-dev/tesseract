@@ -189,3 +189,54 @@ module "gce-ilb" {
     },
   ]
 }
+
+resource "google_compute_instance" "preloader" {
+  name         = "${var.base_name}-preloader"
+  machine_type = "n2-standard-2"
+  zone         = "us-central1-f"
+
+  tags = ["foo", "bar"]
+
+  boot_disk {
+    initialize_params {
+      image = "debian-cloud/debian-11"
+      labels = {
+        my_label = "value"
+      }
+    }
+  }
+
+  // Local SSD disk
+  scratch_disk {
+    interface = "NVME"
+  }
+
+  network_interface {
+    network = "default"
+  }
+
+  metadata = {
+    foo = "bar"
+  }
+
+  metadata_startup_script =  <<EOF
+    apt update && apt install -y retry
+    wget https://go.dev/dl/go1.24.4.linux-amd64.tar.gz
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go1.24.4.linux-amd64.tar.gz
+    export PATH=$PATH:/usr/local/go/bin
+
+    go run github.com/google/certificate-transparency-go/preload/preloader@master \
+    --target_log_uri=${module.gce-ilb.ip_address}:6962/${var.base_name}${var.origin_suffix} \
+    --source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1 \
+    --start_index=300000 \
+    --num_workers=20 \
+    --parallel_fetch=20 \
+    --parallel_submit=20
+  EOF
+
+  service_account {
+    # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
+    email = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
+    scopes = ["cloud-platform"] # come back to this
+  }
+}
