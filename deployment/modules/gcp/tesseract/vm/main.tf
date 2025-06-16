@@ -39,6 +39,8 @@ module "vm" {
   trace_fraction                 = var.trace_fraction
   batch_max_age                  = var.batch_max_age
   batch_max_size                 = var.batch_max_size
+  preloader_source_log_uri       = var.preloader_source_log_uri
+  preloader_start_index          = var.preloader_start_index
 
   depends_on = [
     module.secretmanager,

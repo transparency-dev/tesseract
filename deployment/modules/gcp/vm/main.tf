@@ -199,8 +199,8 @@ module "preloader-container" {
     image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader@sha256:4fd99df0ba68b726cef52d41c05a2e58dbd077ee4eddd7396e871a91caa46394"
     args = [
       "--target_log_uri=${local.tesseract_url}:6962/${var.base_name}${var.origin_suffix}",
-      "--source_log_uri=https://ct.googleapis.com/logs/us1/argon2025h1", // TODO(phbnf): make this a flag
-      "--start_index=774077265", // TODO(phbnf): make this a flag
+      "--source_log_uri=${var.preloader_source_log_uri}",
+      "--start_index=${var.preloader_start_index}",
       "--num_workers=400", 
       "--parallel_fetch=20", 
       "--parallel_submit=400",
