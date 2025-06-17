@@ -45,3 +45,9 @@ module "gce" {
     module.storage
   ]
 }
+
+moved {
+  from = module.vm
+  to   = module.gce
+}
+
