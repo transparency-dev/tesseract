@@ -93,13 +93,3 @@ variable "batch_max_age" {
   type = string
   default = "500ms"
 }
-
-variable "preloader_source_log_uri" {
-  description = "URL of the source RFC6962 log."
-  type        = string
-}
-
-variable "preloader_start_index" {
-  description = "Index to start preloading from on the source log."
-  type        = number
-}
