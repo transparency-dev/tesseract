@@ -46,13 +46,6 @@ module "gce_container_tesseract" {
   restart_policy = "Always"
 }
 
-resource "random_string" "random" {
-  length           = 6
-  lower            = true
-  upper            = false
-  special          = false
-}
-
 resource "google_compute_region_instance_template" "tesseract" {
   // Templates cannot be updated, so we generate a new one every time.
   name_prefix = "tesseract-template-"
