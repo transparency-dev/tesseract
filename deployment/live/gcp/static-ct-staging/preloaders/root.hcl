@@ -5,7 +5,7 @@ locals {
   base_name           = path_relative_to_include()
   github_owner        = get_env("GITHUB_OWNER", "transparency-dev")
   target_log_uri      = get_env("TARGET_LOG_URI", "http://${local.base_name}.${local.base_name}-ilb.il4.${local.location}.lb.${local.project_id}.internal:6962/${local.base_name}.staging.ct.transparency.dev/")
-  server_docker_image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader@sha256:4fd99df0ba68b726cef52d41c05a2e58dbd077ee4eddd7396e871a91caa46394"
+  server_docker_image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader@sha256:8b18425c624bf035cd7cbd45ca5af89bd14512417c24bad11538078c184175da"
 }
 
 remote_state {

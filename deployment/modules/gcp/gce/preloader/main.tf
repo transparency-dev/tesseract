@@ -26,6 +26,7 @@ module "gce_container_preloader" {
       "--num_workers=500", 
       "--parallel_fetch=20", 
       "--parallel_submit=500",
+      "--v=2",
     ]
     tty : true # maybe remove this
   }
