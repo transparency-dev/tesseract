@@ -86,7 +86,11 @@ Connect the VM and Aurora database following [these instructions](https://docs.a
 
 ### With fake chains
 
-On the VM, run the following command to bring up TesseraCT:
+On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
+
+```bash
+cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pem > /tmp/fake_log_roots.pem
+```
 
 ```bash
 go run ./cmd/aws \
@@ -104,14 +108,9 @@ go run ./cmd/aws \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
-In a different terminal you can either mint and submit certificates manually, or
-use the [ct_hammer
-tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
-to do this.
-
 #### Generate chains manually
 
-Generate a chain manually. The password for the private key is `gently`:
+In a different terminal, generate a chain manually. The password for the private key is `gently`:
 
 ```bash
 mkdir -p /tmp/httpschain
@@ -129,41 +128,26 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Retrieve the log public key in PEM format, convert it to DER format, and generate the hammer configuration file.
+In a different terminal, retrieve the log public key in PEM format.
 
 ```bash
 aws secretsmanager get-secret-value --secret-id test-static-ct-ecdsa-p256-public-key --query SecretString --output text > /tmp/log_public_key.pem
-LOG_PUBLIC_KEY_DER=$(openssl pkey -pubin -in /tmp/log_public_key.pem -outform DER | xxd -i -c1000 | sed s/\,\ 0/\\\\/g | sed s/^..0x/\\\\x/g)
-mkdir -p /tmp/hammercfg
-cat > /tmp/hammercfg/hammer.cfg << EOF
-config {
-  roots_pem_file: ""
-  public_key: {
-    der: "$LOG_PUBLIC_KEY_DER"
-  }
-}
-EOF
 ```
 
-Finally, submit the chain to TesseraCT:
+Generate the certificate chains and submit them to TesseraCT using the [hammer tool](/internal/hammer/README.md):
 
 ```bash
-go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
-  --ct_http_servers=localhost:6962/test-static-ct \
-  --max_retry=2m \
-  --invalid_chance=0 \
-  --get_sth=0 \
-  --get_sth_consistency=0 \
-  --get_proof_by_hash=0 \
-  --get_entries=0 \
-  --get_roots=0 \
-  --get_entry_and_proof=0 \
-  --max_parallel_chains=4 \
-  --skip_https_verify=true \
-  --operations=10000 \
-  --rate_limit=150 \
-  --log_config=/tmp/hammercfg/hammer.cfg \
-  --testdata_dir=./trillian/testdata/
+go run ./internal/hammer \
+  --log_url=https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com \
+  --write_log_url=http://localhost:6962/${TESSERA_BASE_NAME} \
+  --origin=$TESSERA_BASE_NAME \
+  --log_public_key=$(openssl ec -pubin -inform PEM -in /tmp/log_public_key.pem -outform der | base64 -w 0) \
+  --max_read_ops=0 \
+  --num_readers_random=0 \
+  --num_readers_full=0 \
+  --num_writers=8 \
+  --max_write_ops=4 \
+  --num_mmd_verifiers=0
 ```
 
 ### With real HTTPS certificates
