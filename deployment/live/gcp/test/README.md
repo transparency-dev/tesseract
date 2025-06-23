@@ -55,35 +55,35 @@ terragrunt apply --terragrunt_working_dir=deployment/live/gcp/test
 Store the Secret Manager resource ID of signer key pair into environment variables:
 
 ```sh
-export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id -terragrunt-working-dir=deployment/live/gcp/test)
-export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id -terragrunt-working-dir=deployment/live/gcp/test)
+export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id -working-dir=deployment/live/gcp/test)
+export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id -working-dir=deployment/live/gcp/test)
 ```
 
 ## Run TesseraCT
 
 ### With fake chains
 
-On the VM, run the following command to bring TesseraCT up:
+On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
+
+```bash
+cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pem > /tmp/fake_log_roots.pem
+```
 
 ```bash
 go run ./cmd/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
-  --roots_pem_file=./internal/testdata/fake-ca.cert \
+  --roots_pem_file=/tmp/fake_log_roots.pem \
   --origin=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   --otel_project_id=${GOOGLE_PROJECT}
 ```
 
-In a different terminal you can either mint and submit certificates manually, or
-use the [ct_hammer tool](https://github.com/google/certificate-transparency-go/blob/master/trillian/integration/ct_hammer/main.go)
-to do this.
-
 #### Generate chains manually
 
-Generate a chain manually. The password for the private key is `gently`:
+In a different terminal, generate a chain manually. The password for the private key is `gently`:
 
 ```bash
 mkdir -p /tmp/httpschain
@@ -101,41 +101,27 @@ go run github.com/google/certificate-transparency-go/client/ctclient@master uplo
 
 #### Automatically generate chains
 
-Retrieve the log public key in PEM format, convert it to DER format, and generate the hammer configuration file. (Install the `xxd` command if you haven't already)
+In a different terminal, retrieve the log public key in PEM format.
 
 ```bash
 gcloud secrets versions access $TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID > /tmp/log_public_key.pem
-LOG_PUBLIC_KEY_DER=$(openssl pkey -pubin -in /tmp/log_public_key.pem -outform DER | xxd -i -c1000 | sed s/\,\ 0/\\\\/g | sed s/^..0x/\\\\x/g)
-mkdir -p /tmp/hammercfg
-cat > /tmp/hammercfg/hammer.cfg << EOF
-config {
-  roots_pem_file: ""
-  public_key: {
-    der: "$LOG_PUBLIC_KEY_DER"
-  }
-}
-EOF
 ```
 
-Clone the [certificate-transparency-go](https://github.com/google/certificate-transparency-go) repo, and from there run:
+Generate the certificate chains and submit them to TesseraCT using the [hammer tool](/internal/hammer/README.md):
 
 ```bash
-go run ./trillian/integration/ct_hammer \
-  --ct_http_servers=localhost:6962/${TESSERA_BASE_NAME} \
-  --max_retry=2m \
-  --invalid_chance=0 \
-  --get_sth=0 \
-  --get_sth_consistency=0 \
-  --get_proof_by_hash=0 \
-  --get_entries=0 \
-  --get_roots=0 \
-  --get_entry_and_proof=0 \
-  --max_parallel_chains=4 \
-  --skip_https_verify=true \
-  --operations=10000 \
-  --rate_limit=150 \
-  --log_config=/tmp/hammercfg/hammer.cfg \
-  --testdata_dir=./trillian/testdata/
+go run ./internal/hammer \
+  --log_url=https://storage.googleapis.com/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
+  --write_log_url=http://localhost:6962/${TESSERA_BASE_NAME} \
+  --origin=$TESSERA_BASE_NAME \
+  --log_public_key=$(openssl ec -pubin -inform PEM -in /tmp/log_public_key.pem -outform der | base64 -w 0) \
+  --max_read_ops=0 \
+  --num_readers_random=0 \
+  --num_readers_full=0 \
+  --num_writers=8 \
+  --max_write_ops=4 \
+  --num_mmd_verifiers=0 \
+  --bearer_token=$(gcloud auth print-access-token)
 ```
 
 ### With real HTTPS certificates
