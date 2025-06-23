@@ -168,13 +168,13 @@ go run github.com/google/certificate-transparency-go/trillian/integration/ct_ham
 
 ### With real HTTPS certificates
 
-We'll run a TesseraCT and copy certificates from an existing RFC6962 log to it.
-It uses the [ct_hammer tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/tree/aceb1d4481907b00c087020a3930c7bd691a0110/trillian/integration/ct_hammer).
+We'll run a TesseraCT instance and copy certificates from an existing RFC6962
+log to it.  It uses the [preloader tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/preload/preloader/preloader.go).
 
 First, save the source log URI:
 
 ```bash
-export SRC_LOG_URI=https://ct.googleapis.com/logs/xenon2022
+export SOURCE_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
 Then, get fetch the roots the source logs accepts, and edit configs accordingly.
@@ -182,24 +182,13 @@ Two roots that TesseraCT cannot load with the [internal/lax509](/internal/lax509
 library need to be removed.
 
 ```bash
-aws secretsmanager get-secret-value --secret-id test-static-ct-ecdsa-p256-public-key --query SecretString --output text > /tmp/log_public_key.pem
-LOG_PUBLIC_KEY_DER=$(openssl pkey -pubin -in /tmp/log_public_key.pem -outform DER | xxd -i -c1000 | sed s/\,\ 0/\\\\/g | sed s/^..0x/\\\\x/g)
-mkdir -p /tmp/hammercfg
 go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=${SRC_LOG_URI} --text=false | \
 awk \
   '/-----BEGIN CERTIFICATE-----/{c=1; pem=$0; show=1; next}
    c{pem=pem ORS $0}
    /-----END CERTIFICATE-----/{c=0; if(show) print pem}
    ($0=="MIIFxDCCBKygAwIBAgIBAzANBgkqhkiG9w0BAQUFADCCAUsxGDAWBgNVBC0DDwBT"||$0=="MIIFVjCCBD6gAwIBAgIQ7is969Qh3hSoYqwE893EATANBgkqhkiG9w0BAQUFADCB"){show=0}' \
-   > /tmp/hammercfg/roots.pem
-cat > /tmp/hammercfg/hammer.cfg << EOF
-config {
-  roots_pem_file: "/tmp/hammercfg/roots.pem"
-  public_key: {
-    der: "$LOG_PUBLIC_KEY_DER"
-  }
-}
-EOF
+   > /tmp/log_roots.pem
 ```
 
 Run TesseraCT with the same roots:
@@ -207,7 +196,7 @@ Run TesseraCT with the same roots:
 ```bash
 go run ./cmd/aws \
   --http_endpoint=localhost:6962 \
-  --roots_pem_file=/tmp/hammercfg/roots.pem \
+  --roots_pem_file=/tmp/log_roots.pem \
   --origin=test-static-ct \
   --bucket=${TESSERACT_BUCKET_NAME} \
   --db_name=tesseract \
@@ -217,30 +206,27 @@ go run ./cmd/aws \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  -v=3
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
-Run `ct_hammer` in a different terminal:
+In a different terminal, run `preloader` to submit certificates from another log to TesseraCT.
 
 ```bash
-go run github.com/google/certificate-transparency-go/trillian/integration/ct_hammer@master \
-  --ct_http_servers=localhost:6962/test-static-ct \
-  --max_retry=2m \
-  --invalid_chance=0 \
-  --get_sth=0 \
-  --get_sth_consistency=0 \
-  --get_proof_by_hash=0 \
-  --get_entries=0 \
-  --get_roots=0 \
-  --get_entry_and_proof=0 \
-  --max_parallel_chains=4 \
-  --skip_https_verify=true \
-  --operations=10000 \
-  --rate_limit=150 \
-  --log_config=/tmp/hammercfg/hammer.cfg \
-  --src_log_uri=${SRC_LOG_URI}
+go run github.com/google/certificate-transparency-go/preload/preloader@master \
+  --target_log_uri=http://localhost:6962/${TESSERA_BASE_NAME} \
+  --source_log_uri=${SOURCE_LOG_URI} \
+  --num_workers=8 \
+  --parallel_fetch=4 \
+  --parallel_submit=4
 ```
+
+Since the source and destination log [might not be configured the exact same set of roots](/internal/lax509/README.md#Chains), it is expected to see errors when submitting a certificate chaining to a missing root. This is what the error would look like:
+
+```
+W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
+```
+
+## Cleanup
 
 > [!IMPORTANT]  
 > Do not forget to delete all the resources to avoid incuring any further cost
