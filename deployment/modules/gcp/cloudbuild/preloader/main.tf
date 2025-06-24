@@ -80,9 +80,9 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
           --source_log_uri=${var.source_log_uri} \
           --start_index=$START_INDEX \
           --end_index=$END_INDEX \
-          --num_workers=20 \
-          --parallel_fetch=20 \
-          --parallel_submit=20
+          --num_workers=400 \
+          --parallel_fetch=40 \
+          --parallel_submit=400
       EOT
       wait_for = ["bearer_token"]
       timeout = "3420s" // 57 minutes, since token validity if of 60 min.
