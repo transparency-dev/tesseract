@@ -37,3 +37,8 @@ variable "source_log_uri" {
   description = "URL of the source RFC6962 log"
   type        = string
 }
+
+variable "start_index_offset" {
+  description = "Offset to apply to the start index"
+  type        = number
+}
