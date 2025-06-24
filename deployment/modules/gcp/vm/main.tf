@@ -13,6 +13,7 @@ locals {
   cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
   spanner_antispam_db_path    = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
+  tesseract_url               = "http://${var.base_name}.${var.base_name}-ilb.il4.${var.location}.lb.${var.project_id}.internal" // will be created by ilb
 }
 
 resource "google_project_service" "cloudrun_api" {
@@ -165,6 +166,7 @@ module "gce-ilb" {
   ports             = ["6962"]
   source_tags       = ["source-tag"]
   target_tags       = ["target-tag"]
+  service_label     = var.base_name
 
   health_check = {
     type                = "http"

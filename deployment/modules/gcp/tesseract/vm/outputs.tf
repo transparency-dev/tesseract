@@ -14,10 +14,10 @@ output "ecdsa_p256_private_key_id" {
   value       = module.secretmanager.ecdsa_p256_private_key_id
 }
 
-# output "tesseract_url" {
-#   description = "The submission URL of the running TesseraCT server"
-#   value       = module.cloudrun.tesseract_url
-# }
+output "tesseract_url" {
+  description = "The submission URL of the running TesseraCT server"
+  value       = module.vm.tesseract_url
+}
 
 output "tesseract_bucket_name" {
   description = "The GCS bucket name of the TesseraCT log"
