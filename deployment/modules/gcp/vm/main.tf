@@ -15,11 +15,6 @@ locals {
   tesseract_url               = "http://${var.base_name}.${var.base_name}-ilb.il4.${var.location}.lb.${var.project_id}.internal" // will be created by ilb
 }
 
-resource "google_project_service" "cloudrun_api" {
-  service            = "run.googleapis.com"
-  disable_on_destroy = false
-}
-
 module "gce-container" {
   # https://github.com/terraform-google-modules/terraform-google-container-vm
   source = "terraform-google-modules/container-vm/google"
