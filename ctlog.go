@@ -145,5 +145,10 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		mux.Handle(path, handler)
 	}
 
+	// Health checking endpoint.
+	mux.HandleFunc("/healthz", func(resp http.ResponseWriter, req *http.Request) {
+		fmt.Print("ok")
+	})
+
 	return mux, nil
 }
