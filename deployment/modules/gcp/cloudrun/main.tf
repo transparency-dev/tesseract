@@ -27,12 +27,12 @@ resource "google_cloud_run_v2_service" "default" {
 
   template {
     service_account                  = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
-    max_instance_request_concurrency = 700
-    timeout                          = "5s"
+    max_instance_request_concurrency = 1000
+    timeout                          = "30s"
 
     scaling {
-      max_instance_count = 3
-      min_instance_count = 1
+      max_instance_count = 2
+      min_instance_count = 2
     }
 
     containers {
@@ -62,8 +62,8 @@ resource "google_cloud_run_v2_service" "default" {
 
       resources {
         limits = {
-          cpu    = "4000m"
-          memory = "2Gi"
+          cpu    = "8"
+          memory = "8Gi"
         }
       }
 
