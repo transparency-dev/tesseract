@@ -63,7 +63,7 @@ resource "google_compute_region_instance_template" "tesseract" {
     create_before_destroy = true
   }
 
-  tags = ["thisisatag"]
+  tags = ["tesseract-allow-group"]
 
   labels = {
     environment = var.env
@@ -158,8 +158,8 @@ module "gce-ilb" {
   region            = var.location
   name              = "${var.base_name}-ilb"
   ports             = ["6962"]
-  source_tags       = ["source-tag"]
-  target_tags       = ["target-tag"]
+  source_tags       = []
+  target_tags       = ["${var.base_name}-allow-group"]
   service_label     = var.base_name
 
   health_check = {
