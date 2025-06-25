@@ -21,7 +21,6 @@ import (
 	"encoding/asn1"
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -148,7 +147,7 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 
 	// Health checking endpoint.
 	mux.HandleFunc("/healthz", func(resp http.ResponseWriter, req *http.Request) {
-		io.WriteString(resp, "ok")
+		_, _ = fmt.Fprint(resp, "ok")
 	})
 
 	return mux, nil
