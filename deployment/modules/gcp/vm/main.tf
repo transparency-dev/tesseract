@@ -213,7 +213,7 @@ module "gce_container_preloader" {
 
 resource "google_compute_instance" "preloader" {
   name         = "${var.base_name}-preloader"
-  machine_type = "n2-standard-2"
+  machine_type = "n2-standard-4"
   zone         = "us-central1-f"
 
   tags = ["preloader-allow-group"]
