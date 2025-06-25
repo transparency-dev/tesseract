@@ -201,9 +201,9 @@ module "gce_container_preloader" {
       "--target_log_uri=${local.tesseract_url}:6962/${var.base_name}${var.origin_suffix}",
       "--source_log_uri=${var.preloader_source_log_uri}",
       "--start_index=${var.preloader_start_index}",
-      "--num_workers=400", 
+      "--num_workers=500", 
       "--parallel_fetch=20", 
-      "--parallel_submit=400",
+      "--parallel_submit=500",
     ]
     tty : true # maybe remove this
   }
