@@ -23,3 +23,9 @@ variable "spanner_pu" {
   type = number
   default = 100
 }
+
+variable "public_bucket" {
+  description = "Set to true to make the log's GCS bucket publicly accessible"
+  type = bool
+  default = false
+}

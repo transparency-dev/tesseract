@@ -39,6 +39,13 @@ resource "google_storage_bucket" "log_bucket" {
   force_destroy = var.ephemeral
 }
 
+resource "google_storage_bucket_iam_member" "log_bucket_object_reader" {
+  count  = var.public_bucket ? 1 : 0
+  bucket = google_storage_bucket.log_bucket
+  role   = "roles/storage.legacyObjectReader"
+  member = "allUsers"
+}
+
 # Spanner
 
 resource "google_spanner_instance" "log_spanner" {
