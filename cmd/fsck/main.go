@@ -1,0 +1,194 @@
+// Copyright 2025 The Tessera authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// fsck is a command-line tool for checking the integrity of a static-ct based log.
+package main
+
+import (
+	"context"
+	"crypto/sha256"
+	"crypto/x509"
+	"encoding/base64"
+	"flag"
+	"fmt"
+	"net/url"
+
+	tdnote "github.com/transparency-dev/formats/note"
+	"github.com/transparency-dev/merkle/rfc6962"
+	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tessera/fsck"
+	"github.com/transparency-dev/tesseract/internal/client"
+	"golang.org/x/crypto/cryptobyte"
+	"golang.org/x/mod/sumdb/note"
+	"k8s.io/klog/v2"
+)
+
+var (
+	storageURL  = flag.String("storage_url", "", "Base tlog-tiles URL")
+	bearerToken = flag.String("bearer_token", "", "The bearer token for authorizing HTTP requests to the storage URL, if needed")
+	N           = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
+	origin      = flag.String("origin", "", "Origin of the log to check")
+	pubKey      = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
+)
+
+func main() {
+	klog.InitFlags(nil)
+	flag.Parse()
+	ctx := context.Background()
+	logURL, err := url.Parse(*storageURL)
+	if err != nil {
+		klog.Exitf("Invalid --storage_url %q: %v", *storageURL, err)
+	}
+	src, err := client.NewHTTPFetcher(logURL, nil)
+	if err != nil {
+		klog.Exitf("Failed to create HTTP fetcher: %v", err)
+	}
+	if *bearerToken != "" {
+		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
+	}
+	v := verifierFromFlags()
+	if *origin == "" {
+		*origin = v.Name()
+	}
+	if err := fsck.Check(ctx, *origin, v, src, *N, ctMerkleLeafHasher); err != nil {
+		klog.Exitf("fsck failed: %v", err)
+	}
+}
+
+// ctMerkleLeafHasher knows how to calculate RFC6962 Merkle leaf hashes for entries in a Static-CT formatted entry bundle.
+func ctMerkleLeafHasher(bundle []byte) ([][]byte, error) {
+	r := make([][]byte, 0, layout.EntryBundleWidth)
+	b := cryptobyte.String(bundle)
+	for i := 0; i < layout.EntryBundleWidth && !b.Empty(); i++ {
+		preimage := &cryptobyte.Builder{}
+		preimage.AddUint8(0 /* version = v1 */)
+		preimage.AddUint8(0 /* leaf_type = timestamped_entry */)
+
+		// Timestamp
+		if !copyBytes(&b, preimage, 8) {
+			return nil, fmt.Errorf("failed to copy timestamp of entry index %d of bundle", i)
+		}
+
+		var entryType uint16
+		if !b.ReadUint16(&entryType) {
+			return nil, fmt.Errorf("failed to read entry type of entry index %d of bundle", i)
+		}
+		preimage.AddUint16(entryType)
+
+		switch entryType {
+		case 0: // X509 entry
+			if !copyUint24LengthPrefixed(&b, preimage) {
+				return nil, fmt.Errorf("failed to copy certificate at entry index %d of bundle", i)
+			}
+
+		case 1: // Precert entry
+			// IssuerKeyHash
+			if !copyBytes(&b, preimage, sha256.Size) {
+				return nil, fmt.Errorf("failed to copy issuer key hash at entry index %d of bundle", i)
+			}
+
+			if !copyUint24LengthPrefixed(&b, preimage) {
+				return nil, fmt.Errorf("failed to copy precert tbs at entry index %d of bundle", i)
+			}
+
+		default:
+			return nil, fmt.Errorf("unknown entry type 0x%x at entry index %d of bundle", entryType, i)
+		}
+
+		if !copyUint16LengthPrefixed(&b, preimage) {
+			return nil, fmt.Errorf("failed to copy SCT extensions at entry index %d of bundle", i)
+		}
+
+		ignore := cryptobyte.String{}
+		if entryType == 1 {
+			if !b.ReadUint24LengthPrefixed(&ignore) {
+				return nil, fmt.Errorf("failed to read precert at entry index %d of bundle", i)
+			}
+		}
+		if !b.ReadUint16LengthPrefixed(&ignore) {
+			return nil, fmt.Errorf("failed to read chain fingerprints at entry index %d of bundle", i)
+		}
+
+		h := rfc6962.DefaultHasher.HashLeaf(preimage.BytesOrPanic())
+		r = append(r, h)
+	}
+	if !b.Empty() {
+		return nil, fmt.Errorf("unexpected %d bytes of trailing data in entry bundle", len(b))
+	}
+	return r, nil
+}
+
+// copyBytes copies N bytes between from and to.
+func copyBytes(from *cryptobyte.String, to *cryptobyte.Builder, N int) bool {
+	b := make([]byte, N)
+	if !from.ReadBytes(&b, N) {
+		return false
+	}
+	to.AddBytes(b)
+	return true
+}
+
+// copyUint16LengthPrefixed copies a uint16 length and value between from and to.
+func copyUint16LengthPrefixed(from *cryptobyte.String, to *cryptobyte.Builder) bool {
+	b := cryptobyte.String{}
+	if !from.ReadUint16LengthPrefixed(&b) {
+		return false
+	}
+	to.AddUint16LengthPrefixed(func(c *cryptobyte.Builder) {
+		c.AddBytes(b)
+	})
+	return true
+}
+
+// copyUint24LengthPrefixed copies a uint24 length and value between from and to.
+func copyUint24LengthPrefixed(from *cryptobyte.String, to *cryptobyte.Builder) bool {
+	b := cryptobyte.String{}
+	if !from.ReadUint24LengthPrefixed(&b) {
+		return false
+	}
+	to.AddUint24LengthPrefixed(func(c *cryptobyte.Builder) {
+		c.AddBytes(b)
+	})
+	return true
+}
+
+func verifierFromFlags() note.Verifier {
+	if *origin == "" {
+		klog.Exitf("Must provide the --origin flag")
+	}
+	if *pubKey == "" {
+		klog.Exitf("Must provide the --pub_key flag")
+	}
+	derBytes, err := base64.StdEncoding.DecodeString(*pubKey)
+	if err != nil {
+		klog.Exitf("Error decoding public key: %s", err)
+	}
+	pub, err := x509.ParsePKIXPublicKey(derBytes)
+	if err != nil {
+		klog.Exitf("Error parsing public key: %v", err)
+	}
+
+	verifierKey, err := tdnote.RFC6962VerifierString(*origin, pub)
+	if err != nil {
+		klog.Exitf("Error creating RFC6962 verifier string: %v", err)
+	}
+	logSigV, err := tdnote.NewVerifier(verifierKey)
+	if err != nil {
+		klog.Exitf("Error creating verifier: %v", err)
+	}
+
+	klog.Infof("Using verifier string: %v", verifierKey)
+
+	return logSigV
+}
