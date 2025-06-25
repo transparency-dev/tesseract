@@ -27,6 +27,7 @@ module "vm" {
   origin_suffix                  = var.origin_suffix
   location                       = var.location
   server_docker_image            = var.server_docker_image
+  machine_type                   = var.machine_type
   not_after_start                = var.not_after_start
   not_after_limit                = var.not_after_limit
   bucket                         = module.storage.log_bucket.id

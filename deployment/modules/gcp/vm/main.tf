@@ -71,7 +71,7 @@ resource "google_compute_region_instance_template" "tesseract" {
   }
 
   instance_description = "TesseraCT"
-  machine_type         = "n2-standard-4"
+  machine_type         = var.machine_type
   can_ip_forward       = false # come back to this
 
   scheduling {

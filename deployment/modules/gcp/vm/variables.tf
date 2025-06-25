@@ -28,6 +28,11 @@ variable "server_docker_image" {
   type        = string
 }
 
+variable "machine_type" {
+  description = "GCP Compute Engine machine type to run the TesseraCT container on"
+  type = string
+}
+
 variable "bucket" {
   description = "Log GCS bucket"
   type        = string

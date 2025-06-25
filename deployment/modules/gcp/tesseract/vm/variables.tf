@@ -45,6 +45,12 @@ variable "server_docker_image" {
   type        = string
 }
 
+variable "machine_type" {
+  description = "GCP Compute Engine machine type to run the TesseraCT container on"
+  type = string
+}
+
+
 variable "spanner_pu" {
   description = "Amount of Spanner processing units"
   type = number
