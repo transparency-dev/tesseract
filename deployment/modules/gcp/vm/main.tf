@@ -63,6 +63,8 @@ resource "google_compute_region_instance_template" "tesseract" {
     create_before_destroy = true
   }
 
+  // TODO(phbnf): come back to this: can we put base_name in there given
+  // that this template applies to all logs?
   tags = ["tesseract-allow-group"]
 
   labels = {
@@ -158,6 +160,7 @@ module "gce-ilb" {
   name              = "${var.base_name}-ilb"
   ports             = ["6962"]
   source_tags       = []
+  // TODO(phbnf): come back to this, it doesn't match with the VM tags.
   target_tags       = ["${var.base_name}-allow-group"]
   service_label     = var.base_name
 
