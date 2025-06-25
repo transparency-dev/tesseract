@@ -216,7 +216,7 @@ resource "google_compute_instance" "preloader" {
   machine_type = "n2-standard-2"
   zone         = "us-central1-f"
 
-  tags = ["foo", "bar"]
+  tags = ["preloader-allow-group"]
 
   boot_disk {
     initialize_params {
@@ -240,6 +240,7 @@ resource "google_compute_instance" "preloader" {
     automatic_restart   = true # come back to this
     on_host_maintenance = "MIGRATE" # come back to his
   }
+  allow_stopping_for_update =  true
 
   metadata = {
     gce-container-declaration = module.gce_container_preloader.metadata_value
