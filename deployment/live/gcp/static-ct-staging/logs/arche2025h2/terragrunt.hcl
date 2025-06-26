@@ -1,5 +1,5 @@
 terraform {
-  source = "${get_repo_root()}/deployment/modules/gcp//tesseract/cloudrun"
+  source = "${get_repo_root()}/deployment/modules/gcp//tesseract/gce"
 }
 
 locals {
@@ -12,6 +12,7 @@ locals {
   server_docker_image = "${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/tesseract-gcp:${include.root.locals.docker_container_tag}"
   spanner_pu          = 500
   trace_fraction      = 0.1
+  machine_type        = "n2-standard-4"
 }
 
 include "root" {
