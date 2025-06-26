@@ -39,13 +39,21 @@ import (
 )
 
 var (
+	monitoringURL = flag.String("monitoring_url", "", "Base tlog-tiles URL")
+	bearerToken   = flag.String("bearer_token", "", "The bearer token for authorizing HTTP requests to the storage URL, if needed")
+	N             = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
+	origin        = flag.String("origin", "", "Origin of the log to check")
+	pubKey        = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
 )
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+	logURL, err := url.Parse(*monitoringURL)
 	if err != nil {
+		klog.Exitf("Invalid --storage_url %q: %v", *monitoringURL, err)
+	}
 	hc := &http.Client{
 		Transport: &http.Transport{
 			MaxIdleConns:        int(*N),
@@ -62,23 +70,24 @@ func main() {
 		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 	}
 	v := verifierFromFlags()
-	if *origin == "" {
-		*origin = v.Name()
-	}
 	lsc := &logStateCollector{}
 	if err := fsck.Check(ctx, *origin, v, src, *N, lsc.merkleLeafHasher()); err != nil {
 		klog.Exitf("fsck failed: %v", err)
 	}
 
+	if err := checkIntermediates(ctx, lsc, src.ReadIssuer, *N); err != nil {
 		klog.Exitf("Failed to verify presence intermediates: %v", err)
 	}
 
 	klog.Info("OK")
 }
 
+func checkIntermediates(ctx context.Context, lsc *logStateCollector, readIssuer func(context.Context, []byte) ([]byte, error), N uint) error {
 	klog.Infof("Checking intermediates CAS")
 	n := 0
+	work := make(chan []byte, N)
 	eg := errgroup.Group{}
+	for range N {
 		eg.Go(func() error {
 			for fp := range work {
 				if _, err := readIssuer(ctx, fp); err != nil {
