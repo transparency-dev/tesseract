@@ -21,6 +21,7 @@ import (
 	"path"
 
 	gcs "cloud.google.com/go/storage"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"google.golang.org/api/googleapi"
 	"k8s.io/klog/v2"
@@ -36,7 +37,7 @@ type IssuersStorage struct {
 // NewIssuerStorage creates a new GCSStorage.
 //
 // The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, bucket string, prefix string, contentType string) (*IssuersStorage, error) {
+func NewIssuerStorage(ctx context.Context, bucket string) (*IssuersStorage, error) {
 	c, err := gcs.NewClient(ctx, gcs.WithJSONReads())
 	if err != nil {
 		return nil, fmt.Errorf("failed to create GCS client: %v", err)
@@ -44,8 +45,8 @@ func NewIssuerStorage(ctx context.Context, bucket string, prefix string, content
 
 	r := &IssuersStorage{
 		bucket:      c.Bucket(bucket),
-		prefix:      prefix,
-		contentType: contentType,
+		prefix:      staticct.IssuersPrefix,
+		contentType: staticct.IssuersContentType,
 	}
 
 	return r, nil

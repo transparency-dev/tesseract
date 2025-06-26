@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"k8s.io/klog/v2"
 )
@@ -37,10 +39,11 @@ type IssuersStorage string
 // It creates the underying directory if it does not exist already.
 func NewIssuerStorage(path string) (IssuersStorage, error) {
 	// Does nothing if the dictory already exists.
-	if err := os.MkdirAll(path, 0755); err != nil {
+	p := filepath.Join(path, staticct.IssuersPrefix)
+	if err := os.MkdirAll(p, 0755); err != nil {
 		return "", fmt.Errorf("failed to create path %q: %v", path, err)
 	}
-	return IssuersStorage(path), nil
+	return IssuersStorage(p), nil
 }
 
 // keyToObjName converts bytes to filesystem path.

@@ -190,7 +190,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
 
-	issuerStorage, err := aws.NewIssuerStorage(ctx, *bucket, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := aws.NewIssuerStorage(ctx, *bucket)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
