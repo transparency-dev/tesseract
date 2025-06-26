@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"net/url"
+	"sync"
 
 	tdnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/merkle/rfc6962"
@@ -31,6 +32,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/client"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/mod/sumdb/note"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/klog/v2"
 )
 
@@ -61,72 +63,132 @@ func main() {
 	if *origin == "" {
 		*origin = v.Name()
 	}
-	if err := fsck.Check(ctx, *origin, v, src, *N, ctMerkleLeafHasher); err != nil {
+	lsc := &logStateCollector{}
+	if err := fsck.Check(ctx, *origin, v, src, *N, lsc.merkleLeafHasher()); err != nil {
 		klog.Exitf("fsck failed: %v", err)
+	}
+
+	if err := checkIntermediates(ctx, lsc, src.ReadIssuer); err != nil {
+		klog.Exitf("Failed to verify presence intermediates: %v", err)
+	}
+
+	klog.Info("OK")
+}
+
+func checkIntermediates(ctx context.Context, lsc *logStateCollector, readIssuer func(context.Context, []byte) ([]byte, error)) error {
+	klog.Infof("Checking intermediates CAS")
+	n := 0
+	work := make(chan []byte, 10)
+	eg := errgroup.Group{}
+	for range 10 {
+		eg.Go(func() error {
+			for fp := range work {
+				if _, err := readIssuer(ctx, fp); err != nil {
+					return fmt.Errorf("couldn't fetch issuer for %x: %v", fp, err)
+				}
+			}
+			return nil
+		})
+	}
+
+	lsc.intermediates.Range(func(k any, v any) bool {
+		fp := k.(string)
+		work <- []byte(fp)
+		n++
+		return true
+	})
+	close(work)
+
+	if err := eg.Wait(); err != nil {
+		return fmt.Errorf("failed to fetch one or more issuers: %v", err)
+	}
+
+	klog.Infof("Checked %d intermediate issuers", n)
+	return nil
+}
+
+type logStateCollector struct {
+	intermediates sync.Map
+}
+
+func (l *logStateCollector) addIntermediates(fpRaw cryptobyte.String) {
+	var fp []byte
+	for len(fpRaw) > 0 {
+		fp, fpRaw = fpRaw[:32], fpRaw[32:]
+		_, existed := l.intermediates.LoadOrStore(string(fp), true)
+		if !existed {
+			klog.V(2).Infof("Found intermediate FP %x", fp)
+		}
 	}
 }
 
-// ctMerkleLeafHasher knows how to calculate RFC6962 Merkle leaf hashes for entries in a Static-CT formatted entry bundle.
-func ctMerkleLeafHasher(bundle []byte) ([][]byte, error) {
-	r := make([][]byte, 0, layout.EntryBundleWidth)
-	b := cryptobyte.String(bundle)
-	for i := 0; i < layout.EntryBundleWidth && !b.Empty(); i++ {
-		preimage := &cryptobyte.Builder{}
-		preimage.AddUint8(0 /* version = v1 */)
-		preimage.AddUint8(0 /* leaf_type = timestamped_entry */)
+// merkleLeafHasher returns a function which knows how to:
+// - calculate RFC6962 Merkle leaf hashes for entries in a Static-CT formatted entry bundle,
+// - keep track of the set of intermediate cert fingerprints seen while parsing entry bundles.
+func (l *logStateCollector) merkleLeafHasher() func(bundle []byte) ([][]byte, error) {
+	return func(bundle []byte) ([][]byte, error) {
+		r := make([][]byte, 0, layout.EntryBundleWidth)
+		b := cryptobyte.String(bundle)
+		for i := 0; i < layout.EntryBundleWidth && !b.Empty(); i++ {
+			preimage := &cryptobyte.Builder{}
+			preimage.AddUint8(0 /* version = v1 */)
+			preimage.AddUint8(0 /* leaf_type = timestamped_entry */)
 
-		// Timestamp
-		if !copyBytes(&b, preimage, 8) {
-			return nil, fmt.Errorf("failed to copy timestamp of entry index %d of bundle", i)
-		}
-
-		var entryType uint16
-		if !b.ReadUint16(&entryType) {
-			return nil, fmt.Errorf("failed to read entry type of entry index %d of bundle", i)
-		}
-		preimage.AddUint16(entryType)
-
-		switch entryType {
-		case 0: // X509 entry
-			if !copyUint24LengthPrefixed(&b, preimage) {
-				return nil, fmt.Errorf("failed to copy certificate at entry index %d of bundle", i)
+			// Timestamp
+			if !copyBytes(&b, preimage, 8) {
+				return nil, fmt.Errorf("failed to copy timestamp of entry index %d of bundle", i)
 			}
 
-		case 1: // Precert entry
-			// IssuerKeyHash
-			if !copyBytes(&b, preimage, sha256.Size) {
-				return nil, fmt.Errorf("failed to copy issuer key hash at entry index %d of bundle", i)
+			var entryType uint16
+			if !b.ReadUint16(&entryType) {
+				return nil, fmt.Errorf("failed to read entry type of entry index %d of bundle", i)
+			}
+			preimage.AddUint16(entryType)
+
+			switch entryType {
+			case 0: // X509 entry
+				if !copyUint24LengthPrefixed(&b, preimage) {
+					return nil, fmt.Errorf("failed to copy certificate at entry index %d of bundle", i)
+				}
+
+			case 1: // Precert entry
+				// IssuerKeyHash
+				if !copyBytes(&b, preimage, sha256.Size) {
+					return nil, fmt.Errorf("failed to copy issuer key hash at entry index %d of bundle", i)
+				}
+
+				if !copyUint24LengthPrefixed(&b, preimage) {
+					return nil, fmt.Errorf("failed to copy precert tbs at entry index %d of bundle", i)
+				}
+
+			default:
+				return nil, fmt.Errorf("unknown entry type 0x%x at entry index %d of bundle", entryType, i)
 			}
 
-			if !copyUint24LengthPrefixed(&b, preimage) {
-				return nil, fmt.Errorf("failed to copy precert tbs at entry index %d of bundle", i)
+			if !copyUint16LengthPrefixed(&b, preimage) {
+				return nil, fmt.Errorf("failed to copy SCT extensions at entry index %d of bundle", i)
 			}
 
-		default:
-			return nil, fmt.Errorf("unknown entry type 0x%x at entry index %d of bundle", entryType, i)
-		}
-
-		if !copyUint16LengthPrefixed(&b, preimage) {
-			return nil, fmt.Errorf("failed to copy SCT extensions at entry index %d of bundle", i)
-		}
-
-		ignore := cryptobyte.String{}
-		if entryType == 1 {
-			if !b.ReadUint24LengthPrefixed(&ignore) {
-				return nil, fmt.Errorf("failed to read precert at entry index %d of bundle", i)
+			ignore := cryptobyte.String{}
+			if entryType == 1 {
+				if !b.ReadUint24LengthPrefixed(&ignore) {
+					return nil, fmt.Errorf("failed to read precert at entry index %d of bundle", i)
+				}
 			}
-		}
-		if !b.ReadUint16LengthPrefixed(&ignore) {
-			return nil, fmt.Errorf("failed to read chain fingerprints at entry index %d of bundle", i)
-		}
+			fpRaw := cryptobyte.String{}
+			if !b.ReadUint16LengthPrefixed(&fpRaw) {
+				return nil, fmt.Errorf("failed to read chain fingerprints at entry index %d of bundle", i)
+			}
+			l.addIntermediates(fpRaw)
 
-		h := rfc6962.DefaultHasher.HashLeaf(preimage.BytesOrPanic())
-		r = append(r, h)
+			h := rfc6962.DefaultHasher.HashLeaf(preimage.BytesOrPanic())
+			r = append(r, h)
+		}
+		if !b.Empty() {
+			return nil, fmt.Errorf("unexpected %d bytes of trailing data in entry bundle", len(b))
+		}
+		return r, nil
 	}
-	if !b.Empty() {
-		return nil, fmt.Errorf("unexpected %d bytes of trailing data in entry bundle", len(b))
-	}
-	return r, nil
 }
 
 // copyBytes copies N bytes between from and to.
