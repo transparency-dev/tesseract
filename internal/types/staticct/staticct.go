@@ -24,6 +24,11 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 )
 
+const (
+	IssuersPrefix      = "issuer/"
+	IssuersContentType = "application/pkix-cert"
+)
+
 ///////////////////////////////////////////////////////////////////////////////
 // The following structures represent those outlined in Static CT API.
 ///////////////////////////////////////////////////////////////////////////////

@@ -25,6 +25,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"k8s.io/klog/v2"
 )
@@ -40,7 +41,7 @@ type IssuersStorage struct {
 // NewIssuerStorage creates a new IssuerStorage.
 //
 // The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, bucket string, prefix string, contentType string) (*IssuersStorage, error) {
+func NewIssuerStorage(ctx context.Context, bucket string) (*IssuersStorage, error) {
 	sdkConfig, err := config.LoadDefaultConfig(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to load default AWS configuration: %v", err)
@@ -49,8 +50,8 @@ func NewIssuerStorage(ctx context.Context, bucket string, prefix string, content
 	r := &IssuersStorage{
 		s3Client:    s3.NewFromConfig(sdkConfig),
 		bucket:      bucket,
-		prefix:      prefix,
-		contentType: contentType,
+		prefix:      staticct.IssuersPrefix,
+		contentType: staticct.IssuersContentType,
 	}
 
 	return r, nil

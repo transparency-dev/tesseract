@@ -72,9 +72,8 @@ var (
 		TimeSource:         timeSource,
 	}
 
-	// POSIX subdirectories
+	// POSIX subdirectory
 	logDir = "log"
-	issDir = "issuers"
 )
 
 type fixedTimeSource struct {
@@ -180,7 +179,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
 
-		issuerStorage, err := posix.NewIssuerStorage(path.Join(root, issDir))
+		issuerStorage, err := posix.NewIssuerStorage(path.Join(root, logDir))
 		if err != nil {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
@@ -589,7 +588,7 @@ func TestAddChain(t *testing.T) {
 				// Check that the issuers have been populated correctly.
 				for _, wantIss := range wantIssChain[1:] {
 					key := sha256.Sum256(wantIss.Raw)
-					issPath := path.Join(dir, issDir, hex.EncodeToString(key[:]))
+					issPath := path.Join(dir, logDir, staticct.IssuersPrefix, hex.EncodeToString(key[:]))
 					gotIss, err := os.ReadFile(issPath)
 					if err != nil {
 						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
@@ -736,7 +735,7 @@ func TestAddPreChain(t *testing.T) {
 				// Check that the issuers have been populated correctly.
 				for _, wantIss := range wantIssChain[1:] {
 					key := sha256.Sum256(wantIss.Raw)
-					issPath := path.Join(dir, issDir, hex.EncodeToString(key[:]))
+					issPath := path.Join(dir, logDir, staticct.IssuersPrefix, hex.EncodeToString(key[:]))
 					gotIss, err := os.ReadFile(issPath)
 					if err != nil {
 						t.Errorf("Failed to read issuer at %q: %v", issPath, err)
