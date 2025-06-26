@@ -22,8 +22,10 @@ import (
 	"encoding/base64"
 	"flag"
 	"fmt"
+	"net/http"
 	"net/url"
 	"sync"
+	"time"
 
 	tdnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/merkle/rfc6962"
@@ -37,22 +39,22 @@ import (
 )
 
 var (
-	storageURL  = flag.String("storage_url", "", "Base tlog-tiles URL")
-	bearerToken = flag.String("bearer_token", "", "The bearer token for authorizing HTTP requests to the storage URL, if needed")
-	N           = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
-	origin      = flag.String("origin", "", "Origin of the log to check")
-	pubKey      = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
 )
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
-	logURL, err := url.Parse(*storageURL)
 	if err != nil {
-		klog.Exitf("Invalid --storage_url %q: %v", *storageURL, err)
+	hc := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        int(*N),
+			MaxIdleConnsPerHost: int(*N),
+			DisableKeepAlives:   false,
+		},
+		Timeout: 30 * time.Second,
 	}
-	src, err := client.NewHTTPFetcher(logURL, nil)
+	src, err := client.NewHTTPFetcher(logURL, hc)
 	if err != nil {
 		klog.Exitf("Failed to create HTTP fetcher: %v", err)
 	}
@@ -68,19 +70,15 @@ func main() {
 		klog.Exitf("fsck failed: %v", err)
 	}
 
-	if err := checkIntermediates(ctx, lsc, src.ReadIssuer); err != nil {
 		klog.Exitf("Failed to verify presence intermediates: %v", err)
 	}
 
 	klog.Info("OK")
 }
 
-func checkIntermediates(ctx context.Context, lsc *logStateCollector, readIssuer func(context.Context, []byte) ([]byte, error)) error {
 	klog.Infof("Checking intermediates CAS")
 	n := 0
-	work := make(chan []byte, 10)
 	eg := errgroup.Group{}
-	for range 10 {
 		eg.Go(func() error {
 			for fp := range work {
 				if _, err := readIssuer(ctx, fp); err != nil {
