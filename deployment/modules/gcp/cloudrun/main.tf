@@ -77,16 +77,6 @@ resource "google_cloud_run_v2_service" "default" {
         }
       }
     }
-    // Attach a VPC for better throughput:
-    // https://cloud.google.com/run/docs/configuring/networking-best-practices#direct-vpc-throughput
-    vpc_access {
-      network_interfaces {
-        network    = "default"
-        subnetwork = "default"
-        tags       = ["tesseract",]
-      }
-      egress = "ALL_TRAFFIC"
-    }
   }
 
   deletion_protection = false
