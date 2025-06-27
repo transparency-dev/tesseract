@@ -45,6 +45,11 @@ var (
 	N             = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
 	origin        = flag.String("origin", "", "Origin of the log to check")
 	pubKey        = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
+	userAgentInfo = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
+)
+
+const (
+	userAgent = "TesseraCT fsck"
 )
 
 func main() {
@@ -68,6 +73,11 @@ func main() {
 		klog.Exitf("Failed to create HTTP fetcher: %v", err)
 	}
 	src.EnableRetries(10)
+	ua := userAgent
+	if *userAgentInfo != "" {
+		ua = fmt.Sprintf("%s (%s)", userAgent, *userAgentInfo)
+	}
+	src.SetUserAgent(ua)
 	if *bearerToken != "" {
 		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 	}
