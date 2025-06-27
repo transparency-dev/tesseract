@@ -650,8 +650,6 @@ github.com/antihax/optional v1.0.0/go.mod h1:uupD/76wgC+ih3iEmQUL+0Ugr19nfwCT1kd
 github.com/apache/arrow/go/v10 v10.0.1/go.mod h1:YvhnlEePVnBS4+0z3fhPfUy7W1Ikj0Ih0vcRo/gZ1M0=
 github.com/apache/arrow/go/v11 v11.0.0/go.mod h1:Eg5OsL5H+e299f7u5ssuXsuHQVEGC4xei5aX110hRiI=
 github.com/apache/thrift v0.16.0/go.mod h1:PHK3hniurgQaNMZYaCLEqXKsYK8upmhPbmdP2FXSqgU=
-github.com/avast/retry-go/v4 v4.6.1 h1:VkOLRubHdisGrHnTu89g08aQEWEgRU7LVEop3GbIcMk=
-github.com/avast/retry-go/v4 v4.6.1/go.mod h1:V6oF8njAwxJ5gRo1Q7Cxab24xs5NCWZBeaHHBklR8mA=
 github.com/aws/aws-sdk-go-v2 v1.36.5 h1:0OF9RiEMEdDdZEMqF9MRjevyxAQcf6gY+E7vwBILFj0=
 github.com/aws/aws-sdk-go-v2 v1.36.5/go.mod h1:EYrzvCCN9CMUTa5+6lf6MM4tq3Zjp8UhSGR/cBsjai0=
 github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.6.11 h1:12SpdwU8Djs+YGklkinSSlcrPyj3H4VifVsKf78KbwA=
@@ -1022,10 +1020,8 @@ github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26 h1:YTbkeF
 github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26/go.mod h1:ODywn0gGarHMMdSkWT56ULoK8Hk71luOyRseKek9COw=
 github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG81+twTK4=
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
-github.com/transparency-dev/tessera v0.2.1-0.20250610150926-8ee4e93b2823 h1:s3p7wNrK/mnKI2bdp9PrQd9eBVxo1i5rU6O5hKkN0zc=
-github.com/transparency-dev/tessera v0.2.1-0.20250610150926-8ee4e93b2823/go.mod h1:Jv2IDwG1q8QNXZTaI1X6QX8s96WlJn73ka2hT1n4N5c=
-github.com/transparency-dev/tessera v0.2.1-0.20250626100504-84c3b0fe7782 h1:mAo8VX8UBPQW2w0JQhC466fVnLz8/gaPbA9K95h7+l4=
-github.com/transparency-dev/tessera v0.2.1-0.20250626100504-84c3b0fe7782/go.mod h1:Te9R1ZKDpxvgRBgP4BUhRGw6zdCmNFXo8/tIh3LalPc=
+github.com/transparency-dev/tessera v0.2.1-0.20250627114712-e804d187e543 h1:eKYRSCvCxKWNBPg9U4THnA28zfseQ43x3wEwP/syBZ8=
+github.com/transparency-dev/tessera v0.2.1-0.20250627114712-e804d187e543/go.mod h1:dRCS9vAvY5RwkkotkS32NDbhISaKU2C9scCHeQFAyAQ=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
