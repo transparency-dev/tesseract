@@ -16,7 +16,7 @@ output "ecdsa_p256_private_key_id" {
 
 output "tesseract_url" {
   description = "The submission URL of the running TesseraCT server"
-  value       = module.vm.tesseract_url
+  value       = module.gce.tesseract_url
 }
 
 output "tesseract_bucket_name" {

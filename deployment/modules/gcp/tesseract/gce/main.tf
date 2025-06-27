@@ -18,8 +18,8 @@ module "secretmanager" {
   base_name = var.base_name
 }
 
-module "vm" {
-  source = "../../vm"
+module "gce" {
+  source = "../../gce/tesseract"
 
   env                            = var.env
   project_id                     = var.project_id
