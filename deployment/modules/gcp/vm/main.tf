@@ -15,7 +15,7 @@ locals {
   tesseract_url               = "http://${var.base_name}.${var.base_name}-ilb.il4.${var.location}.lb.${var.project_id}.internal" // will be created by ilb
 }
 
-module "gce-container" {
+module "gce_container_tesseract" {
   # https://github.com/terraform-google-modules/terraform-google-container-vm
   source = "terraform-google-modules/container-vm/google"
   version = "~> 2.0"
@@ -69,7 +69,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   labels = {
     environment = var.env
-    container-vm = module.gce-container.vm_container_label
+    container-vm = module.gce_container_tesseract.vm_container_label
   }
 
   instance_description = "TesseraCT"
@@ -83,7 +83,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   // Create a new boot disk from an image
   disk {
-    source_image      = module.gce-container.source_image # come back to this
+    source_image      = module.gce_container_tesseract.source_image # come back to this
     auto_delete       = true
     boot              = true
   }
@@ -93,7 +93,7 @@ resource "google_compute_region_instance_template" "tesseract" {
   }
 
   metadata = {
-    gce-container-declaration = module.gce-container.metadata_value
+    gce-container-declaration = module.gce_container_tesseract.metadata_value
     google-logging-enabled = "true"
     google-monitoring-enabled = "true"
   }
@@ -153,7 +153,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
 }
 
 // TODO(phbnf): move to external load balancer, or maybe forward to this one.
-module "gce-ilb" {
+module "gce_ilb" {
   source            = "GoogleCloudPlatform/lb-internal/google"
   version           = "~> 7.0"
   region            = var.location
