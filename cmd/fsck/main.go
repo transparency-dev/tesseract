@@ -82,7 +82,7 @@ func main() {
 		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 	}
 	v := verifierFromFlags()
-	lsc := newLogStateCollector()
+	lsc := newLogStateCollector(*N)
 	eg := errgroup.Group{}
 	eg.Go(func() error {
 		defer lsc.Close()
@@ -111,9 +111,9 @@ type logStateCollector struct {
 }
 
 // newLogStateCollector creates a new logStateCollector instance.
-func newLogStateCollector() *logStateCollector {
+func newLogStateCollector(N uint) *logStateCollector {
 	return &logStateCollector{
-		issuersToCheck: make(chan []byte),
+		issuersToCheck: make(chan []byte, N),
 	}
 }
 
@@ -137,7 +137,7 @@ func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer fun
 	// Start aggregating any errors coming over errC into a slice of errors - we'll Join() any errors in there
 	// when we return.
 	errs := []error{}
-	func() {
+	go func() {
 		// Signal that we're done draining errors when we return.
 		defer close(done)
 		for e := range errC {
