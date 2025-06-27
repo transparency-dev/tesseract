@@ -20,6 +20,7 @@ import (
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -71,68 +72,94 @@ func main() {
 		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 	}
 	v := verifierFromFlags()
-	lsc := &logStateCollector{}
-	if err := fsck.Check(ctx, *origin, v, src, *N, lsc.merkleLeafHasher()); err != nil {
-		klog.Exitf("fsck failed: %v", err)
-	}
+	lsc := newLogStateCollector()
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		defer lsc.Close()
+		return fsck.Check(ctx, *origin, v, src, *N, lsc.merkleLeafHasher())
 
-	if err := checkIntermediates(ctx, lsc, src.ReadIssuer, *N); err != nil {
-		klog.Exitf("Failed to verify presence intermediates: %v", err)
+	})
+	eg.Go(func() error {
+		return lsc.checkIssuersTask(ctx, src.ReadIssuer, *N)
+	})
+
+	if err := eg.Wait(); err != nil {
+		klog.Exitf("FAILED:\n%v", err)
 	}
 
 	klog.Info("OK")
 }
 
-func checkIntermediates(ctx context.Context, lsc *logStateCollector, readIssuer func(context.Context, []byte) ([]byte, error), N uint) error {
-	klog.Infof("Checking intermediates CAS")
-	n := 0
-	work := make(chan []byte, N)
-	eg := errgroup.Group{}
-	for range N {
-		eg.Go(func() error {
-			for fp := range work {
-				if _, err := readIssuer(ctx, fp); err != nil {
-					return fmt.Errorf("couldn't fetch issuer for %x: %v", fp, err)
-				}
-			}
-			return nil
-		})
-	}
-
-	lsc.intermediates.Range(func(k any, v any) bool {
-		fp := k.(string)
-		work <- []byte(fp)
-		n++
-		return true
-	})
-	close(work)
-
-	if err := eg.Wait(); err != nil {
-		return fmt.Errorf("failed to fetch one or more issuers: %v", err)
-	}
-
-	klog.Infof("Checked %d intermediate issuers", n)
-	return nil
-}
-
+// logStateCollector tracks state of the target log which needs to be later checked.
+//
+// Currently, this is centred around the discovery and checking of issuers during entry bundle parsing.
 type logStateCollector struct {
-	intermediates sync.Map
+	// issuersSeen contains the set of issuer fingerprints issuersSeen in the log so far.
+	issuersSeen sync.Map
+	// issuersToCheck is a channel of issuer fingerprints to look up in the target log's issuer CAS.
+	issuersToCheck chan []byte
 }
 
-func (l *logStateCollector) addIntermediates(fpRaw cryptobyte.String) {
+// newLogStateCollector creates a new logStateCollector instance.
+func newLogStateCollector() *logStateCollector {
+	return &logStateCollector{
+		issuersToCheck: make(chan []byte),
+	}
+}
+
+// Close should be called once no further issuers will be added.
+func (l *logStateCollector) Close() {
+	close(l.issuersToCheck)
+}
+
+// checkIssuersTask reads looks up discovered issuer fingerprints in the target log's issuer CAS.
+//
+// This is a long-running function, it will only exit once Close has been called, and all remaining fingerprints in the
+// issuersToCheck channel have been checked.
+func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer func(context.Context, []byte) ([]byte, error), N uint) error {
+	klog.Infof("Checking issuers CAS")
+	errC := make(chan error)
+	wg := sync.WaitGroup{}
+	for range N {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for fp := range l.issuersToCheck {
+				if _, err := readIssuer(ctx, fp); err != nil {
+					klog.Warningf("Couldn't fetch issuer FP %x: %v", fp, err)
+					errC <- fmt.Errorf("couldn't fetch issuer for %x: %v", fp, err)
+					continue
+				}
+				klog.V(2).Infof("Issuer FP %x is present", fp)
+			}
+		}()
+	}
+	wg.Wait()
+	close(errC)
+
+	errs := []error{}
+	for e := range errC {
+		errs = append(errs, e)
+	}
+	return errors.Join(errs...)
+}
+
+// addIssuers adds the issuers in the provided byte string to the set of issuer to be checked.
+func (l *logStateCollector) addIssuers(fpRaw cryptobyte.String) {
 	var fp []byte
 	for len(fpRaw) > 0 {
 		fp, fpRaw = fpRaw[:32], fpRaw[32:]
-		_, existed := l.intermediates.LoadOrStore(string(fp), true)
+		_, existed := l.issuersSeen.LoadOrStore(string(fp), true)
 		if !existed {
-			klog.V(2).Infof("Found intermediate FP %x", fp)
+			klog.V(2).Infof("Found issuer FP %x", fp)
+			l.issuersToCheck <- fp
 		}
 	}
 }
 
 // merkleLeafHasher returns a function which knows how to:
 // - calculate RFC6962 Merkle leaf hashes for entries in a Static-CT formatted entry bundle,
-// - keep track of the set of intermediate cert fingerprints seen while parsing entry bundles.
+// - keep track of the set of issuer cert fingerprints seen while parsing entry bundles.
 func (l *logStateCollector) merkleLeafHasher() func(bundle []byte) ([][]byte, error) {
 	return func(bundle []byte) ([][]byte, error) {
 		r := make([][]byte, 0, layout.EntryBundleWidth)
@@ -187,7 +214,7 @@ func (l *logStateCollector) merkleLeafHasher() func(bundle []byte) ([][]byte, er
 			if !b.ReadUint16LengthPrefixed(&fpRaw) {
 				return nil, fmt.Errorf("failed to read chain fingerprints at entry index %d of bundle", i)
 			}
-			l.addIntermediates(fpRaw)
+			l.addIssuers(fpRaw)
 
 			h := rfc6962.DefaultHasher.HashLeaf(preimage.BytesOrPanic())
 			r = append(r, h)
