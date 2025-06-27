@@ -50,7 +50,6 @@ variable "machine_type" {
   type = string
 }
 
-
 variable "spanner_pu" {
   description = "Amount of Spanner processing units"
   type = number
