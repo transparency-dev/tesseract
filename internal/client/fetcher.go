@@ -44,9 +44,10 @@ func NewHTTPFetcher(rootURL *url.URL, c *http.Client) (*HTTPFetcher, error) {
 		c = http.DefaultClient
 	}
 	return &HTTPFetcher{
-		c:       c,
-		rootURL: rootURL,
-		backOff: []backoff.RetryOption{backoff.WithMaxTries(1)},
+		c:         c,
+		rootURL:   rootURL,
+		backOff:   []backoff.RetryOption{backoff.WithMaxTries(1)},
+		userAgent: "TesseraCT client",
 	}, nil
 }
 
@@ -56,12 +57,18 @@ type HTTPFetcher struct {
 	rootURL    *url.URL
 	authHeader string
 	backOff    []backoff.RetryOption
+	userAgent  string
 }
 
 // SetAuthorizationHeader sets the value to be used with an Authorization: header
 // for every request made by this fetcher.
 func (h *HTTPFetcher) SetAuthorizationHeader(v string) {
 	h.authHeader = v
+}
+
+// SetUserAgent sets the user agent to use when sending requests.
+func (h *HTTPFetcher) SetUserAgent(ua string) {
+	h.userAgent = ua
 }
 
 // EnableRetries causes requests which result in a non-permanent error to be retried with up to maxRetries attempts.
@@ -81,6 +88,9 @@ func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 		}
 		if h.authHeader != "" {
 			req.Header.Add("Authorization", h.authHeader)
+		}
+		if h.userAgent != "" {
+			req.Header.Add("User-Agent", h.userAgent)
 		}
 		r, err := h.c.Do(req)
 		if err != nil {
