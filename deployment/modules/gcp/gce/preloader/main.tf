@@ -7,12 +7,9 @@ terraform {
   }
 }
 
-# Cloud Run
-
 locals {
   cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
 }
-
 
 module "gce_container_preloader" {
   # https://github.com/terraform-google-modules/terraform-google-container-vm
@@ -76,7 +73,7 @@ resource "google_compute_instance" "preloader" {
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    email = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
+    email = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # TODO(phbnf): change this
     scopes = ["cloud-platform"] # Allows using service accounts and OAuth.
   }
 }
