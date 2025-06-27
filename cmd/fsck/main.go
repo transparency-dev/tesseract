@@ -128,7 +128,24 @@ func (l *logStateCollector) Close() {
 // issuersToCheck channel have been checked.
 func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer func(context.Context, []byte) ([]byte, error), N uint) error {
 	klog.Infof("Checking issuers CAS")
+
+	// done will be closed when the function is ready to return
+	done := make(chan struct{})
+	// errC carries any errors encountered when checking for issuers.
 	errC := make(chan error)
+
+	// Start aggregating any errors coming over errC into a slice of errors - we'll Join() any errors in there
+	// when we return.
+	errs := []error{}
+	func() {
+		// Signal that we're done draining errors when we return.
+		defer close(done)
+		for e := range errC {
+			errs = append(errs, e)
+		}
+	}()
+
+	// Kick off a bunch of workers to do the actual checks.
 	wg := sync.WaitGroup{}
 	for range N {
 		wg.Add(1)
@@ -145,12 +162,13 @@ func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer fun
 		}()
 	}
 	wg.Wait()
+
+	// Workers are done, so let the aggregator know there are no more errors to collect.
 	close(errC)
 
-	errs := []error{}
-	for e := range errC {
-		errs = append(errs, e)
-	}
+	// Wait for the aggregator to drain all errors
+	<-done
+	// And return them.
 	return errors.Join(errs...)
 }
 
