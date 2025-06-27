@@ -16,6 +16,7 @@ package client
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -128,6 +129,10 @@ func (h HTTPFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]
 	return h.fetch(ctx, ctEntriesPath(i, p))
 }
 
+func (h HTTPFetcher) ReadIssuer(ctx context.Context, hash []byte) ([]byte, error) {
+	return h.fetch(ctx, ctIssuerPath(hash))
+}
+
 // FileFetcher knows how to fetch log artifacts from a filesystem rooted at Root.
 type FileFetcher struct {
 	Root string
@@ -145,6 +150,14 @@ func (f FileFetcher) ReadEntryBundle(_ context.Context, i uint64, p uint8) ([]by
 	return os.ReadFile(path.Join(f.Root, ctEntriesPath(i, p)))
 }
 
+func (f FileFetcher) ReadIssuer(ctx context.Context, hash []byte) ([]byte, error) {
+	return os.ReadFile(path.Join(f.Root, ctIssuerPath(hash)))
+}
+
 func ctEntriesPath(n uint64, p uint8) string {
 	return fmt.Sprintf("tile/data/%s", layout.NWithSuffix(0, n, p))
+}
+
+func ctIssuerPath(hash []byte) string {
+	return fmt.Sprintf("issuer/%s", hex.EncodeToString(hash))
 }
