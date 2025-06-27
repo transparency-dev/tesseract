@@ -18,13 +18,10 @@ which itself offers two implementations that can be deployed outside of GCP or A
 While Tessera's [AWS implementation](https://github.com/transparency-dev/tessera/tree/main/storage/aws)
 uses [RDS](https://aws.amazon.com/rds/) and [S3](https://aws.amazon.com/s3/),
 its configuration APIs _should_ be compatible with any MySQL database, and S3
-compatible backend, such as [MinIO](https://min.io/). If you'd like to run
-TesseraCT outside of GCP or AWS, we believe that such a setup would be easier to
-implement and to run at the scale of CT rather than using Tessera's POSIX or
-MySQL implementations (no need to implement a read server, write and read
-resources fully decoupled, etc.).
+compatible backend, such as [MinIO](https://min.io/). This might be a good option
+to consider depending on your needs.
 
-If you're interested in running outside of GCP or AWS, please [reach out](../README.md#-contact),
+If you're interested in running outside of GCP or AWS, please [get in touch](../README.md#-contact),
 we would be more than happy to discuss these various tradeoffs with you and to
 help you find a good path forward.
 

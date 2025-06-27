@@ -63,8 +63,9 @@ If you're interested, [come and talk to us](#-contact)!
 
 ### Can I run TesseraCT off GCP or AWS?
 
-At the moment, this is not officially supported. If you're interesting in
-running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and [reach out](#-contact)!
+At the moment, this is not officially supported. If you're interested in
+running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
+[get in touch](#-contact)!
 
 ## 🧌 History
 
