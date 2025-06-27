@@ -66,6 +66,7 @@ func main() {
 	if err != nil {
 		klog.Exitf("Failed to create HTTP fetcher: %v", err)
 	}
+	src.EnableRetries(10)
 	if *bearerToken != "" {
 		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 	}
