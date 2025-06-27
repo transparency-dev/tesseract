@@ -23,6 +23,12 @@ variable "env" {
   type        = string
 }
 
+variable "machine_type" {
+  description = "GCP Compute Engine machine type to run the TesseraCT container on"
+  type        = string
+  default     = "n2-standard-4"
+}
+
 variable "server_docker_image" {
   description = "The full image URL (path & tag) for the Docker image to deploy in Cloud Run"
   type        = string

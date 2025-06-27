@@ -34,8 +34,8 @@ module "gce_container_preloader" {
 
 resource "google_compute_instance" "preloader" {
   name         = "${var.base_name}-preloader"
-  machine_type = "n2-standard-4"
-  zone         = "us-central1-f"
+  machine_type = var.machine_type
+  zone         = "${var.location}-f"
 
   tags = ["preloader-allow-group"]
 
