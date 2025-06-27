@@ -426,6 +426,7 @@ func mustCreateReaders(ctx context.Context, us []string) loadtest.LogReader {
 			if err != nil {
 				klog.Exitf("Failed to create HTTP fetcher for %q: %v", u, err)
 			}
+			c.EnableRetries(5)
 			if *bearerToken != "" {
 				c.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
 			}

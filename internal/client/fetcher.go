@@ -22,8 +22,10 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"strconv"
 	"strings"
 
+	"github.com/cenkalti/backoff/v5"
 	"github.com/transparency-dev/tessera/api/layout"
 	"k8s.io/klog/v2"
 )
@@ -43,6 +45,7 @@ func NewHTTPFetcher(rootURL *url.URL, c *http.Client) (*HTTPFetcher, error) {
 	return &HTTPFetcher{
 		c:       c,
 		rootURL: rootURL,
+		backOff: []backoff.RetryOption{backoff.WithMaxTries(1)},
 	}, nil
 }
 
@@ -51,6 +54,7 @@ type HTTPFetcher struct {
 	c          *http.Client
 	rootURL    *url.URL
 	authHeader string
+	backOff    []backoff.RetryOption
 }
 
 // SetAuthorizationHeader sets the value to be used with an Authorization: header
@@ -59,39 +63,57 @@ func (h *HTTPFetcher) SetAuthorizationHeader(v string) {
 	h.authHeader = v
 }
 
-func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
-	u, err := h.rootURL.Parse(p)
-	if err != nil {
-		return nil, fmt.Errorf("invalid URL: %v", err)
-	}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
-	if err != nil {
-		return nil, fmt.Errorf("NewRequestWithContext(%q): %v", u.String(), err)
-	}
-	if h.authHeader != "" {
-		req.Header.Add("Authorization", h.authHeader)
-	}
-	r, err := h.c.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("get(%q): %v", u.String(), err)
-	}
-	switch r.StatusCode {
-	case http.StatusOK:
-		// All good, continue below
-		break
-	case http.StatusNotFound:
-		// Need to return ErrNotExist here, by contract.
-		return nil, fmt.Errorf("get(%q): %w", u.String(), os.ErrNotExist)
-	default:
-		return nil, fmt.Errorf("get(%q): %v", u.String(), r.StatusCode)
-	}
+// EnableRetries causes requests which result in a non-permanent error to be retried with up to maxRetries attempts.
+func (h *HTTPFetcher) EnableRetries(maxRetries uint) {
+	h.backOff = []backoff.RetryOption{backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxTries(10)}
+}
 
-	defer func() {
-		if err := r.Body.Close(); err != nil {
-			klog.Errorf("resp.Body.Close(): %v", err)
+func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
+	return backoff.Retry(ctx, func() ([]byte, error) {
+		u, err := h.rootURL.Parse(p)
+		if err != nil {
+			return nil, fmt.Errorf("invalid URL: %v", err)
 		}
-	}()
-	return io.ReadAll(r.Body)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+		if err != nil {
+			return nil, fmt.Errorf("NewRequestWithContext(%q): %v", u.String(), err)
+		}
+		if h.authHeader != "" {
+			req.Header.Add("Authorization", h.authHeader)
+		}
+		r, err := h.c.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("get(%q): %v", u.String(), err)
+		}
+		switch r.StatusCode {
+		case http.StatusOK:
+			// All good, continue below
+			break
+		case http.StatusTooManyRequests:
+			seconds, err := strconv.ParseInt(r.Header.Get("Retry-After"), 10, 32)
+			if err != nil {
+				// The server didn't say how long to wait, so we'll wait an arbitrary amount of time.
+				seconds = 10
+			}
+			return nil, backoff.RetryAfter(int(seconds))
+		case http.StatusNotFound:
+			// Need to return ErrNotExist here, by contract, and also let the backoff know not to retry).
+			return nil, backoff.Permanent(fmt.Errorf("get(%q): %w", u.String(), os.ErrNotExist))
+		case http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden, http.StatusMethodNotAllowed, http.StatusConflict, http.StatusUnprocessableEntity:
+			// Should not retry for any of these status codes.
+			return nil, backoff.Permanent(fmt.Errorf("get(%q): %v", u.String(), r.StatusCode))
+		default:
+			// Everything else will be retried
+			return nil, fmt.Errorf("get(%q): %v", u.String(), r.StatusCode)
+		}
+
+		defer func() {
+			if err := r.Body.Close(); err != nil {
+				klog.Errorf("resp.Body.Close(): %v", err)
+			}
+		}()
+		return io.ReadAll(r.Body)
+	}, h.backOff...)
 }
 
 func (h HTTPFetcher) ReadCheckpoint(ctx context.Context) ([]byte, error) {
