@@ -256,7 +256,8 @@ func (n *nodeCache) GetNode(ctx context.Context, id compact.NodeID) ([]byte, err
 	tKey := tileKey{tileLevel, tileIndex}
 	t, ok := n.tiles[tKey]
 	if !ok {
-		tileRaw, err := n.getTile(ctx, tileLevel, tileIndex, layout.PartialTileSize(tileLevel, tileIndex, n.logSize))
+		p := layout.PartialTileSize(tileLevel, tileIndex, n.logSize)
+		tileRaw, err := fetchPartialOrFullTile(ctx, n.getTile, tileLevel, tileIndex, p)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch tile: %w", err)
 		}
@@ -287,13 +288,23 @@ func (n *nodeCache) GetNode(ctx context.Context, id compact.NodeID) ([]byte, err
 // GetEntryBundle fetches the entry bundle at the given _tile index_.
 func GetEntryBundle(ctx context.Context, f EntryBundleFetcherFunc, i, logSize uint64) (staticct.EntryBundle, error) {
 	bundle := staticct.EntryBundle{}
-	sRaw, err := f(ctx, i, layout.PartialTileSize(0, i, logSize))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return bundle, fmt.Errorf("leaf bundle at index %d not found: %v", i, err)
+	p := layout.PartialTileSize(0, i, logSize)
+	sRaw, err := f(ctx, i, p)
+	switch {
+	case errors.Is(err, os.ErrNotExist) && p == 0:
+		return bundle, fmt.Errorf("full leaf bundle at index %d not found: %v", i, err)
+	case errors.Is(err, os.ErrNotExist) && p > 0:
+		// It could be that the partial bundle was removed as the tree has grown and a full bundle is now present, so try
+		// falling back to that.
+		sRaw, err = f(ctx, i, 0)
+		if err != nil {
+			return bundle, fmt.Errorf("partial bundle at %[1]d.p/%[2]d and full bundle at %[1]d both not found: %[3]w", i, p, err)
 		}
+	case err != nil:
 		return bundle, fmt.Errorf("failed to fetch leaf bundle at index %d: %v", i, err)
+	default:
 	}
+
 	if err := bundle.UnmarshalText(sRaw); err != nil {
 		return bundle, fmt.Errorf("failed to parse EntryBundle at index %d: %v", i, err)
 	}
@@ -449,4 +460,27 @@ func CheckConsistency(ctx context.Context, f TileFetcherFunc, cp []log.Checkpoin
 		}
 	}
 	return nil
+}
+
+// fetchPartialOrFullTile attempts to fetch the tile at the provided coordinates.
+// If no tile is found, and the coordinates refer to a partial tile, fallback to trying the corresponding
+// full tile.
+func fetchPartialOrFullTile(ctx context.Context, f TileFetcherFunc, l, i uint64, p uint8) ([]byte, error) {
+	sRaw, err := f(ctx, l, i, p)
+	switch {
+	case errors.Is(err, os.ErrNotExist) && p == 0:
+		return sRaw, fmt.Errorf("full tile at index %d not found: %w", i, err)
+	case errors.Is(err, os.ErrNotExist) && p > 0:
+		// It could be that the partial tile was removed as the tree has grown and a full tile is now present, so try
+		// falling back to that.
+		sRaw, err = f(ctx, l, i, 0)
+		if err != nil {
+			return sRaw, fmt.Errorf("partial tile at %[1]d/%[2]d.p/%[3]d and full tile at %[1]d/%[2]d both not found: %[4]w", l, i, p, err)
+		}
+		return sRaw, nil
+	case err != nil:
+		return sRaw, fmt.Errorf("failed to fetch tile at %d/%d(.p/%d]): %v", l, i, p, err)
+	default:
+		return sRaw, nil
+	}
 }
