@@ -61,6 +61,12 @@ to begin with in an effort address current needs of log operators. We're
 welcoming contributions and requests for additional backend implementations.
 If you're interested, [come and talk to us](#-contact)!
 
+### Can I run TesseraCT off GCP or AWS?
+
+At the moment, this is not officially supported. If you're interested in
+running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
+[get in touch](#-contact)!
+
 ## 🧌 History
 
 TesseraCT is the successor of [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
