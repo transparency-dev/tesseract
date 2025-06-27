@@ -190,7 +190,7 @@ module "gce-ilb" {
   ]
 }
 
-module "preloader-container" {
+module "gce_container_preloader" {
   # https://github.com/terraform-google-modules/terraform-google-container-vm
   source = "terraform-google-modules/container-vm/google"
   version = "~> 2.0"
@@ -220,7 +220,7 @@ resource "google_compute_instance" "preloader" {
 
   boot_disk {
     initialize_params {
-      image  = module.preloader-container.source_image # come back to this
+      image  = module.gce_container_preloader.source_image # come back to this
       labels = {
         my_label = "value"
       }
@@ -233,7 +233,7 @@ resource "google_compute_instance" "preloader" {
 
   labels = {
     environment = var.env
-    container-vm = module.preloader-container.vm_container_label
+    container-vm = module.gce_container_preloader.vm_container_label
   }
 
   scheduling {
@@ -242,8 +242,7 @@ resource "google_compute_instance" "preloader" {
   }
 
   metadata = {
-    foo = "foo metadata"
-    gce-container-declaration = module.preloader-container.metadata_value
+    gce-container-declaration = module.gce_container_preloader.metadata_value
     google-logging-enabled = "true"
     google-monitoring-enabled = "true"
   }
