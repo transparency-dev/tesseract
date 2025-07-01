@@ -21,6 +21,7 @@ import (
 
 	gcs "cloud.google.com/go/storage"
 	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tesseract/internal/client"
 )
 
 // NewGSFetcher creates a new GSFetcher for the Google Cloud Storage bucket, using
@@ -66,9 +67,13 @@ func (f GSFetcher) ReadCheckpoint(ctx context.Context) ([]byte, error) {
 }
 
 func (f GSFetcher) ReadTile(ctx context.Context, l, i uint64, p uint8) ([]byte, error) {
-	return f.fetch(ctx, layout.TilePath(l, i, p))
+	return client.PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) ([]byte, error) {
+		return f.fetch(ctx, layout.TilePath(l, i, p))
+	})
 }
 
 func (f GSFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]byte, error) {
-	return f.fetch(ctx, fmt.Sprintf("tile/data/%s", layout.NWithSuffix(0, i, p)))
+	return client.PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) ([]byte, error) {
+		return f.fetch(ctx, fmt.Sprintf("tile/data/%s", layout.NWithSuffix(0, i, p)))
+	})
 }

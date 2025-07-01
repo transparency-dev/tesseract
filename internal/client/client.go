@@ -51,17 +51,21 @@ type CheckpointFetcherFunc func(ctx context.Context) ([]byte, error)
 // TileFetcherFunc is the signature of a function which can fetch the raw data
 // for a given tile.
 //
-// Note that the implementation of this MUST return (either directly or wrapped)
-// an os.ErrIsNotExist when the file referenced by path does not exist, e.g. a HTTP
-// based implementation MUST return this error when it receives a 404 StatusCode.
+// Note that the implementation of this MUST:
+//   - when asked to fetch a partial tile (i.e. p != 0), fall-back to fetching the corresponding full
+//     tile if the partial one does not exist.
+//   - return (either directly or wrapped) an os.ErrIsNotExist when neither the requested tile nor any
+//     fallback tile exists.
 type TileFetcherFunc func(ctx context.Context, level, index uint64, p uint8) ([]byte, error)
 
 // EntryBundleFetcherFunc is the signature of a function which can fetch the raw data
 // for a given entry bundle.
 //
-// Note that the implementation of this MUST return (either directly or wrapped)
-// an os.ErrIsNotExist when the file referenced by path does not exist, e.g. a HTTP
-// based implementation MUST return this error when it receives a 404 StatusCode.
+// Note that the implementation of this MUST:
+//   - when asked to fetch a partial entry bundle (i.e. p != 0), fall-back to fetching the corresponding full
+//     bundle if the partial one does not exist.
+//   - return (either directly or wrapped) an os.ErrIsNotExist when neither the requested bundle nor any
+//     fallback bundle exists.
 type EntryBundleFetcherFunc func(ctx context.Context, bundleIndex uint64, p uint8) ([]byte, error)
 
 // ConsensusCheckpointFunc is a function which returns the largest checkpoint known which is
