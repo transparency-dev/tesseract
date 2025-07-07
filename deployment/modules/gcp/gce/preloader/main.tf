@@ -23,6 +23,7 @@ module "gce_container_preloader" {
       "--target_log_uri=${var.target_log_uri}",
       "--source_log_uri=${var.source_log_uri}",
       "--start_index=${var.start_index}",
+      "--continuous=true",
       "--num_workers=500", 
       "--parallel_fetch=20", 
       "--parallel_submit=500",
