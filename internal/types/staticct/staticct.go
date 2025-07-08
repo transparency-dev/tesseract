@@ -112,6 +112,61 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	return nil
 }
 
+// ExtractTimestampFromBundle extracts the timestamp from the Nth entry in the provided serialised entry bundle.
+//
+// This implementation attempts to avoid any unecessary allocation or parsing other than whatever is
+// necessary to skip over uninteresting bytes to find the requested ExtractTimestampFromBundle.
+func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
+	s := cryptobyte.String(ebRaw)
+
+	i := uint64(0)
+	for len(s) > 0 {
+		var timestamp uint64
+		var entryType uint16
+		if !s.ReadUint64(&timestamp) || !s.ReadUint16(&entryType) || timestamp > math.MaxInt64 {
+			return 0, fmt.Errorf("invalid data tile when reading entry %d", i)
+		}
+		if i == N {
+			return timestamp, nil
+		}
+
+		var l32 uint32
+		var l16 uint16
+		switch entryType {
+		case 0: // x509_entry
+			if
+			// entry
+			!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// extensions
+				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
+				// fingerprints
+				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
+				return 0, fmt.Errorf("invalid data tile x509_entry when reading index %d", i)
+			}
+
+		case 1: // precert_entry
+			if
+			// issuer key hash
+			!s.Skip(32) ||
+				// defangedCrt
+				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// extensions
+				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
+				// entry
+				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// fingerprints
+				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
+				return 0, fmt.Errorf("invalid data tile precert_entry when reading index %d", i)
+			}
+		default:
+			return 0, fmt.Errorf("invalid data tile: unknown type %d", entryType)
+		}
+		i++
+	}
+
+	return 0, fmt.Errorf("requested entry index %d, but found only %d entries", N, i)
+}
+
 // parseCTExtensions parses CTExtensions into an index.
 // Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
 func ParseCTExtensions(ext string) (uint64, error) {

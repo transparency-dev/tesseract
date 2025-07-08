@@ -82,7 +82,7 @@ func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
 }
 
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, timestamp uint64, err error) {
+func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
 
@@ -109,21 +109,11 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 		}
 		return 0, 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 	}
-	eb := staticct.EntryBundle{}
-	if err := eb.UnmarshalText(eBRaw); err != nil {
-		return 0, 0, fmt.Errorf("failed to unmarshal entry bundle at index %d: %v", eBIdx, err)
-	}
-
 	eIdx := idx.Index % layout.EntryBundleWidth
-	if uint64(len(eb.Entries)) <= eIdx {
-		return 0, 0, fmt.Errorf("entry bundle at index %d has only %d entries, but wanted at least %d", eBIdx, eIdx, eBIdx)
-	}
-	e := staticct.Entry{}
-	t, err := staticct.UnmarshalTimestamp([]byte(eb.Entries[eIdx]))
+	t, err := timestamp(eBRaw, eIdx)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to extract timestamp from entry %d in entry bundle %d: %v", eIdx, eBIdx, e)
+		return 0, 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
 	}
-
 	return idx.Index, t, nil
 }
 
@@ -206,4 +196,12 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 		}
 		return nil
 	}
+}
+
+// timestamp extracts the timestamp from the Nth entry in the provided serialised entry bundle.
+//
+// This implementation attempts to avoid any unecessary allocation or parsing other than whatever is
+// necessary to skip over uninteresting bytes to find the requested timestamp.
+func timestamp(ebRaw []byte, N uint64) (uint64, error) {
+	return staticct.ExtractTimestampFromBundle(ebRaw, N)
 }
