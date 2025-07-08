@@ -111,6 +111,9 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 	}
 	eIdx := idx.Index % layout.EntryBundleWidth
 	t, err := timestamp(eBRaw, eIdx)
+	if err != nil {
+		return 0, 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+	}
 	return idx.Index, t, nil
 }
 

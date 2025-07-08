@@ -124,7 +124,7 @@ func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
 		var timestamp uint64
 		var entryType uint16
 		if !s.ReadUint64(&timestamp) || !s.ReadUint16(&entryType) || timestamp > math.MaxInt64 {
-			return 0, fmt.Errorf("invalid data tile")
+			return 0, fmt.Errorf("invalid data tile when reading entry %d", i)
 		}
 		if i == N {
 			return timestamp, nil
@@ -141,7 +141,7 @@ func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
 				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
-				return 0, fmt.Errorf("invalid data tile x509_entry")
+				return 0, fmt.Errorf("invalid data tile x509_entry when reading index %d", i)
 			}
 
 		case 1: // precert_entry
@@ -156,7 +156,7 @@ func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
 				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
 				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
-				return 0, fmt.Errorf("invalid data tile precert_entry")
+				return 0, fmt.Errorf("invalid data tile precert_entry when reading index %d", i)
 			}
 		default:
 			return 0, fmt.Errorf("invalid data tile: unknown type %d", entryType)
