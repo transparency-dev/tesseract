@@ -109,21 +109,8 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 		}
 		return 0, 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 	}
-	eb := staticct.EntryBundle{}
-	if err := eb.UnmarshalText(eBRaw); err != nil {
-		return 0, 0, fmt.Errorf("failed to unmarshal entry bundle at index %d: %v", eBIdx, err)
-	}
-
 	eIdx := idx.Index % layout.EntryBundleWidth
-	if uint64(len(eb.Entries)) <= eIdx {
-		return 0, 0, fmt.Errorf("entry bundle at index %d has only %d entries, but wanted at least %d", eBIdx, eIdx, eBIdx)
-	}
-	e := staticct.Entry{}
-	t, err := staticct.UnmarshalTimestamp([]byte(eb.Entries[eIdx]))
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to extract timestamp from entry %d in entry bundle %d: %v", eIdx, eBIdx, e)
-	}
-
+	t, err := timestamp(eBRaw, eIdx)
 	return idx.Index, t, nil
 }
 
@@ -206,4 +193,21 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 		}
 		return nil
 	}
+}
+
+func timestamp(ebRaw []byte, eIdx uint64) (uint64, error) {
+	eb := staticct.EntryBundle{}
+	if err := eb.UnmarshalText(ebRaw); err != nil {
+		return 0, fmt.Errorf("failed to unmarshal entry bundle: %v", err)
+	}
+
+	if l := uint64(len(eb.Entries)); l <= eIdx {
+		return 0, fmt.Errorf("entry bundle has only %d entries, but wanted at least %d", l, eIdx)
+	}
+	e := staticct.Entry{}
+	t, err := staticct.UnmarshalTimestamp([]byte(eb.Entries[eIdx]))
+	if err != nil {
+		return 0, fmt.Errorf("failed to extract timestamp from entry %d in entry bundle: %v", eIdx, e)
+	}
+	return t, nil
 }
