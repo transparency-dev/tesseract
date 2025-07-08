@@ -159,6 +159,9 @@ module "gce-lb-http" {
   // TODO(phbnf): come back to this
   // firewall_networks = [google_compute_network.default.name]
 
+  create_url_map = false
+  url_map = google_compute_url_map.urlmap
+
   backends = {
     default = {
 
@@ -193,6 +196,29 @@ module "gce-lb-http" {
       iap_config = {
         enable = false
       }
+
+    }
+  }
+}
+
+resource "google_compute_url_map" "urlmap" {
+  name        = "static-ct-staging url map"
+  description = "URL map of static-ct-staging logs"
+
+  host_rule {
+    hosts = ["*"]
+    path_matcher = "submission"
+  }
+
+  path_matcher {
+    name = "submission"
+    path_rule {
+      paths = [
+        "/${var.base_name}${var.origin_suffix}/add-prechain",
+        "/${var.base_name}${var.origin_suffix}/add-chain",
+        "/${var.base_name}${var.origin_suffix}/get-roots",
+      ]
+      service = module.gce-lb-http.backend_services
     }
   }
 }
