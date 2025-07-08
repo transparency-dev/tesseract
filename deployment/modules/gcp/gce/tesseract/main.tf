@@ -160,7 +160,7 @@ module "gce-lb-http" {
   // firewall_networks = [google_compute_network.default.name]
 
   create_url_map = false
-  url_map = google_compute_url_map.urlmap
+  url_map = google_compute_url_map.urlmap.id
 
   backends = {
     default = {
@@ -204,6 +204,14 @@ module "gce-lb-http" {
 resource "google_compute_url_map" "urlmap" {
   name        = "static-ct-staging url map"
   description = "URL map of static-ct-staging logs"
+  
+  default_url_redirect {
+   host_redirect          = "transparency.dev"
+   path_redirect          = "/"
+   https_redirect         = true
+   redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+   strip_query            = true
+  }
 
   host_rule {
     hosts = ["*"]
@@ -218,7 +226,7 @@ resource "google_compute_url_map" "urlmap" {
         "/${var.base_name}${var.origin_suffix}/add-chain",
         "/${var.base_name}${var.origin_suffix}/get-roots",
       ]
-      service = module.gce-lb-http.backend_services
+      service = module.gce-lb-http.backend_services.default.id
     }
   }
 }
