@@ -25,8 +25,10 @@ import (
 )
 
 const (
-	IssuersPrefix      = "issuer/"
-	IssuersContentType = "application/pkix-cert"
+	IssuersPrefix         = "issuer/"
+	IssuersContentType    = "application/pkix-cert"
+	CheckpointContentType = "text/plain; charset=utf-8"
+	TreeContentType       = "application/octet-stream"
 )
 
 ///////////////////////////////////////////////////////////////////////////////
