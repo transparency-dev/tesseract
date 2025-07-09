@@ -1,8 +1,8 @@
 terraform {
   required_providers {
     google = {
-      source  = "registry.terraform.io/hashicorp/google"
-      version = "6.12.0"
+      source = "hashicorp/google"
+      version = "6.43.0"
     }
   }
 }
@@ -17,7 +17,7 @@ locals {
 
 module "gce_container_tesseract" {
   # https://github.com/terraform-google-modules/terraform-google-container-vm
-  source = "terraform-google-modules/container-vm/google"
+  source  = "terraform-google-modules/container-vm/google"
   version = "~> 2.0"
 
   container = {
@@ -62,7 +62,7 @@ resource "google_compute_region_instance_template" "tesseract" {
   tags = ["tesseract-allow-group"]
 
   labels = {
-    environment = var.env
+    environment  = var.env
     container-vm = module.gce_container_tesseract.vm_container_label
   }
 
@@ -76,9 +76,9 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   // Create a new boot disk from an image
   disk {
-    source_image      = module.gce_container_tesseract.source_image
-    auto_delete       = true
-    boot              = true
+    source_image = module.gce_container_tesseract.source_image
+    auto_delete  = true
+    boot         = true
   }
 
   network_interface {
@@ -87,14 +87,14 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   metadata = {
     gce-container-declaration = module.gce_container_tesseract.metadata_value
-    google-logging-enabled = "true"
+    google-logging-enabled    = "true"
     google-monitoring-enabled = "true"
   }
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    email = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
-    scopes = ["cloud-platform"] # Allows using service accounts and OAuth.
+    email  = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
+    scopes = ["cloud-platform"]                                                               # Allows using service accounts and OAuth.
   }
 }
 
@@ -104,7 +104,7 @@ resource "google_compute_health_check" "healthz" {
   check_interval_sec  = 30
   healthy_threshold   = 1
   unhealthy_threshold = 3
-  
+
   http_health_check {
     request_path = "/healthz"
     response     = "ok"
@@ -113,11 +113,11 @@ resource "google_compute_health_check" "healthz" {
 }
 
 resource "google_compute_region_instance_group_manager" "instance_group_manager" {
-  name               = "${var.base_name}-instance-group-manager"
-  region             = var.location
+  name   = "${var.base_name}-instance-group-manager"
+  region = var.location
 
   version {
-    instance_template  = google_compute_region_instance_template.tesseract.id
+    instance_template = google_compute_region_instance_template.tesseract.id
   }
 
   base_instance_name = var.base_name
@@ -139,25 +139,25 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     name = "http"
     port = 6962
   }
-  
-# TODO(phbnf): re-enable this once we have approval to have custom firewall allowing these probes.
-#   auto_healing_policies {
-#     health_check      = google_compute_health_check.healthz.id
-#     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
-#   }
+
+  # TODO(phbnf): re-enable this once we have approval to have custom firewall allowing these probes.
+  #   auto_healing_policies {
+  #     health_check      = google_compute_health_check.healthz.id
+  #     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
+  #   }
 }
 
 // TODO(phbnf): move to external load balancer, or maybe forward to this one.
 module "gce_ilb" {
-  source            = "GoogleCloudPlatform/lb-internal/google"
-  version           = "~> 7.0"
-  region            = var.location
-  name              = "${var.base_name}-ilb"
-  ports             = ["6962"]
-  source_tags       = []
+  source      = "GoogleCloudPlatform/lb-internal/google"
+  version     = "~> 7.0"
+  region      = var.location
+  name        = "${var.base_name}-ilb"
+  ports       = ["6962"]
+  source_tags = []
   // TODO(phbnf): come back to this, it doesn't match with the VM tags.
-  target_tags       = ["${var.base_name}-allow-group"]
-  service_label     = var.base_name
+  target_tags   = ["${var.base_name}-allow-group"]
+  service_label = var.base_name
 
   health_check = {
     type                = "http"
@@ -177,9 +177,9 @@ module "gce_ilb" {
 
   backends = [
     {
-      group       = google_compute_region_instance_group_manager.instance_group_manager.instance_group
-      description = ""
-      failover    = false
+      group          = google_compute_region_instance_group_manager.instance_group_manager.instance_group
+      description    = ""
+      failover       = false
       balancing_mode = "CONNECTION"
     },
   ]
