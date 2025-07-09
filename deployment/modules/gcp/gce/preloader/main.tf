@@ -1,4 +1,5 @@
 terraform {
+  backend "gcs" {}
   required_providers {
     google = {
       source  = "registry.terraform.io/hashicorp/google"
@@ -17,7 +18,7 @@ module "gce_container_preloader" {
   version = "~> 2.0"
 
   container = {
-    image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader@sha256:latest",
+    image = var.server_docker_image,
     args = [
       "--target_log_uri=${var.target_log_uri}",
       "--source_log_uri=${var.source_log_uri}",
