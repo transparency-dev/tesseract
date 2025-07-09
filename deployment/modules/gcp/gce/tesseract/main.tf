@@ -130,6 +130,8 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     # TODO(phbnf): come back to this, it's a beta feature for now
     # min_ready_sec                  = 50
     replacement_method             = "SUBSTITUTE"
+    max_surge_fixed                = 3 // must be greater or equal than the number of zones, which itself default to 3
+    max_unavailable_fixed          = 0 // wait for new VMs to be up before turning down the old ones
   }
 
   named_port {
