@@ -47,25 +47,26 @@ variable "server_docker_image" {
 
 variable "machine_type" {
   description = "GCP Compute Engine machine type to run the TesseraCT container on"
-  type = string
+  type        = string
+  default     = "n2-standard-4"
 }
 
 variable "spanner_pu" {
   description = "Amount of Spanner processing units"
-  type = number
-  default = 100
+  type        = number
+  default     = 100
 }
 
 variable "batch_max_size" {
   description = "Maximum number of entries to process in a single sequencing batch."
-  type = number
-  default = 1024
+  type        = number
+  default     = 1024
 }
 
 variable "batch_max_age" {
   description = "Maximum age of entries in a single sequencing batch."
-  type = string
-  default = "500ms"
+  type        = string
+  default     = "500ms"
 }
 
 variable "ephemeral" {
@@ -78,4 +79,10 @@ variable "trace_fraction" {
   description = "Fraction of open-telemetry span traces to sample."
   default     = 0
   type        = number
+}
+
+variable "enable_publication_awaiter" {
+  description = "If true, waits for certificates to be integrated into the log log before returning an SCT."
+  type        = bool
+  default     = true
 }

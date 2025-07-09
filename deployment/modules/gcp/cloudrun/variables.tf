@@ -75,10 +75,10 @@ variable "trace_fraction" {
 
 variable "batch_max_size" {
   description = "Maximum number of entries to process in a single sequencing batch."
-  type = number
+  type        = number
 }
 
 variable "batch_max_age" {
   description = "Maximum age of entries in a single sequencing batch."
-  type = string
+  type        = string
 }

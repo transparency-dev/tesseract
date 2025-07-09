@@ -39,6 +39,7 @@ module "gce_container_tesseract" {
       "--trace_fraction=${var.trace_fraction}",
       "--batch_max_size=${var.batch_max_size}",
       "--batch_max_age=${var.batch_max_age}",
+      "--enable_publication_awaiter=${var.enable_publication_awaiter}"
     ]
     tty : true # maybe remove this
   }

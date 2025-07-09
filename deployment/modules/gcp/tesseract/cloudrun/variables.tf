@@ -53,14 +53,14 @@ variable "spanner_pu" {
 
 variable "batch_max_size" {
   description = "Maximum number of entries to process in a single sequencing batch."
-  type = number
-  default = 1024
+  type        = number
+  default     = 1024
 }
 
 variable "batch_max_age" {
   description = "Maximum age of entries in a single sequencing batch."
-  type = string
-  default = "500ms"
+  type        = string
+  default     = "500ms"
 }
 
 variable "ephemeral" {
