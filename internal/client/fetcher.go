@@ -28,6 +28,7 @@ import (
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"k8s.io/klog/v2"
 )
 
@@ -76,7 +77,7 @@ func (h *HTTPFetcher) EnableRetries(maxRetries uint) {
 	h.backOff = []backoff.RetryOption{backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxTries(10)}
 }
 
-func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
+func (h HTTPFetcher) fetch(ctx context.Context, p string, ct string) ([]byte, error) {
 	return backoff.Retry(ctx, func() ([]byte, error) {
 		u, err := h.rootURL.Parse(p)
 		if err != nil {
@@ -118,6 +119,11 @@ func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 			return nil, fmt.Errorf("get(%q): %v", u.String(), r.StatusCode)
 		}
 
+		rct := r.Header["Content-Type"]
+		if len(rct) != 1 || rct[0] != ct {
+			return nil, fmt.Errorf("get(%q): Content-Type got %q want [%q]", u.String(), rct, ct)
+		}
+
 		defer func() {
 			if err := r.Body.Close(); err != nil {
 				klog.Errorf("resp.Body.Close(): %v", err)
@@ -128,23 +134,23 @@ func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 }
 
 func (h HTTPFetcher) ReadCheckpoint(ctx context.Context) ([]byte, error) {
-	return h.fetch(ctx, layout.CheckpointPath)
+	return h.fetch(ctx, layout.CheckpointPath, staticct.CheckpointContentType)
 }
 
 func (h HTTPFetcher) ReadTile(ctx context.Context, l, i uint64, p uint8) ([]byte, error) {
 	return PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) ([]byte, error) {
-		return h.fetch(ctx, layout.TilePath(l, i, p))
+		return h.fetch(ctx, layout.TilePath(l, i, p), staticct.TreeContentType)
 	})
 }
 
 func (h HTTPFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]byte, error) {
 	return PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) ([]byte, error) {
-		return h.fetch(ctx, ctEntriesPath(i, p))
+		return h.fetch(ctx, ctEntriesPath(i, p), staticct.TreeContentType)
 	})
 }
 
 func (h HTTPFetcher) ReadIssuer(ctx context.Context, hash []byte) ([]byte, error) {
-	return h.fetch(ctx, ctIssuerPath(hash))
+	return h.fetch(ctx, ctIssuerPath(hash), staticct.IssuersContentType)
 }
 
 // FileFetcher knows how to fetch log artifacts from a filesystem rooted at Root.
