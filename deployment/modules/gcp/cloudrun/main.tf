@@ -71,7 +71,7 @@ resource "google_cloud_run_v2_service" "default" {
         initial_delay_seconds = 1
         timeout_seconds       = 1
         period_seconds        = 10
-        failure_threshold     = 6
+        failure_threshold     = 30
         tcp_socket {
           port = 6962
         }
