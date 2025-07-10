@@ -4,6 +4,8 @@ FROM ghcr.io/opentofu/opentofu:minimal@sha256:9fe8ce8425bbae93fff97ff683fc1694f3
 # Build release image
 FROM alpine:3.22.0@sha256:8a1f59ffb675680d47db6337b49d22281a139e9d709335b492be023728e11715
 
+RUN apk add --update --no-cache bash git openssh
+
 # Copy the terragrunt binary from the image
 COPY --from=terragrunt /usr/local/bin/terragrunt /usr/local/bin/terragrunt
 
