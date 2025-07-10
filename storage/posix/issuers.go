@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
@@ -47,6 +48,10 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 	errs := make([]error, 0)
 	for _, kv := range kv {
 		k := string(kv.K)
+		if strings.ContainsRune(k, filepath.Separator) {
+			errs = append(errs, fmt.Errorf("%q is an invalid key", k))
+			continue
+		}
 		p := filepath.Join(s.dir, k)
 		if err := createEx(p, kv.V); err != nil {
 			if errors.Is(err, os.ErrExist) {

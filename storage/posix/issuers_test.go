@@ -123,6 +123,14 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "add issuer with invalid path",
+			kv: []storage.KV{
+				{K: []byte("dir1/dir2/issuer5"), V: []byte("issuer5 data")},
+			},
+			want:    map[string][]byte{},
+			wantErr: true,
+		},
+		{
 			name: "add issuer with empty path",
 			kv: []storage.KV{
 				{K: []byte(""), V: []byte("issuer5 data")},
