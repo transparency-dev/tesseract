@@ -16,12 +16,12 @@ package posix
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 )
 
@@ -35,19 +35,19 @@ func TestNewIssuerStorage(t *testing.T) {
 	}{
 		{
 			name:    "valid path",
-			path:    tmpDir,
+			path:    "",
 			wantErr: false,
 		},
 		{
 			name:    "non-existent path",
-			path:    filepath.Join(tmpDir, "nonexistent"),
+			path:    "nonexistent",
 			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewIssuerStorage(tt.path)
+			_, err := NewIssuerStorage(t.Context(), filepath.Join(tmpDir, tt.path))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewIssuerStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -56,60 +56,8 @@ func TestNewIssuerStorage(t *testing.T) {
 	}
 }
 
-func TestKeyToObjName(t *testing.T) {
-	tmpDir := t.TempDir()
-	s := IssuersStorage(tmpDir)
-
-	tests := []struct {
-		name    string
-		key     []byte
-		want    string
-		wantErr bool
-	}{
-		{
-			name:    "valid key",
-			key:     []byte("issuer1"),
-			want:    filepath.Join(tmpDir, "issuer1"),
-			wantErr: false,
-		},
-		{
-			name:    "empty key",
-			key:     []byte(""),
-			wantErr: true,
-		},
-		{
-			name:    "key with os.PathSeparator",
-			key:     []byte(fmt.Sprintf("issuer%s1", string(os.PathSeparator))),
-			want:    "",
-			wantErr: true,
-		},
-		{
-			name:    "key with multiple slashes",
-			key:     []byte(fmt.Sprintf("issuer%s1%s2", string(os.PathSeparator), string(os.PathSeparator))),
-			want:    "",
-			wantErr: true,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := s.keyToObjName(tt.key)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("IssuersStorage.keyToObjName() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if got != tt.want {
-				t.Errorf("IssuersStorage.keyToObjName() = %v, want %v", got, tt.want)
-			}
-		})
-	}
-}
-
 func TestAddIssuersIfNotExist(t *testing.T) {
 	tmpDir := t.TempDir()
-	s, err := NewIssuerStorage(tmpDir)
-	if err != nil {
-		t.Fatalf("NewIssuerStorage() failed: %v", err)
-	}
 
 	tests := []struct {
 		name    string
@@ -143,6 +91,7 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			name: "add existing issuer",
 			kv: []storage.KV{
 				{K: []byte("issuer1"), V: []byte("issuer1 data")},
+				{K: []byte("issuer1"), V: []byte("issuer1 data")},
 			},
 			want: map[string][]byte{
 				"issuer1": []byte("issuer1 data"),
@@ -152,6 +101,7 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 		{
 			name: "add existing issuer with different data",
 			kv: []storage.KV{
+				{K: []byte("issuer1"), V: []byte("issuer1 data")},
 				{K: []byte("issuer1"), V: []byte("different data")},
 			},
 			want: map[string][]byte{
@@ -162,6 +112,7 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 		{
 			name: "add new issuer and existing issuer",
 			kv: []storage.KV{
+				{K: []byte("issuer1"), V: []byte("issuer1 data")},
 				{K: []byte("issuer4"), V: []byte("issuer4 data")},
 				{K: []byte("issuer1"), V: []byte("issuer1 data")},
 			},
@@ -191,17 +142,21 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			s, err := NewIssuerStorage(t.Context(), tmpDir)
+			if err != nil {
+				t.Fatalf("NewIssuerStorage() failed: %v", err)
+			}
+
+			// Apply KV updates.
+			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
+			// Now look for expected final state.
 			for k, v := range tt.want {
-				objName, err := s.keyToObjName([]byte(k))
-				if err != nil {
-					t.Errorf("Failed to convert key %q to object name: %v", k, err)
-				}
+				objName := filepath.Join(tmpDir, staticct.IssuersPrefix, k)
 				got, err := os.ReadFile(objName)
 				if err != nil {
 					t.Fatalf("Failed to read object %q: %v", objName, err)
