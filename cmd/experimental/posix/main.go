@@ -1,4 +1,4 @@
-// Copyright 2016 Google LLC. All Rights Reserved.
+// Copyright 2025 the Tessera authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", false, "If true then the certificate is integrated into log before returning the response.")
+	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
 	httpDeadline             = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
@@ -67,7 +67,6 @@ var (
 	privKeyFile              = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 )
 
-// nolint:staticcheck
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
@@ -164,7 +163,7 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 	}
 
-	issuerStorage, err := posix.NewIssuerStorage(ctx, *storageDir, "fingerprints/", "application/pkix-cert")
+	issuerStorage, err := posix.NewIssuerStorage(ctx, *storageDir)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}

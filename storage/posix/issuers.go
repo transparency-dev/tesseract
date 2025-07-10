@@ -15,31 +15,28 @@
 package posix
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
-	"sync"
 
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 )
 
 // IssuersStorage is a key value store backed by files to store issuer chains.
 type IssuersStorage struct {
-	dir          string
-	prefix       string
-	contentType  string
-	knownIssuers sync.Map
+	dir string
 }
 
-// NewIssuerStorage creates a new GCSStorage.
+// NewIssuerStorage creates a new POSIX based issuer storage.
 //
-// The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, dir string, prefix string, contentType string) (*IssuersStorage, error) {
+// The issuers will be stored in a directory called "issuer" within the provided root directory.
+func NewIssuerStorage(ctx context.Context, dir string) (*IssuersStorage, error) {
 	r := &IssuersStorage{
-		dir:         dir,
-		prefix:      prefix,
-		contentType: contentType,
+		dir: filepath.Join(dir, staticct.IssuersPrefix),
 	}
 
 	return r, nil
@@ -50,18 +47,24 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 	errs := make([]error, 0)
 	for _, kv := range kv {
 		k := string(kv.K)
-		_, exists := s.knownIssuers.Load(k)
-		if exists {
-			continue
-		}
-		p := filepath.Join(s.dir, s.prefix, k)
+		p := filepath.Join(s.dir, k)
 		if err := createEx(p, kv.V); err != nil {
-			if !errors.Is(err, os.ErrExist) {
-				errs = append(errs, err)
+			if errors.Is(err, os.ErrExist) {
+				existing, err := os.ReadFile(p)
+				if err != nil {
+					errs = append(errs, fmt.Errorf("failed to read existing file %q: %v", p, err))
+					continue
+				}
+				if !bytes.Equal(kv.V, existing) {
+					errs = append(errs, fmt.Errorf("non-idempotent write for preexisting file %q", p))
+					continue
+				}
+				// It already existed, but it also already contains the same data, so we're good.
 				continue
 			}
+			errs = append(errs, err)
+			continue
 		}
-		s.knownIssuers.Store(k, struct{}{})
 	}
 	return errors.Join(errs...)
 }
