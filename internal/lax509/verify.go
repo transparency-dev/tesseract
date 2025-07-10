@@ -288,7 +288,7 @@ func buildChains(c *x509.Certificate, currentChain []*x509.Certificate, sigCheck
 			return
 		}
 
-		if err := c.CheckSignatureFrom(candidate.cert); err != nil {
+		if err := checkSignatureFrom(c, candidate.cert); err != nil {
 			if hintErr == nil {
 				hintErr = err
 				hintCert = candidate.cert
