@@ -95,7 +95,7 @@ variable "batch_max_age" {
 }
 
 variable "enable_publication_awaiter" {
-  description = "If true, waits for certificates to be integrated into the log log before returning an SCT."
+  description = "If true, waits for certificates to be integrated into the log before returning an SCT."
   type        = bool
   default     = true
 }
