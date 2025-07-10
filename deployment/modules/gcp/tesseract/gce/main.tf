@@ -39,6 +39,7 @@ module "gce" {
   trace_fraction                 = var.trace_fraction
   batch_max_age                  = var.batch_max_age
   batch_max_size                 = var.batch_max_size
+  enable_publication_awaiter     = var.enable_publication_awaiter
 
   depends_on = [
     module.secretmanager,
