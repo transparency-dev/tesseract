@@ -41,11 +41,11 @@ import (
 	posixTessera "github.com/transparency-dev/tessera/storage/posix"
 	badger_as "github.com/transparency-dev/tessera/storage/posix/antispam"
 	"github.com/transparency-dev/tesseract/internal/testdata"
-	"github.com/transparency-dev/tesseract/internal/testonly/storage/posix"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/tesseract/storage"
+	"github.com/transparency-dev/tesseract/storage/posix"
 	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
@@ -179,7 +179,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
 
-		issuerStorage, err := posix.NewIssuerStorage(path.Join(root, logDir))
+		issuerStorage, err := posix.NewIssuerStorage(ctx, path.Join(root, logDir))
 		if err != nil {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}

@@ -21,6 +21,7 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 )
 
@@ -46,7 +47,7 @@ func TestNewIssuerStorage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewIssuerStorage(t.Context(), tmpDir, tt.path)
+			_, err := NewIssuerStorage(t.Context(), filepath.Join(tmpDir, tt.path))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewIssuerStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -57,7 +58,6 @@ func TestNewIssuerStorage(t *testing.T) {
 
 func TestAddIssuersIfNotExist(t *testing.T) {
 	tmpDir := t.TempDir()
-	prefix := ""
 
 	tests := []struct {
 		name    string
@@ -134,7 +134,7 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			s, err := NewIssuerStorage(t.Context(), tmpDir, prefix)
+			s, err := NewIssuerStorage(t.Context(), tmpDir)
 			if err != nil {
 				t.Fatalf("NewIssuerStorage() failed: %v", err)
 			}
@@ -142,13 +142,13 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			// Apply KV updates.
 			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddIssuersIfNotExist(preexistingKV) error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 
 			// Now look for expected final state.
 			for k, v := range tt.want {
-				objName := filepath.Join(tmpDir, prefix, k)
+				objName := filepath.Join(tmpDir, staticct.IssuersPrefix, k)
 				got, err := os.ReadFile(objName)
 				if err != nil {
 					t.Fatalf("Failed to read object %q: %v", objName, err)
