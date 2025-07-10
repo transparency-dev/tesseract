@@ -9,6 +9,7 @@ using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
 At the moment, TesseraCT can be [deployed](#️-deployment) on GCP and AWS.
+There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 ## 📣 Status
 
@@ -66,6 +67,11 @@ If you're interested, [come and talk to us](#-contact)!
 At the moment, this is not officially supported. If you're interested in
 running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
 [get in touch](#-contact)!
+
+There is an experimental [POSIX binary](/cmd/experimental/posix) which uses
+Tessera's POSIX backend for storing the log on local filesystems. At the moment
+this is not ready for production use, but questions and bug reports are
+very welcome!
 
 ## 🧌 History
 
