@@ -4,8 +4,10 @@ This directory contains configs to deploy TesseraCT's log infrastructure on GCP,
 which a TesseraCT server running on a VM can then use.
 
 > [!CAUTION]
-> 
-> This test environment creates real Googe Cloud Platform resources running in your project. They will cost you real money. For the purposes of this demo, it is strongly recommended that you create a new project so that you can easily clean up at the end.
+> This test environment creates real Googe Cloud Platform resources running in
+> your project. They will cost you real money. For the purposes of this demo,
+> it is strongly recommended that you create a new project so that you can
+> easily clean up at the end.
 
 ## Prerequisites
 
@@ -84,7 +86,8 @@ Decide whether to run TesseraCT such that it accepts:
 
 ### With fake chains
 
-On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
+On the VM, run the following command to prepare the roots pem file and bring
+TesseraCT up:
 
 ```bash
 cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pem > /tmp/fake_log_roots.pem
@@ -109,7 +112,8 @@ Decide whether to run generate test chains:
 
 #### Generate chains manually
 
-In a different terminal, generate a chain manually. The password for the private key is `gently`:
+In a different terminal, generate a chain manually. The password for the private
+key is `gently`:
 
 ```bash
 mkdir -p /tmp/httpschain
@@ -189,7 +193,8 @@ go run ./cmd/tesseract/gcp/ \
   --otel_project_id=${GOOGLE_PROJECT}
 ```
 
-In a different terminal, run `preloader` to submit certificates from another log to TesseraCT.
+In a different terminal, run `preloader` to submit certificates from another log
+to TesseraCT.
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
@@ -200,9 +205,12 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --parallel_submit=4
 ```
 
-Since the source and destination log [might not be configured the exact same set of roots](/internal/lax509/README.md#Chains), it is expected to see errors when submitting a certificate chaining to a missing root. This is what the error would look like:
+Since the source and destination log
+[might not be configured the exact same set of roots](/internal/lax509/README.md#Chains),
+it is expected to see errors when submitting a certificate chaining to a missing
+root. This is what the error would look like:
 
-```
+```bash
 W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
 ```
 
