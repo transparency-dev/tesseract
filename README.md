@@ -8,8 +8,20 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](#️-deployment) on GCP and AWS.
+At the moment, TesseraCT can be [deployed](️#-deployment) on GCP and AWS.
 There is also an experimental binary which uses Tessera's POSIX storage backend.
+
+## Table of contents
+
+[📣 Status](#-status) \
+[Repository structure](#repository-structure) FIX EMOJI \
+[Roadmap](#roadmap)FIX EMOJI \
+[️🕹️ Usage](️#-usage) \
+[🧪 Public test instances](#-public-test-instances) \
+[🙋 FAQ](#-faq) \
+[🔧 Contributing](#-contributing) \
+[📄 Licence](#-license) \
+[👋 Contact](#-contact)
 
 ## 📣 Status
 
@@ -37,6 +49,18 @@ This repository contains:
        - [GCP](./deployment/live/gcp/test/)
        - [AWS](./deployment/live/aws/test/)
      - [Chain parsing with lax509](../internal/lax509/)
+
+## Roadmap
+
+TODO
+
+## 🕹️ Usage
+
+TODO
+
+## 🧪 Public test instances
+
+TODO
 
 ## 🙋 FAQ
 
@@ -102,7 +126,7 @@ and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). As a
 result, a very small number of chains do not validate anymore, head over to
 `internal/lax509`'s [README](./internal/lax509/README.md) for additional details.
 
-## 🛠️ Contributing
+## 🔧 Contributing
 
 See [CONTRIBUTING.md](/CONTRIBUTING.md) for details.
 
