@@ -3,6 +3,10 @@
 This directory contains configs to deploy TesseraCT's log infrastructure on GCP,
 which a TesseraCT server running on a VM can then use.
 
+> [!CAUTION]
+> 
+> This test environment creates real Googe Cloud Platform resources running in your project. They will cost you real money. For the purposes of this demo, it is strongly recommended that you create a new project so that you can easily clean up at the end.
+
 ## Prerequisites
 
 You'll need to have a VM running in the same GCP project that you can SSH to,
@@ -203,3 +207,17 @@ W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handl
 ```
 
 <!-- TODO: add fsck instructions -->
+
+### Clean up
+
+> [!IMPORTANT]
+> You need to run this step on your project if you want to ensure you don't get
+> charged into perpetuity for the resources we've setup.
+
+**This will delete your project!**
+Do not do this on a project that you didn't create expressly and exclusively to
+run this demo.
+
+```bash
+gcloud projects delete ${GOOGLE_PROJECT}
+```

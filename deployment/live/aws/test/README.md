@@ -229,15 +229,18 @@ Since the source and destination log [might not be configured the exact same set
 W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
 ```
 
+<!-- TODO: add fsck instructions -->
+
 ## Cleanup
 
 > [!IMPORTANT]  
 > Do not forget to delete all the resources to avoid incuring any further cost
-> when you're done using the log. The easiest way to do this, is to [close the account](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html).
-> If you prefer to delete the resources with `terragrunt destroy`, bear in mind
-> that this command might not destroy all the resources that were created (like
-> the S3 bucket or DynamoDB instance Terraform created to store its state for
-> instance). If `terragrunt destroy` shows no output, run
-> `terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
+> when you're done using the log.
 
-<!-- TODO: add fsck instructions -->
+The easiest way to do this, is to [close the account](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html).
+
+If you prefer to delete the resources with `terragrunt destroy`, bear in mind
+that this command might not destroy all the resources that were created (like
+the S3 bucket or DynamoDB instance Terraform created to store its state for
+instance). If `terragrunt destroy` shows no output, run
+`terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
