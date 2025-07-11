@@ -1,6 +1,6 @@
 # AWS TesseraCT Test Environment
 
-This directory contains configs to deploy a Tesseract log infrastructure on AWS,
+This directory contains configs to deploy a TesseraCT log infrastructure on AWS,
 allowing a TesseraCT server to run on a VM.
 
 > [!CAUTION]

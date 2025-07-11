@@ -1,4 +1,4 @@
-# 🌳 TesseraCT
+# :deciduous_tree: TesseraCT
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/tesseract)](https://goreportcard.com/report/github.com/transparency-dev/tesseract)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
@@ -8,45 +8,45 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](️#-deployment) on GCP and AWS.
+At the moment, TesseraCT can be [deployed](./deployment/) on GCP and AWS.
 There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 ## Table of contents
 
-[📣 Status](#-status) \
-[Roadmap](#roadmap)FIX EMOJI \
-[️🕹️ Usage](️#-usage) \
-[🧪 Public test instances](#-public-test-instances) \
-[Repository structure](#repository-structure) FIX EMOJI \
-[🙋 FAQ](#-faq) \
-[🔧 Contributing](#-contributing) \
-[📄 Licence](#-license) \
-[👋 Contact](#-contact)
+[:mega: Status](#mega-status) \
+[:motorway: Roadmap](#motorway-roadmap) \
+[:joystick: Usage](#joystick-usage) \
+[:test_tube: Public test instances](#test_tube-public-test-instances) \
+[:card_index_dividers: Repository structure](#card_index_divider-repository-structure) \
+[:raising_hand: FAQ](#raising_hand-faq) \
+[:troll: History](#troll-history) \
+[:wrench: Contributing](#wrench-contributing) \
+[:page_facing_up: License](#page_facing_up-license) \
+[:wave: Contact](#wave-contact)
 
-## 📣 Status
+## :mega: Status
 
 TesseraCT is under active development, and will soon reach alpha 🚀.
 
 At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
-Read the FAQ to understand [why we chose these plaforms](#why-these-platforms),
+Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
 or if [you're interested in others](#can-i-run-tesseract-off-gcp-or-aws).
 
-<!-- TODO: add links to test instances-->
-[Public test instances](#-public-test-instances) run on GCP.
+[Public test instances](#test_tube-public-test-instances) run on GCP.
 
-## Roadmap
-
-TODO
-
-## 🕹️ Usage
+## :motorway: Roadmap
 
 TODO
 
-## 🧪 Public test instances
+## :joystick: Usage
 
 TODO
 
-## 🗂️ Repository structure
+## :test_tube: Public test instances
+
+TODO
+
+## :card_index_dividers: Repository structure
 
 This repository contains:
 
@@ -67,9 +67,9 @@ This repository contains:
      - Codelabs
        - [GCP](./deployment/live/gcp/test/)
        - [AWS](./deployment/live/aws/test/)
-     - [Chain parsing with lax509](../internal/lax509/)
+     - [Chain parsing with lax509](./internal/lax509/)
 
-## 🙋 FAQ
+## :raising_hand: FAQ
 
 ### TesseraWhat?
 
@@ -94,20 +94,20 @@ subset of Tessera's backends. A TesseraCT serving stack is composed of:
 After chatting with various CT log operators, we decided to focus on GCP and AWS
 to begin with in an effort address current needs of log operators. We're
 welcoming contributions and requests for additional backend implementations.
-If you're interested, [come and talk to us](#-contact)!
+If you're interested, [come and talk to us](#wave-contact)!
 
 ### Can I run TesseraCT off GCP or AWS?
 
 At the moment, this is not officially supported. If you're interested in
 running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
-[get in touch](#-contact)!
+[get in touch](#wave-contact)!
 
 There is an experimental [POSIX binary](/cmd/experimental/posix) which uses
 Tessera's POSIX backend for storing the log on local filesystems. At the moment
 this is not ready for production use, but questions and bug reports are
 very welcome!
 
-## 🧌 History
+## :troll: History
 
 TesseraCT is the successor of [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
 It was built upon its codebase, and introduces these main changes:
@@ -133,15 +133,15 @@ and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). As a
 result, a very small number of chains do not validate anymore, head over to
 `internal/lax509`'s [README](./internal/lax509/README.md) for additional details.
 
-## 🔧 Contributing
+## :wrench: Contributing
 
-See [CONTRIBUTING.md](/CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
-## 📄 License
+## :page_facing_up: License
 
-This repo is licensed under the Apache 2.0 license, see [LICENSE](/LICENSE) for details.
+This repo is licensed under the Apache 2.0 license, see [LICENSE](./LICENSE) for details.
 
-## 👋 Contact
+## :wave: Contact
 
 Are you interested in running a TesseraCT instance? Do you have a feature
 request? you can find us here:

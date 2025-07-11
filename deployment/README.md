@@ -1,4 +1,4 @@
-# ⚙️ Deployment
+# :gear: Deployment
 
 This directory contains Terraform [modules](./modules/) to deploy TesseraCT on
 GCP and AWS with various setups, and the [instantiations](./live/) we use for
@@ -18,8 +18,8 @@ on which platform each instantiation runs:
 
 | Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
 |------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| GCP  | [cmd/tesseract/gcp](./cmd/tesseract/gcp/)| [VM](./live/gcp/test/)| [Cloud Run](./live/gcp/static-ct/logs/ci/)| [Managed Instance Group](./live/gcp/static-ct-staging/logs/)|
-| AWS  | [cmd/tesseract/aws](./cmd/tesseract/aws/)| [VM](./live/aws/test/)| [Fargate](./live/aws/test/)               |                                                         |
+| GCP  | [cmd/tesseract/gcp](../cmd/tesseract/gcp/)| [VM](./live/gcp/test/)| [Cloud Run](./live/gcp/static-ct/logs/ci/)| [Managed Instance Group](./live/gcp/static-ct-staging/logs/)|
+| AWS  | [cmd/tesseract/aws](../cmd/tesseract/aws/)| [VM](./live/aws/test/)| [Fargate](./live/aws/test/)               |                                                         |
 
 ## Codelab
 

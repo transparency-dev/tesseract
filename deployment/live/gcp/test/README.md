@@ -1,6 +1,6 @@
 # GCP TesseraCT Test Environment
 
-This directory contains configs to deploy a Tesseract log infrastructure on GCP,
+This directory contains configs to deploy a TesseraCT log infrastructure on GCP,
 allowing a TesseraCT server to run on a VM.
 
 ## Prerequisites
