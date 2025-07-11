@@ -27,6 +27,13 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 TesseraCT is under active development, and will soon reach alpha 🚀.
 
+At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
+Read the FAQ to understand [why we chose these plaforms](#why-these-platforms),
+or if [you're interested in others](#can-i-run-tesseract-off-gcp-or-aws).
+
+<!-- TODO: add links to test instances-->
+[Public test instances](#-public-test-instances) run on GCP.
+
 ## 🗂️ Repository structure
 
 This repository contains:
@@ -82,7 +89,7 @@ subset of Tessera's backends. A TesseraCT serving stack is composed of:
 - Tessera's backend infrastructure
 - a minor additional storage system for [chain issuers](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers)
 
-### Why these backends?
+### Why these platforms?
 
 After chatting with various CT log operators, we decided to focus on GCP and AWS
 to begin with in an effort address current needs of log operators. We're
