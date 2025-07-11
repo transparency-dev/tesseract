@@ -26,6 +26,12 @@ At a high level, these resources consists of:
 
 ## Codelab
 
+This codelab will guide you to bring up a test TesseraCT log infrastructure, add
+a few entries to it, and check that the log is sound.
+
+To start with, authenticate with a role that has sufficient access to create
+resources.
+
 First, set the required environment variables:
 
 ```bash
@@ -64,6 +70,14 @@ export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa
 
 ## Run TesseraCT
 
+<!-- Try and keep in sync as much as possible with ../../aws/test/README.md 
+There are enough differences for now to justify to keep them distinct -->
+
+Decide whether to run TesseraCT such that it accepts:
+
+- [fake test chains](#with-fake-chains)
+- [real TLS chains](#with-real-tls-chains)
+
 ### With fake chains
 
 On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
@@ -84,6 +98,11 @@ go run ./cmd/tesseract/gcp/ \
   --otel_project_id=${GOOGLE_PROJECT}
 ```
 
+Decide whether to run generate test chains:
+
+- [manually](#generate-chains-manually)
+- [automatically](#generate-chains-automatically)
+
 #### Generate chains manually
 
 In a different terminal, generate a chain manually. The password for the private key is `gently`:
@@ -102,7 +121,7 @@ Finally, submit the chain to TesseraCT:
 go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/${TESSERA_BASE_NAME}
 ```
 
-#### Automatically generate chains
+#### Generate chains automatically
 
 In a different terminal, retrieve the log public key in PEM format.
 
@@ -127,7 +146,7 @@ go run ./internal/hammer \
   --bearer_token=$(gcloud auth print-access-token)
 ```
 
-### With real HTTPS certificates
+### With real TLS chains
 
 We'll run a TesseraCT instance and copy certificates from an existing RFC6962
 log to it.  It uses the [preloader tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/preload/preloader/preloader.go).
