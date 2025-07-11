@@ -3,8 +3,8 @@ terraform {
 
   required_providers {
     google = {
-      source  = "registry.terraform.io/hashicorp/google"
-      version = "6.12.0"
+      source  = "hashicorp/google"
+      version = "6.43.0"
     }
   }
 }
@@ -58,11 +58,23 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
+    ## Install OpenTofu in alpine/terragrunt container.
+    step {
+      id   = "prepare_terragrunt_opentofu_container"
+      name = "gcr.io/cloud-builders/docker"
+      args = [
+        "build",
+        "-t", "terragrunt-opentofu",
+        "-f", "./deployment/terragrunt-opentofu/Dockerfile",
+        "."
+      ]
+    }
+
     ## Destroy any pre-existing deployment/live/gcp/static-ct/logs/ci environment.
     ## This might happen if a previous cloud build failed for some reason.
     step {
       id     = "preclean_env"
-      name   = "alpine/terragrunt"
+      name   = "terragrunt-opentofu"
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color destroy -auto-approve -no-color 2>&1
       EOT
@@ -73,6 +85,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
+      wait_for = ["prepare_terragrunt_opentofu_container"]
     }
 
     ## Build TesseraCT GCP Docker image.
@@ -121,7 +134,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     ## running the conformance server docker image built above.
     step {
       id     = "terraform_apply_conformance_ci"
-      name   = "alpine/terragrunt"
+      name   = "terragrunt-opentofu"
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
       EOT
@@ -138,7 +151,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     ## Print Terragrunt output to files.
     step {
       id     = "terraform_print_output"
-      name   = "alpine/terragrunt"
+      name   = "terragrunt-opentofu"
       script = <<EOT
         terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/conformance_url
         terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/conformance_bucket_name
@@ -200,7 +213,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     ## above.
     step {
       id     = "terraform_destroy_conformance_ci"
-      name   = "alpine/terragrunt"
+      name   = "terragrunt-opentofu"
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color destroy -auto-approve -no-color 2>&1
       EOT
