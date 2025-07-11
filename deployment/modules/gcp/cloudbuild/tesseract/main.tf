@@ -21,8 +21,8 @@ module "artifactregistry" {
 # Cloud Build
 
 locals {
-  cloudbuild_service_account   = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
-  artifact_repo                = "${var.location}-docker.pkg.dev/${var.project_id}/${module.artifactregistry.docker.name}"
+  cloudbuild_service_account = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
+  artifact_repo              = "${var.location}-docker.pkg.dev/${var.project_id}/${module.artifactregistry.docker.name}"
   ## TODO(phbnf): this should include the name of the log since it contains roots
   tesseract_gcp_docker_image = "${local.artifact_repo}/tesseract-gcp"
 }
@@ -61,6 +61,18 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
+    ## Install Terragrunt and OpenTofu in alpine container.
+    step {
+      id   = "prepare_terragrunt_opentofu_container"
+      name = "gcr.io/cloud-builders/docker"
+      args = [
+        "build",
+        "-t", "terragrunt-opentofu",
+        "-f", "./deployment/terragrunt-opentofu/Dockerfile",
+        "."
+      ]
+    }
+
     ## Build TesseraCT GCP Docker container image, without roots.
     step {
       id   = "docker_build_tesseract_gcp"
@@ -110,7 +122,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 
       content {
         id     = "terraform_apply_tesseract_${tg_path.key}"
-        name   = "alpine/terragrunt"
+        name   = "terragrunt-opentofu"
         script = <<EOT
           terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
         EOT
@@ -122,7 +134,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           "TF_VAR_project_id=${var.project_id}",
           "DOCKER_CONTAINER_TAG=$SHORT_SHA"
         ]
-        wait_for = tg_path.key > 0 ? ["docker_push_tesseract_gcp", "terraform_apply_tesseract_${tg_path.key - 1}"] : ["docker_push_tesseract_gcp"]
+        wait_for = tg_path.key > 0 ? ["prepare_terragrunt_opentofu_container", "docker_push_tesseract_gcp", "terraform_apply_tesseract_${tg_path.key - 1}"] : ["prepare_terragrunt_opentofu_container", "docker_push_tesseract_gcp"]
       }
     }
 
@@ -133,7 +145,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
 
       content {
         id     = "terraform_print_output_${tg_path.key}"
-        name   = "alpine/terragrunt"
+        name   = "terragrunt-opentofu"
         script = <<EOT
           terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/tesseract_url
           terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/tesseract_bucket_name
