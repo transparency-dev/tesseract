@@ -14,10 +14,10 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 ## Table of contents
 
 [📣 Status](#-status) \
-[Repository structure](#repository-structure) FIX EMOJI \
 [Roadmap](#roadmap)FIX EMOJI \
 [️🕹️ Usage](️#-usage) \
 [🧪 Public test instances](#-public-test-instances) \
+[Repository structure](#repository-structure) FIX EMOJI \
 [🙋 FAQ](#-faq) \
 [🔧 Contributing](#-contributing) \
 [📄 Licence](#-license) \
@@ -33,6 +33,18 @@ or if [you're interested in others](#can-i-run-tesseract-off-gcp-or-aws).
 
 <!-- TODO: add links to test instances-->
 [Public test instances](#-public-test-instances) run on GCP.
+
+## Roadmap
+
+TODO
+
+## 🕹️ Usage
+
+TODO
+
+## 🧪 Public test instances
+
+TODO
 
 ## 🗂️ Repository structure
 
@@ -56,18 +68,6 @@ This repository contains:
        - [GCP](./deployment/live/gcp/test/)
        - [AWS](./deployment/live/aws/test/)
      - [Chain parsing with lax509](../internal/lax509/)
-
-## Roadmap
-
-TODO
-
-## 🕹️ Usage
-
-TODO
-
-## 🧪 Public test instances
-
-TODO
 
 ## 🙋 FAQ
 
