@@ -1022,6 +1022,8 @@ github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
 github.com/transparency-dev/tessera v0.2.1-0.20250710145627-72b3ec8dfeeb h1:HWVzGof2M8+hS/15d41Mg/rzfpRktxDVRdzyqi+vA+Y=
 github.com/transparency-dev/tessera v0.2.1-0.20250710145627-72b3ec8dfeeb/go.mod h1:gVfC0R5jRSMxup0qYQBamyKNdzbw+3gsMuuM2wBzDLw=
+github.com/transparency-dev/tessera v0.2.1-0.20250711164022-d8c10a7e6dd0 h1:oh9ywGwzrxj+Gp2UXBnq458QFnQ/CIbwfS2INPidosc=
+github.com/transparency-dev/tessera v0.2.1-0.20250711164022-d8c10a7e6dd0/go.mod h1:gVfC0R5jRSMxup0qYQBamyKNdzbw+3gsMuuM2wBzDLw=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
