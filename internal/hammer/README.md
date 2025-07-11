@@ -13,7 +13,7 @@ For real load-testing applications, especially headless runs as part of a CI pip
 
 ## Usage
 
-Example usage to test a deployment of `cmd/gcp`:
+Example usage to test a deployment of `cmd/tesseract/gcp`:
 
 ```shell
 go run ./internal/hammer \

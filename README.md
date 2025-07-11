@@ -15,25 +15,28 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 TesseraCT is under active development, and will soon reach alpha 🚀.
 
-## ⚙️ Deployment
+## 🗂️ Repository structure
 
-Each deployment environment requires its own TesseraCT binary and Tessera infrastructure.
+This repository contains:
 
-This repository contains binary main files for [GCP](./cmd/gcp/) and
-[AWS](./cmd/aws/), together with configuration and instructions to deploy
-TesseraCT in various environments:
-
-- **Test logs** are meant to be brought up and turned down quickly for ad-hoc
-testing from a Virtual Machine.
-- **Continuous Integration (CI) logs** are brought up every merge on the main
-branch, undergo automated testing, and are then brought down.
-- **Staging logs** are
-not-yet-ready-for-production, but production-like logs.
-
-| Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
-|------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| GCP  | [cmd/gcp](./cmd/gcp/)| [VM](./deployment/live/gcp/test/)| [Cloud Run](deployment/live/gcp/static-ct/logs/ci/)| [Cloud Run](deployment/live/gcp/static-ct-staging/logs/)|
-| AWS  | [cmd/aws](./cmd/aws/)| [VM](./deployment/live/aws/test/)| [Fargate](deployment/live/aws/test/)               |                                                         |
+1. **[Binaries](./cmd/)**: TesseraCT and auxiliary tools
+1. **[Deployment configs](./deployment/)**
+1. **Libraries**: allowing to build [static-ct-api](https://c2sp.org/static-ct-api)
+   logs with [Tessera](https://github.com/transparency-dev/tessera):
+   [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
+1. Documentation
+     <!--Please, keep this in sync with ./docs/README.md -->
+     - [Configuration](./docs/configuration.md)
+     - [Performance](./docs/performance.md)
+     - Architecture
+       - GCP: TODO
+       - AWS: TODO
+       - [Non-cloud](./docs/architecture/NONCLOUD.md)
+     - [Deployment](./deployment/)
+     - Codelabs
+       - [GCP](./deployment/live/gcp/test/)
+       - [AWS](./deployment/live/aws/test/)
+     - [Chain parsing with lax509](../internal/lax509/)
 
 ## 🙋 FAQ
 
