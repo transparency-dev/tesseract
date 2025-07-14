@@ -4,6 +4,14 @@ This directory contains Terraform [modules](./modules/) to deploy TesseraCT on
 GCP and AWS with various setups, and the [instantiations](./live/) we use for
 our deployments.
 
+> [!WARNING]
+> These config files are primarily meant to support our own deployments, and to
+> provide a starting point for other deployments. You can fork them, but DO NOT
+> take a dependency on them. We reserve the right to break backward compatibility
+> or to remove them at any point. We will not add features that are not relevant
+> to our deployments. With that in mind, if you believe that you've found a bug,
+> feel free to send a PR or open an issue.
+
 Our deployments consist of:
 
 - **Test logs**: meant to be brought up and turned down quickly for ad-hoc
@@ -18,8 +26,8 @@ on which platform each instantiation runs:
 
 | Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
 |------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| GCP  | [cmd/tesseract/gcp](../cmd/tesseract/gcp/)| [VM](./live/gcp/test/)| [Cloud Run](./live/gcp/static-ct/logs/ci/)| [Managed Instance Group](./live/gcp/static-ct-staging/logs/)|
-| AWS  | [cmd/tesseract/aws](../cmd/tesseract/aws/)| [VM](./live/aws/test/)| [Fargate](./live/aws/test/)               |                                                         |
+| GCP  | [cmd/tesseract/gcp](../cmd/tesseract/gcp/)| [VM](./live/gcp/test/)| [Cloud Run](./live/gcp/static-ct/logs/ci/)| [Cloud Run / MIG](./live/gcp/static-ct-staging/logs/)|
+| AWS  | [cmd/tesseract/aws](../cmd/tesseract/aws/)| [VM](./live/aws/test/)| [Fargate](./live/aws/conformance/ci/)      |                                                         |
 
 ## Codelab
 

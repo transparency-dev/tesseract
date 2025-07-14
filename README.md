@@ -30,7 +30,7 @@ TesseraCT is under active development, and will soon reach alpha 🚀.
 
 At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
 Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
-or if [you're interested in others](#can-i-run-tesseract-off-gcp-or-aws).
+or if [you're interested in others](#can-i-run-tesseract-outside-gcp-or-aws).
 
 [Public test instances](#test_tube-public-test-instances) run on GCP.
 
@@ -40,7 +40,32 @@ TODO
 
 ## :joystick: Usage
 
-TODO
+### Getting Started
+
+The most hands-on place to start is with the [GCP](./deployment/live/gcp/test) or
+[AWS](./deployment/live/aws/test) codelab. These codelabs will guide you
+through bringing up your own test TesseraCT deployment.
+
+We also run [public test instances](#test_tube-public-test-instances) that you
+can interact with, with the [static-ct-api](https://c2sp.org/static-ct-api) API.
+
+You can also have a look at the `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/)
+to understand how to build a TesseraCT server.
+
+Last, you can explore our [documentation](#card_index_dividers-repository-structure).
+
+### Running on a different platform
+
+TesseraCT can theoretically run on any platform
+[Tessera](https://github.com/transparency-dev/tessera) supports. We've already experimented
+with platforms other than GCP and AWS, [have a look at the FAQ](#can-i-run-tesseract-outside-gcp-or-aws).
+
+If you'd still like to run TesseraCT on a different platform that Tessera
+supports, have a look at Tessera's [Getting Started guide](https://github.com/transparency-dev/tessera/tree/main?tab=readme-ov-file#getting-started),
+TesseraCT's `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/) and their
+respective [architecture docs](https://github.com/transparency-dev/tesseract/tree/main/docs/architecture).
+
+For any other request, please [come and talk to us](#wave-contact)!
 
 ## :test_tube: Public test instances
 
@@ -51,7 +76,8 @@ TODO
 This repository contains:
 
 1. **[Binaries](./cmd/)**: TesseraCT and auxiliary tools
-1. **[Deployment configs](./deployment/)**
+1. **[Deployment configs](./deployment/)**: purely informative, DO NOT
+depend on them
 1. **Libraries**: enabling the building of [static-ct-api](https://c2sp.org/static-ct-api)
    logs with [Tessera](https://github.com/transparency-dev/tessera):
    [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
@@ -139,7 +165,8 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## :page_facing_up: License
 
-This repo is licensed under the Apache 2.0 license, see [LICENSE](./LICENSE) for details.
+This repo is licensed under the Apache 2.0 license, see [LICENSE](./LICENSE) for
+details.
 
 ## :wave: Contact
 
