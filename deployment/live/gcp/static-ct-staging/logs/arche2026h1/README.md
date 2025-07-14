@@ -4,7 +4,7 @@
 
 This config uses the
 [gcp/tesseract/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-run TesseraCT on Cloud Run, backed by Trillian Tessera and preloaded with
+run TesseraCT on Cloud Run, backed by Tessera and preloaded with
 argon2026h1 entries.
 
 ### Update the roots
@@ -31,11 +31,11 @@ awk \
 
 This GCP TesseraCT preloaded staging environment is designed to be deployed by
 the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/tesseract/),
-[Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/arche2026h1/)).
+[Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/tesseract/)).
 
 ### Manual Deployment
 
-TODO(phboneff): come back to this, Cloud Run doesn't trigger a deployment if the
+TODO(phboneff): come back to this, MIG doesn't trigger a deployment if the
 tag does not change value.
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for
@@ -65,8 +65,8 @@ Build and push the Docker image to Artifact Registry repository:
 
 ```sh
 gcloud auth configure-docker ${GOOGLE_REGION}-docker.pkg.dev
-docker build -f ./cmd/gcp/Dockerfile -t tesseract-binary-gcp:latest .
-docker build -f ./cmd/gcp/staging/Dockerfile -t tesseract-gcp:latest .
+docker build -f ./cmd/tesseract/gcp/Dockerfile -t tesseract-binary-gcp:latest .
+docker build -f ./cmd/tesseract/gcp/staging/Dockerfile -t tesseract-gcp:latest .
 docker tag tesseract-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp:latest
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp
 ```

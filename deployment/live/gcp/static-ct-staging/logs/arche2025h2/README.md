@@ -4,8 +4,8 @@
 
 This config uses the
 [gcp/tesseract/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-run TesseraCT on Cloud Run, backed by Trillian Tessera and preloaded with
-argon2025h2 entries.
+run TesseraCT on Managed Instance Group, backed by Tessera and
+preloaded with argon2025h2 entries.
 
 ### Update the roots
 
@@ -31,11 +31,11 @@ awk \
 
 This GCP TesseraCT preloaded staging environment is designed to be deployed by
 the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/tesseract/),
-[Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/arche2025h2/)).
+[Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/tesseract/)).
 
 ### Manual Deployment
 
-TODO(phboneff): come back to this, Cloud Run doesn't trigger a deployment if the
+TODO(phboneff): come back to this, MIG doesn't trigger a deployment if the
 tag does not change value.
 
 First authenticate via `gcloud` as a principle with sufficient ACLs for

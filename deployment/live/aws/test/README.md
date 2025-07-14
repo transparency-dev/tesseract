@@ -17,7 +17,7 @@ installed, and your favourite terminal multiplexer.
 ## Overview
 
 This config uses the [aws/tesseract/test](/deployment/modules/aws/tesseract/test) module to
-define a test environment to run TesseraCT, backed by Trillian Tessera.
+define a test environment to run TesseraCT, backed by Tessera.
 
 At a high level, this environment consists of:
 - One RDS Aurora MySQL database

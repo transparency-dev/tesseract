@@ -3,7 +3,7 @@
 ## Overview
 
 This config uses the [aws/conformance](/deployment/modules/aws/tesseract/conformance) module to
-define a CI environment to run TesseraCT, backed by Trillian Tessera.
+define a CI environment to run TesseraCT, backed by Tessera.
 
 At a high level, this environment consists of:
 
