@@ -1,7 +1,8 @@
 # POSIX static-ct server
 
-This directory contains an experimental `static-ct` server which uses Tessera's POSIX backend for storing the log.
-It's not yet ready to be used as a production log!
+This directory contains an experimental `static-ct` server which uses Tessera's
+POSIX backend for storing the log.  It's not yet ready to be used as a
+production log!
 
 ## Running
 
