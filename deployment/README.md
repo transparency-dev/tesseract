@@ -23,6 +23,6 @@ on which platform each instantiation runs:
 
 ## Codelab
 
-The [GCP](./live/gcp/test) and [AWS](./live/aws/test) codelabs will guide you to
-bring up a test TesseraCT log, add a few entries to it, and check that the log
-is sound.
+The [GCP](./live/gcp/test) and [AWS](./live/aws/test) codelabs will guide you
+through bringing up a test TesseraCT log, adding a few entries to it, and check
+that the log is sound.

@@ -52,7 +52,7 @@ This repository contains:
 
 1. **[Binaries](./cmd/)**: TesseraCT and auxiliary tools
 1. **[Deployment configs](./deployment/)**
-1. **Libraries**: allowing to build [static-ct-api](https://c2sp.org/static-ct-api)
+1. **Libraries**: enabling the building of [static-ct-api](https://c2sp.org/static-ct-api)
    logs with [Tessera](https://github.com/transparency-dev/tessera):
    [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
 1. Documentation
@@ -96,10 +96,10 @@ to begin with in an effort address current needs of log operators. We're
 welcoming contributions and requests for additional backend implementations.
 If you're interested, [come and talk to us](#wave-contact)!
 
-### Can I run TesseraCT off GCP or AWS?
+### Can I run TesseraCT outside GCP or AWS?
 
 At the moment, this is not officially supported. If you're interested in
-running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
+running outside GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
 [get in touch](#wave-contact)!
 
 There is an experimental [POSIX binary](/cmd/experimental/posix) which uses
@@ -109,7 +109,7 @@ very welcome!
 
 ## :troll: History
 
-TesseraCT is the successor of [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
+TesseraCT is the successor to [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
 It was built upon its codebase, and introduces these main changes:
 
 - **API**: TesseraCT implements [static-ct-api](https://c2sp.org/static-ct-api)
