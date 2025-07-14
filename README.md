@@ -17,7 +17,7 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 [:motorway: Roadmap](#motorway-roadmap) \
 [:joystick: Usage](#joystick-usage) \
 [:test_tube: Public test instances](#test_tube-public-test-instances) \
-[:card_index_dividers: Repository structure](#card_index_divider-repository-structure) \
+[:card_index_dividers: Repository structure](#card_index_dividers-repository-structure) \
 [:raising_hand: FAQ](#raising_hand-faq) \
 [:troll: History](#troll-history) \
 [:wrench: Contributing](#wrench-contributing) \
