@@ -18,9 +18,10 @@ installed, and your favourite terminal multiplexer.
 
 ## Overview
 
-This config uses the [gcp/test](/deployment/modules/gcp/test) module to
-deploy resources necessary to run a test TesseraCT log. TesseraCT itself
-will run on a VM.
+This config uses the
+[gcp/tesseract/test](/deployment/modules/gcp/tesseract/test) module to deploy
+resources necessary to run a test TesseraCT log. TesseraCT itself will run on a
+VM.
 
 At a high level, these resources consists of:
 
