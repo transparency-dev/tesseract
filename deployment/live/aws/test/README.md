@@ -1,5 +1,8 @@
 # AWS TesseraCT Test Environment
 
+This directory contains configs to deploy TesseraCT's log infrastructure on AWS,
+which a TesseraCT server running on a VM can then use.
+
 > [!CAUTION]
 > 
 > This test environment creates real Amazon Web Services resources running in your account. They will cost you real money. For the purposes of this demo, it is strongly recommended that you create a new account so that you can easily clean up at the end.
@@ -21,7 +24,7 @@ At a high level, this environment consists of:
 - One S3 Bucket
 - Two secrets (log public key and private key for signing digests) in AWS Secrets Manager
 
-## Manual deployment 
+## Codelab
 
 Authenticate with a role that has sufficient access to create resources.
 For the purpose of this test environment, and for ease of demonstration, we'll use the
@@ -93,7 +96,7 @@ cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pe
 ```
 
 ```bash
-go run ./cmd/aws \
+go run ./cmd/tesseract/aws \
   --http_endpoint=localhost:6962 \
   --roots_pem_file=./internal/testdata/fake-ca.cert \
   --origin=test-static-ct \
@@ -178,7 +181,7 @@ awk \
 Run TesseraCT with the same roots:
 
 ```bash
-go run ./cmd/aws \
+go run ./cmd/tesseract/aws \
   --http_endpoint=localhost:6962 \
   --roots_pem_file=/tmp/log_roots.pem \
   --origin=test-static-ct \
@@ -220,3 +223,5 @@ W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handl
 > the S3 bucket or DynamoDB instance Terraform created to store its state for
 > instance). If `terragrunt destroy` shows no output, run
 > `terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
+
+<!-- TODO: add fsck instructions -->

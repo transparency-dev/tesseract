@@ -98,7 +98,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "build",
         "-t", "tesseract-gcp:$SHORT_SHA",
         "-t", "tesseract-gcp:latest",
-        "-f", "./cmd/gcp/Dockerfile",
+        "-f", "./cmd/tesseract/gcp/Dockerfile",
         "."
       ]
     }
@@ -111,7 +111,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "build",
         "-t", "${local.conformance_gcp_docker_image}:$SHORT_SHA",
         "-t", "${local.conformance_gcp_docker_image}:latest",
-        "-f", "./cmd/gcp/ci/Dockerfile",
+        "-f", "./cmd/tesseract/gcp/ci/Dockerfile",
         "."
       ]
       wait_for = ["docker_build_tesseract_gcp"]

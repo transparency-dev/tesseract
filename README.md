@@ -1,4 +1,4 @@
-# 🌳 TesseraCT
+# :deciduous_tree: TesseraCT
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/tesseract)](https://goreportcard.com/report/github.com/transparency-dev/tesseract)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
@@ -8,34 +8,68 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](#️-deployment) on GCP and AWS.
+At the moment, TesseraCT can be [deployed](./deployment/) on GCP and AWS.
 There is also an experimental binary which uses Tessera's POSIX storage backend.
 
-## 📣 Status
+## Table of contents
+
+[:mega: Status](#mega-status) \
+[:motorway: Roadmap](#motorway-roadmap) \
+[:joystick: Usage](#joystick-usage) \
+[:test_tube: Public test instances](#test_tube-public-test-instances) \
+[:card_index_dividers: Repository structure](#card_index_divider-repository-structure) \
+[:raising_hand: FAQ](#raising_hand-faq) \
+[:troll: History](#troll-history) \
+[:wrench: Contributing](#wrench-contributing) \
+[:page_facing_up: License](#page_facing_up-license) \
+[:wave: Contact](#wave-contact)
+
+## :mega: Status
 
 TesseraCT is under active development, and will soon reach alpha 🚀.
 
-## ⚙️ Deployment
+At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
+Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
+or if [you're interested in others](#can-i-run-tesseract-off-gcp-or-aws).
 
-Each deployment environment requires its own TesseraCT binary and Tessera infrastructure.
+[Public test instances](#test_tube-public-test-instances) run on GCP.
 
-This repository contains binary main files for [GCP](./cmd/gcp/) and
-[AWS](./cmd/aws/), together with configuration and instructions to deploy
-TesseraCT in various environments:
+## :motorway: Roadmap
 
-- **Test logs** are meant to be brought up and turned down quickly for ad-hoc
-testing from a Virtual Machine.
-- **Continuous Integration (CI) logs** are brought up every merge on the main
-branch, undergo automated testing, and are then brought down.
-- **Staging logs** are
-not-yet-ready-for-production, but production-like logs.
+TODO
 
-| Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
-|------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| GCP  | [cmd/gcp](./cmd/gcp/)| [VM](./deployment/live/gcp/test/)| [Cloud Run](deployment/live/gcp/static-ct/logs/ci/)| [Cloud Run](deployment/live/gcp/static-ct-staging/logs/)|
-| AWS  | [cmd/aws](./cmd/aws/)| [VM](./deployment/live/aws/test/)| [Fargate](deployment/live/aws/test/)               |                                                         |
+## :joystick: Usage
 
-## 🙋 FAQ
+TODO
+
+## :test_tube: Public test instances
+
+TODO
+
+## :card_index_dividers: Repository structure
+
+This repository contains:
+
+1. **[Binaries](./cmd/)**: TesseraCT and auxiliary tools
+1. **[Deployment configs](./deployment/)**
+1. **Libraries**: enabling the building of [static-ct-api](https://c2sp.org/static-ct-api)
+   logs with [Tessera](https://github.com/transparency-dev/tessera):
+   [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
+1. Documentation
+     <!--Please, keep this in sync with ./docs/README.md -->
+     - [Configuration](./docs/configuration.md)
+     - [Performance](./docs/performance.md)
+     - Architecture
+       - GCP: TODO
+       - AWS: TODO
+       - [Non-cloud](./docs/architecture/NONCLOUD.md)
+     - [Deployment](./deployment/)
+     - Codelabs
+       - [GCP](./deployment/live/gcp/test/)
+       - [AWS](./deployment/live/aws/test/)
+     - [Chain parsing with lax509](./internal/lax509/)
+
+## :raising_hand: FAQ
 
 ### TesseraWhat?
 
@@ -55,27 +89,27 @@ subset of Tessera's backends. A TesseraCT serving stack is composed of:
 - Tessera's backend infrastructure
 - a minor additional storage system for [chain issuers](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers)
 
-### Why these backends?
+### Why these platforms?
 
 After chatting with various CT log operators, we decided to focus on GCP and AWS
 to begin with in an effort address current needs of log operators. We're
 welcoming contributions and requests for additional backend implementations.
-If you're interested, [come and talk to us](#-contact)!
+If you're interested, [come and talk to us](#wave-contact)!
 
-### Can I run TesseraCT off GCP or AWS?
+### Can I run TesseraCT outside GCP or AWS?
 
 At the moment, this is not officially supported. If you're interested in
-running off GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
-[get in touch](#-contact)!
+running outside GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
+[get in touch](#wave-contact)!
 
 There is an experimental [POSIX binary](/cmd/experimental/posix) which uses
 Tessera's POSIX backend for storing the log on local filesystems. At the moment
 this is not ready for production use, but questions and bug reports are
 very welcome!
 
-## 🧌 History
+## :troll: History
 
-TesseraCT is the successor of [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
+TesseraCT is the successor to [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
 It was built upon its codebase, and introduces these main changes:
 
 - **API**: TesseraCT implements [static-ct-api](https://c2sp.org/static-ct-api)
@@ -99,15 +133,15 @@ and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). As a
 result, a very small number of chains do not validate anymore, head over to
 `internal/lax509`'s [README](./internal/lax509/README.md) for additional details.
 
-## 🛠️ Contributing
+## :wrench: Contributing
 
-See [CONTRIBUTING.md](/CONTRIBUTING.md) for details.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
-## 📄 License
+## :page_facing_up: License
 
-This repo is licensed under the Apache 2.0 license, see [LICENSE](/LICENSE) for details.
+This repo is licensed under the Apache 2.0 license, see [LICENSE](./LICENSE) for details.
 
-## 👋 Contact
+## :wave: Contact
 
 Are you interested in running a TesseraCT instance? Do you have a feature
 request? you can find us here:

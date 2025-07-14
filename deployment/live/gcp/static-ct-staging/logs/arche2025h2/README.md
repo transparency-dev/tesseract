@@ -65,8 +65,8 @@ Build and push the Docker image to Artifact Registry repository:
 
 ```sh
 gcloud auth configure-docker ${GOOGLE_REGION}-docker.pkg.dev
-docker build -f ./cmd/gcp/Dockerfile -t tesseract-binary-gcp:latest .
-docker build -f ./cmd/gcp/staging/Dockerfile -t tesseract-gcp:latest .
+docker build -f ./cmd/tesseract/gcp/Dockerfile -t tesseract-binary-gcp:latest .
+docker build -f ./cmd/tesseract/gcp/staging/Dockerfile -t tesseract-gcp:latest .
 docker tag tesseract-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp:latest
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp
 ```

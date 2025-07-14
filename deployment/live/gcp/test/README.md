@@ -1,5 +1,8 @@
 # GCP TesseraCT Test Environment
 
+This directory contains configs to deploy TesseraCT's log infrastructure on GCP,
+which a TesseraCT server running on a VM can then use.
+
 ## Prerequisites
 
 You'll need to have a VM running in the same GCP project that you can SSH to,
@@ -21,7 +24,7 @@ At a high level, these resources consists of:
 - A GCS Bucket
 - Secret Manager
 
-## Manual deployment
+## Codelab
 
 First, set the required environment variables:
 
@@ -70,7 +73,7 @@ cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pe
 ```
 
 ```bash
-go run ./cmd/gcp/ \
+go run ./cmd/tesseract/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
@@ -152,7 +155,7 @@ awk \
 Run TesseraCT with the same roots:
 
 ```bash
-go run ./cmd/gcp/ \
+go run ./cmd/tesseract/gcp/ \
   --bucket=${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --roots_pem_file=/tmp/log_roots.pem \
@@ -179,3 +182,5 @@ Since the source and destination log [might not be configured the exact same set
 ```
 W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
 ```
+
+<!-- TODO: add fsck instructions -->
