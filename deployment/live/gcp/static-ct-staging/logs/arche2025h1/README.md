@@ -4,7 +4,7 @@
 
 This config uses the
 [gcp/tesseract/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-run TesseraCT on Cloud Run, backed by Trillian Tessera and preloaded with
+run TesseraCT on Cloud Run, backed by Tessera and preloaded with
 argon2025h1 entries.
 
 ### Update the roots

@@ -4,7 +4,7 @@
 
 This config uses the
 [gcp/tesseract/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-run TesseraCT on Managed Instance Group, backed by Trillian Tessera and
+run TesseraCT on Managed Instance Group, backed by Tessera and
 preloaded with argon2025h2 entries.
 
 ### Update the roots

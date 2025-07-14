@@ -4,7 +4,7 @@
 
 This config uses the [gcp/cloudrun](/deployment/modules/gcp/tesseract/cloudrun)
 module to define a CI environment to run TesseraCT on Cloud Run, backed by
-Trillian Tessera.
+Tessera.
 
 At a high level, this environment consists of:
 
