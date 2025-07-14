@@ -58,7 +58,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
-    ## Install OpenTofu in alpine/terragrunt container.
+    ## Install Terragrunt and OpenTofu in alpine container.
     step {
       id   = "prepare_terragrunt_opentofu_container"
       name = "gcr.io/cloud-builders/docker"
