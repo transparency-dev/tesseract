@@ -52,7 +52,7 @@ jobs:
           ECR_REPOSITORY: ${{ env.ECR_REPOSITORY_CONFORMANCE }}
         run: |
           docker build -f ./cmd/tesseract/aws/Dockerfile . -t tesseract-aws:latest
-          docker build -f ./cmd/tesseact/aws/ci/Dockerfile . -t "$ECR_REGISTRY/$ECR_REPOSITORY"
+          docker build -f ./cmd/tesseract/aws/ci/Dockerfile . -t "$ECR_REGISTRY/$ECR_REPOSITORY"
           docker push "$ECR_REGISTRY/$ECR_REPOSITORY"
           echo "Pushed image to $ECR_REGISTRY/$ECR_REPOSITORY"
       
