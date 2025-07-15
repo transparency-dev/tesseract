@@ -37,8 +37,8 @@ or if [you're interested in others](#can-i-run-tesseract-outside-gcp-or-aws).
 
 ## :motorway: Roadmap
 
-Our objective is to allow log operators to run production CT logs starting with
-[temporal shards](https://googlechrome.github.io/CertificateTransparency/log_policy.html#temporal-sharding)
+Our objective is to allow log operators to run production static-ct-api CT logs
+starting with [temporal shards](https://googlechrome.github.io/CertificateTransparency/log_policy.html#temporal-sharding)
 covering 2026 onwards.
 
 At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
@@ -57,7 +57,7 @@ At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 |  10 | Client                                         | :hammer:           | 1.0            |
 |  11 | Stable APIs                                    | :hammer:           | 1.0            |
 
-Current public librairy APIs are unlikely to change in any significant way,
+Current public library APIs are unlikely to change in any significant way,
 however the API is subject to minor breaking changes until we tag 1.0.
 Any feedback is welcome.
 
