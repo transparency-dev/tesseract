@@ -1,0 +1,29 @@
+name: 'Terragrunt format check'
+on:
+  - pull_request
+
+permissions:
+  contents: read
+
+env:
+  tofu_version: '1.10.2'
+  tg_version: '0.83.2'
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: 'Checkout'
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check terragrunt HCL
+        uses: gruntwork-io/terragrunt-action@93eda7b2b97306ef88b517a61d8a9d0b035e7c75 # v3.0.0
+        with:
+          tofu_version: ${{ env.tofu_version }}
+          tg_version: ${{ env.tg_version }}
+          tg_dir: 'deployment'
+          tg_command: 'hclfmt --terragrunt-check --terragrunt-diff'
