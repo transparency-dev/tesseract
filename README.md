@@ -47,7 +47,7 @@ The most hands-on place to start is with the [GCP](./deployment/live/gcp/test) o
 through bringing up your own test TesseraCT deployment.
 
 We also run [public test instances](#test_tube-public-test-instances) that you
-can interact with, with the [static-ct-api](https://c2sp.org/static-ct-api) API.
+can interact with using the [static-ct-api](https://c2sp.org/static-ct-api) API.
 
 You can also have a look at the `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/)
 to understand how to build a TesseraCT server.
@@ -58,7 +58,7 @@ Last, you can explore our [documentation](#card_index_dividers-repository-struct
 
 TesseraCT can theoretically run on any platform
 [Tessera](https://github.com/transparency-dev/tessera) supports. We've already experimented
-with platforms other than GCP and AWS, [have a look at the FAQ](#can-i-run-tesseract-outside-gcp-or-aws).
+with platforms other than GCP and AWS, [have a look at the FAQ for more information](#can-i-run-tesseract-outside-gcp-or-aws).
 
 If you'd still like to run TesseraCT on a different platform that Tessera
 supports, have a look at Tessera's [Getting Started guide](https://github.com/transparency-dev/tessera/tree/main?tab=readme-ov-file#getting-started),
