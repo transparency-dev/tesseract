@@ -24,8 +24,8 @@ module "gce_container_preloader" {
       "--source_log_uri=${var.source_log_uri}",
       "--start_index=${var.start_index}",
       "--continuous=true",
-      "--num_workers=500", 
-      "--parallel_fetch=20", 
+      "--num_workers=500",
+      "--parallel_fetch=20",
       "--parallel_submit=1500",
       "--v=2",
     ]
