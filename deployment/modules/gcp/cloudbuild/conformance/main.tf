@@ -58,6 +58,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
+    timeout = "20m"
+
     ## Install Terragrunt and OpenTofu in alpine container.
     step {
       id   = "prepare_terragrunt_opentofu_container"
