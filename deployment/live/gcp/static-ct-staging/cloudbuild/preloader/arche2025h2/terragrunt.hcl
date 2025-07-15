@@ -3,7 +3,7 @@ terraform {
 }
 
 locals {
-  source_log_uri = "https://ct.googleapis.com/logs/us1/argon2025h2"
+  source_log_uri     = "https://ct.googleapis.com/logs/us1/argon2025h2"
   start_index_offset = 240000 # Entries that did not make it into arche2025h2
 }
 

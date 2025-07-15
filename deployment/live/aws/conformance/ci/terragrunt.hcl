@@ -7,7 +7,7 @@ include "root" {
   expose = true
 }
 
-inputs = merge (
+inputs = merge(
   include.root.locals,
   {
     # This hack makes it so that the antispam tables are created in the main
