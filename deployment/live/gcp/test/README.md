@@ -3,6 +3,12 @@
 This directory contains configs to deploy TesseraCT's log infrastructure on GCP,
 which a TesseraCT server running on a VM can then use.
 
+> [!CAUTION]
+> This test environment creates real Google Cloud Platform resources running in
+> your project. They will cost you real money. For the purposes of this demo,
+> it is strongly recommended that you create a new project so that you can
+> easily clean up at the end.
+
 ## Prerequisites
 
 You'll need to have a VM running in the same GCP project that you can SSH to,
@@ -12,9 +18,10 @@ installed, and your favourite terminal multiplexer.
 
 ## Overview
 
-This config uses the [gcp/test](/deployment/modules/gcp/test) module to
-deploy resources necessary to run a test TesseraCT log. TesseraCT itself
-will run on a VM.
+This config uses the
+[gcp/tesseract/test](/deployment/modules/gcp/tesseract/test) module to deploy
+resources necessary to run a test TesseraCT log. TesseraCT itself will run on a
+VM.
 
 At a high level, these resources consists of:
 
@@ -25,6 +32,12 @@ At a high level, these resources consists of:
 - Secret Manager
 
 ## Codelab
+
+This codelab will guide you to bring up a test TesseraCT log infrastructure, add
+a few entries to it, and check that the log is sound.
+
+To start with, authenticate with a role that has sufficient access to create
+resources.
 
 First, set the required environment variables:
 
@@ -64,9 +77,18 @@ export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa
 
 ## Run TesseraCT
 
+<!-- Try and keep in sync as much as possible with ../../aws/test/README.md 
+There are enough differences for now to justify to keep them distinct -->
+
+Decide whether to run TesseraCT such that it accepts:
+
+- [fake test chains](#with-fake-chains)
+- [real TLS chains](#with-real-tls-chains)
+
 ### With fake chains
 
-On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
+On the VM, run the following command to prepare the roots pem file and bring
+TesseraCT up:
 
 ```bash
 cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pem > /tmp/fake_log_roots.pem
@@ -84,9 +106,15 @@ go run ./cmd/tesseract/gcp/ \
   --otel_project_id=${GOOGLE_PROJECT}
 ```
 
+Decide whether to run generate test chains:
+
+- [manually](#generate-chains-manually)
+- [automatically](#generate-chains-automatically)
+
 #### Generate chains manually
 
-In a different terminal, generate a chain manually. The password for the private key is `gently`:
+In a different terminal, generate a chain manually. The password for the private
+key is `gently`:
 
 ```bash
 mkdir -p /tmp/httpschain
@@ -102,7 +130,7 @@ Finally, submit the chain to TesseraCT:
 go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/${TESSERA_BASE_NAME}
 ```
 
-#### Automatically generate chains
+#### Generate chains automatically
 
 In a different terminal, retrieve the log public key in PEM format.
 
@@ -127,7 +155,7 @@ go run ./internal/hammer \
   --bearer_token=$(gcloud auth print-access-token)
 ```
 
-### With real HTTPS certificates
+### With real TLS chains
 
 We'll run a TesseraCT instance and copy certificates from an existing RFC6962
 log to it.  It uses the [preloader tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/preload/preloader/preloader.go).
@@ -166,7 +194,8 @@ go run ./cmd/tesseract/gcp/ \
   --otel_project_id=${GOOGLE_PROJECT}
 ```
 
-In a different terminal, run `preloader` to submit certificates from another log to TesseraCT.
+In a different terminal, run `preloader` to submit certificates from another log
+to TesseraCT.
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
@@ -177,10 +206,27 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --parallel_submit=4
 ```
 
-Since the source and destination log [might not be configured the exact same set of roots](/internal/lax509/README.md#Chains), it is expected to see errors when submitting a certificate chaining to a missing root. This is what the error would look like:
+Since the source and destination log
+[might not be configured the exact same set of roots](/internal/lax509/README.md#Chains),
+it is expected to see errors when submitting a certificate chaining to a missing
+root. This is what the error would look like:
 
-```
+```bash
 W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
 ```
 
 <!-- TODO: add fsck instructions -->
+
+## Clean up
+
+> [!IMPORTANT]
+> You need to run this step on your project if you want to ensure you don't get
+> charged into perpetuity for the resources we've setup.
+
+**This will delete your project!**
+Do not do this on a project that you didn't create expressly and exclusively to
+run this demo.
+
+```bash
+gcloud projects delete ${GOOGLE_PROJECT}
+```

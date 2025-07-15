@@ -4,30 +4,37 @@ This directory contains configs to deploy TesseraCT's log infrastructure on AWS,
 which a TesseraCT server running on a VM can then use.
 
 > [!CAUTION]
-> 
-> This test environment creates real Amazon Web Services resources running in your account. They will cost you real money. For the purposes of this demo, it is strongly recommended that you create a new account so that you can easily clean up at the end.
+> This test environment creates real Amazon Web Services resources running in
+> your account. They will cost you real money. For the purposes of this demo,
+> it is strongly recommended that you create a new account so that you can
+> easily clean up at the end.
 
 ## Prerequisites
 
-You'll need to have a EC2 Amazon Linux VM running in the same AWS account that you can SSH to,
-with [Go](https://go.dev/doc/install) and 
-[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/) 
+You'll need to have a EC2 Amazon Linux VM running in the same AWS account that
+you can SSH to, with [Go](https://go.dev/doc/install) and
+[terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/)
 installed, and your favourite terminal multiplexer.
 
 ## Overview
 
-This config uses the [aws/tesseract/test](/deployment/modules/aws/tesseract/test) module to
-define a test environment to run TesseraCT, backed by Tessera.
+This config uses the [aws/tesseract/test](/deployment/modules/aws/tesseract/test)
+module to define a test environment to run TesseraCT, backed by Tessera.
 
 At a high level, this environment consists of:
+
 - One RDS Aurora MySQL database
 - One S3 Bucket
-- Two secrets (log public key and private key for signing digests) in AWS Secrets Manager
+- Two secrets (log public key and private key for signing digests) in
+AWS Secrets Manager
 
 ## Codelab
 
-Authenticate with a role that has sufficient access to create resources.
-For the purpose of this test environment, and for ease of demonstration, we'll use the
+This codelab will guide you to bring up a test TesseraCT log infrastructure, add
+a few entries to it, and check that the log is sound.  Authenticate with a role
+that has sufficient access to create resources.
+
+For the purpose of this codelab and for ease of demonstration, we'll use the
 `AdministratorAccess` role, and authenticate with `aws configure sso`.
 
 **DO NOT** use this role to run any production infrastructure, or if there are
@@ -68,8 +75,9 @@ export AWS_PROFILE=AdministratorAccess-<REDACTED>
 ```
 
 Terraforming the account can be done by:
+
   1. `cd` to [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
-  2. Run `terragrunt apply`. If this fails to create the antispam database,
+  1. Run `terragrunt apply`. If this fails to create the antispam database,
   connect the RDS instance to your VM using the instructions below, and run
   `terragrunt apply` again.
   
@@ -83,13 +91,23 @@ export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_
 export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
 ```
 
-Connect the VM and Aurora database following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database), it takes a few clicks in the UI.
+Connect the VM and Aurora database following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database),
+it takes a few clicks in the UI.
 
 ## Run TesseraCT
 
+<!-- Try and keep in sync as much as possible with ../../gcp/test/README.md
+There are enough differences for now to justify to keep them distinct -->
+
+Decide whether to run TesseraCT such that it accepts:
+
+- [fake test chains](#with-fake-chains)
+- [real TLS chains](#with-real-tls-chains)
+
 ### With fake chains
 
-On the VM, run the following command to prepare the roots pem file and bring TesseraCT up:
+On the VM, run the following command to prepare the roots pem file and bring
+TesseraCT up:
 
 ```bash
 cat internal/testdata/fake-ca.cert internal/hammer/testdata/test_root_ca_cert.pem > /tmp/fake_log_roots.pem
@@ -111,9 +129,15 @@ go run ./cmd/tesseract/aws \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
+Decide whether to run generate test chains:
+
+- [manually](#generate-chains-manually)
+- [automatically](#generate-chains-automatically)
+
 #### Generate chains manually
 
-In a different terminal, generate a chain manually. The password for the private key is `gently`:
+In a different terminal, generate a chain manually. The password for the private
+key is `gently`:
 
 ```bash
 mkdir -p /tmp/httpschain
@@ -129,7 +153,7 @@ Finally, submit the chain to TesseraCT:
 go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/test-static-ct
 ```
 
-#### Automatically generate chains
+#### Generate chains automatically
 
 In a different terminal, retrieve the log public key in PEM format.
 
@@ -153,7 +177,7 @@ go run ./internal/hammer \
   --num_mmd_verifiers=0
 ```
 
-### With real HTTPS certificates
+### With real TLS chains
 
 We'll run a TesseraCT instance and copy certificates from an existing RFC6962
 log to it.  It uses the [preloader tool from certificate-transparency-go](https://github.com/google/certificate-transparency-go/blob/master/preload/preloader/preloader.go).
@@ -196,7 +220,8 @@ go run ./cmd/tesseract/aws \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
 ```
 
-In a different terminal, run `preloader` to submit certificates from another log to TesseraCT.
+In a different terminal, run `preloader` to submit certificates from another log
+to TesseraCT.
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
@@ -207,21 +232,27 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --parallel_submit=4
 ```
 
-Since the source and destination log [might not be configured the exact same set of roots](/internal/lax509/README.md#Chains), it is expected to see errors when submitting a certificate chaining to a missing root. This is what the error would look like:
+Since the source and destination log
+[might not be configured the exact same set of roots](/internal/lax509/README.md#Chains),
+it is expected to see errors when submitting a certificate chaining to a missing
+root. This is what the error would look like:
 
-```
+```bash
 W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handler error: failed to verify add-chain contents: chain failed to validate: x509: certificate signed by unknown authority (possibly because of "x509: cannot verify signature: insecure algorithm SHA1-RSA" while trying to verify candidate authority certificate "Merge Delay Monitor Root")
 ```
+
+<!-- TODO: add fsck instructions -->
 
 ## Cleanup
 
 > [!IMPORTANT]  
 > Do not forget to delete all the resources to avoid incuring any further cost
-> when you're done using the log. The easiest way to do this, is to [close the account](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html).
-> If you prefer to delete the resources with `terragrunt destroy`, bear in mind
-> that this command might not destroy all the resources that were created (like
-> the S3 bucket or DynamoDB instance Terraform created to store its state for
-> instance). If `terragrunt destroy` shows no output, run
-> `terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
+> when you're done using the log.
 
-<!-- TODO: add fsck instructions -->
+The easiest way to do this, is to [close the account](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html).
+
+If you prefer to delete the resources with `terragrunt destroy`, bear in mind
+that this command might not destroy all the resources that were created (like
+the S3 bucket or DynamoDB instance Terraform created to store its state for
+instance). If `terragrunt destroy` shows no output, run
+`terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
