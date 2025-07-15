@@ -2,16 +2,20 @@
 
 TesseraCT is designed to meet current CT issuance load in a cost-effective manner.
 
-The performance tests were conducted in a controlled environment with deterministic synthetic certificates for a limited amount of time. QPS was measured using the average values collected over the test period.
+The performance tests were conducted in a controlled environment with
+deterministic synthetic certificates for a limited amount of time. QPS was
+measured using the average values collected over the test period.
 
 > [!NOTE]
-> These are not definitive numbers, and that more tests are to come with an improved codebase.
+> These are not definitive numbers, and that more tests are to come with an
+> improved codebase.
 
 ## Backends
 
 ### GCP
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe7687c9ed35d11f42a211ee35544ff6c5610ee6). 
+The indicative figures below were measured using the [CT hammer tool](/internal/hammer/)
+as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe7687c9ed35d11f42a211ee35544ff6c5610ee6).
 
 The table below shows the measured performance over 12 hours in each instance type:
 
@@ -25,9 +29,10 @@ The table below shows the measured performance over 12 hours in each instance ty
 
 - e2-micro (2 vCPUs, 1 GB Memory)
 
-The write QPS is around 60. The bottleneck comes from the VM CPU usage which is always above 90%. The Cloud Spanner CPU utilization is around 10%.
+The write QPS is around 60. The bottleneck comes from the VM CPU usage which is
+always above 90%. The Cloud Spanner CPU utilization is around 10%.
 
-```
+```bash
 ┌───────────────────────────────────────────────────────────────────────┐
 │Read (0 workers): Current max: 0/s. Oversupply in last second: 0       │
 │Write (512 workers): Current max: 68/s. Oversupply in last second: 0   │
@@ -37,7 +42,7 @@ The write QPS is around 60. The bottleneck comes from the VM CPU usage which is 
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-```
+```bash
 top - 22:38:30 up 12:08,  2 users,  load average: 0.26, 1.20, 1.78
 Tasks:  96 total,   1 running,  95 sleeping,   0 stopped,   0 zombie
 %Cpu(s): 63.2 us,  9.4 sy,  0.0 ni,  3.8 id, 21.7 wa,  0.0 hi,  0.9 si,  0.9 st 
@@ -62,9 +67,10 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.     68.8 avail Mem
 
 - e2-medium (2 vCPUs, 4 GB Memory)
 
-The write QPS is around 250. The bottleneck comes from the VM CPU utilization which is always around 100%. The Cloud Spanner CPU utilization is around 20%.
+The write QPS is around 250. The bottleneck comes from the VM CPU utilization
+which is always around 100%. The Cloud Spanner CPU utilization is around 20%.
 
-```
+```bash
 ┌──────────────────────────────────────────────────────────────────────┐
 │Read (0 workers): Current max: 0/s. Oversupply in last second: 0      │
 │Write (512 workers): Current max: 302/s. Oversupply in last second: 0 │
@@ -74,7 +80,7 @@ The write QPS is around 250. The bottleneck comes from the VM CPU utilization wh
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-```
+```bash
 top - 19:16:15 up 21:43,  2 users,  load average: 1.60, 1.46, 1.50
 Tasks:  96 total,   2 running,  94 sleeping,   0 stopped,   0 zombie
 %Cpu(s): 86.8 us,  4.0 sy,  0.0 ni,  6.2 id,  0.0 wa,  0.0 hi,  2.2 si,  0.9 st 
@@ -99,9 +105,10 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   1502.3 avail Mem
 
 - e2-standard-2 (2 vCPUs, 8 GB Memory)
 
-The write QPS is around 600. The bottleneck comes from the VM CPU utilization which is always around 100%. The Cloud Spanner CPU utilization is around 50%.
+The write QPS is around 600. The bottleneck comes from the VM CPU utilization
+which is always around 100%. The Cloud Spanner CPU utilization is around 50%.
 
-```
+```bash
 ┌──────────────────────────────────────────────────────────────────────┐
 │Read (342 workers): Current max: 0/s. Oversupply in last second: 0    │
 │Write (683 workers): Current max: 655/s. Oversupply in last second: 0 │
@@ -111,7 +118,7 @@ The write QPS is around 600. The bottleneck comes from the VM CPU utilization wh
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-```
+```bash
 top - 11:12:32 up 58 min,  2 users,  load average: 1.94, 1.94, 1.91
 Tasks:  96 total,   1 running,  95 sleeping,   0 stopped,   0 zombie
 %Cpu(s): 88.0 us,  3.7 sy,  0.0 ni,  5.6 id,  0.0 wa,  0.0 hi,  2.7 si,  0.0 st 
@@ -139,9 +146,11 @@ The following flags are used:
 - `--enable_publication_awaiter`
 - `--checkpoint_interval=1500ms`
 
-When the publication awaiter is enabled, the write QPS drops to around 500. The bottleneck comes from the checkpoint publishing wait time. The VM CPU utilization is around 75%. The Cloud Spanner CPU utilization is around 35%.
+When the publication awaiter is enabled, the write QPS drops to around 500. The
+bottleneck comes from the checkpoint publishing wait time. The VM CPU
+utilization is around 75%. The Cloud Spanner CPU utilization is around 35%.
 
-```
+```bash
 ┌───────────────────────────────────────────────────────────────────────┐
 │Read (0 workers): Current max: 0/s. Oversupply in last second: 0       │
 │Write (4096 workers): Current max: 526/s. Oversupply in last second: 0 │
@@ -151,7 +160,7 @@ When the publication awaiter is enabled, the write QPS drops to around 500. The 
 └───────────────────────────────────────────────────────────────────────┘
 ```
 
-```
+```bash
 top - 00:06:07 up  1:06,  2 users,  load average: 1.81, 1.83, 1.65
 Tasks:  97 total,   2 running,  95 sleeping,   0 stopped,   0 zombie
 %Cpu(s): 70.8 us,  3.8 sy,  0.0 ni, 21.4 id,  0.0 wa,  0.0 hi,  3.8 si,  0.2 st 
@@ -164,7 +173,8 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5580.2 avail Mem
 
 ### AWS
 
-The indicative figures below were measured using the [CT hammer tool](/internal/hammer/) as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe7687c9ed35d11f42a211ee35544ff6c5610ee6).
+The indicative figures below were measured using the [CT hammer
+tool](/internal/hammer/) as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe7687c9ed35d11f42a211ee35544ff6c5610ee6).
 
 #### t3a.small EC2 Instance + Aurora MySQL db.r5.large
 
@@ -173,9 +183,10 @@ The indicative figures below were measured using the [CT hammer tool](/internal/
     - IOPS: 3,000
     - Throughput: 125 MiB/s
 
-The write QPS is around 450. The bottleneck comes from the VM CPU utilization which is always around 100%. The Aurora MySQL CPU utilization is around 30%.
+The write QPS is around 450. The bottleneck comes from the VM CPU utilization
+which is always around 100%. The Aurora MySQL CPU utilization is around 30%.
 
-```
+```bash
 ┌────────────────────────────────────────────────────────────────────────┐
 │Read (8 workers): Current max: 0/s. Oversupply in last second: 0        │
 │Write (512 workers): Current max: 572/s. Oversupply in last second: 0   │
@@ -185,7 +196,7 @@ The write QPS is around 450. The bottleneck comes from the VM CPU utilization wh
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-```
+```bash
 top - 22:52:24 up 1 day,  4:23,  2 users,  load average: 1.78, 1.79, 1.21
 Tasks: 110 total,   1 running, 109 sleeping,   0 stopped,   0 zombie
 %Cpu(s): 75.1 us,  9.0 sy,  0.0 ni,  5.6 id,  0.0 wa,  0.0 hi,  8.5 si,  1.8 st

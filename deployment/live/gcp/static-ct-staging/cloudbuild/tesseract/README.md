@@ -5,8 +5,8 @@ This directory contains terragrunt files to configure our Cloud Build pipeline(s
 The Cloud Build pipeline is triggered when a commit in the repo is tagged with
 `^staging-deploy-(.+)$` and is responsible for:
 
-1. Building the `cmd/tesseract/gcp` and `cmd/tesseract/gcp/staging` Docker images from the last
-commit with a `^staging-deploy-(.+)$` tag.
+1. Building the `cmd/tesseract/gcp` and `cmd/tesseract/gcp/staging` Docker
+images from the last commit with a `^staging-deploy-(.+)$` tag.
 1. Updating [staging
 logs'](/deployment/live/gcp/static-ct-staging/logs/) Cloud Run service with the
 latest Docker image.
