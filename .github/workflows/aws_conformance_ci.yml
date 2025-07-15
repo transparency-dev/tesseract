@@ -16,8 +16,8 @@ permissions:
   contents: read
 
 env:
-  TF_VERSION: "1.11.3"
-  TG_VERSION: "0.77.7"
+  TOFU_VERSION: "1.10.2"
+  TG_VERSION: "0.83.2"
   TG_DIR: "deployment/live/aws/conformance/ci/"
   ECR_REPOSITORY_CONFORMANCE: static-ct-ci/conformance:latest
   ECR_REPOSITORY_HAMMER: static-ct-ci/hammer:latest
@@ -73,7 +73,7 @@ jobs:
       - name: Terragrunt destroy pre conformance test
         uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
         with:
-          tf_version: ${{ env.TF_VERSION }}
+          tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
           tg_dir: ${{ env.TG_DIR }}
           tg_command: "destroy"
@@ -85,7 +85,7 @@ jobs:
       - name: Terragrunt apply
         uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
         with:
-          tf_version: ${{ env.TF_VERSION }}
+          tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
           tg_dir: ${{ env.TG_DIR }}
           tg_command: "apply"
@@ -120,7 +120,7 @@ jobs:
       - name: Terragrunt destroy pre conformance test
         uses: gruntwork-io/terragrunt-action@aee21a7df999be8b471c2a8564c6cd853cb674e1 # v2.1.8
         with:
-          tf_version: ${{ env.TF_VERSION }}
+          tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
           tg_dir: ${{ env.TG_DIR }}
           tg_command: "destroy"
