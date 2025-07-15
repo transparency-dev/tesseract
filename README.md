@@ -27,7 +27,7 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 ## :mega: Status
 
-TesseraCT is under active development, and will soon reach alpha 🚀.
+TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 
 At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
 Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
@@ -37,7 +37,31 @@ or if [you're interested in others](#can-i-run-tesseract-outside-gcp-or-aws).
 
 ## :motorway: Roadmap
 
-TODO
+Our objective is to allow log operators to run production CT logs starting with
+[temporal shards](https://googlechrome.github.io/CertificateTransparency/log_policy.html#temporal-sharding)
+covering 2026 onwards.
+
+At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
+
+|  #  | Step                                           | Status             | Target release |
+| --- | ---------------------------------------------- | ------------------ | ---------------|
+|  1  | Storage for GCP and AWS                        | :white_check_mark: | alpha          |
+|  2  | Lightweight CT compatible x509 fork            | :white_check_mark: | alpha          |
+|  3  | static-ct-api APIs                             | :white_check_mark: | alpha          |
+|  4  | Basic Antispam                                 | :white_check_mark: | alpha          |
+|  5  | Monitoring and metrics                         | :white_check_mark: | alpha          |
+|  6  | Secure key management [#219](issues/219)       | :hammer:           | beta           |
+|  7  | Better Antispam performance [#322](issues/322) | :hammer:           | beta           |
+|  8  | Structured logging [#346](issues/346)          | :hammer:           | beta           |
+|  9  | CCADB based root update [#212](issues/212)     | :hammer:           | beta           |
+|  10 | Client                                         | :hammer:           | 1.0            |
+|  11 | Stable APIs                                    | :hammer:           | 1.0            |
+
+Current public librairy APIs are unlikely to change in any significant way,
+however the API is subject to minor breaking changes until we tag 1.0.
+Any feedback is welcome.
+
+If you're interested in additional features, [get in touch](#wave-contact).
 
 ## :joystick: Usage
 
