@@ -59,6 +59,7 @@ var (
 	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
 	storageDir               = flag.String("storage_dir", "", "Path to root of log storage.")
 	pushbackMaxOutstanding   = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	pushbackMaxDupesInFlight = flag.Uint("pushback_max_dupes_in_flight", 1024, "Maximum number of number of in-flight duplicate add requests. When 0, duplicate entries are always pushed back.")
 	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
@@ -184,7 +185,7 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter, *pushbackMaxDupesInFlight)
 }
 
 type timestampFlag struct {
