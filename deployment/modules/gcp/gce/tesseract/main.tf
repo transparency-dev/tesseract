@@ -160,8 +160,10 @@ module "gce_ilb" {
   ports       = ["80"]
   source_tags = []
   // TODO(phbnf): come back to this, it doesn't match with the VM tags.
-  target_tags   = ["${var.base_name}-allow-group"]
-  service_label = var.base_name
+  target_tags                  = []
+  service_label                = var.base_name
+  create_backend_firewall      = false
+  create_health_check_firewall = false
 
   health_check = {
     type                = "http"
