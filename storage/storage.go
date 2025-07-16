@@ -78,6 +78,19 @@ func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStora
 		enableAwaiter:    enableAwaiter,
 		maxDupesInFlight: maxDupesInFlight,
 	}
+
+	t := time.NewTicker(1 * time.Second)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-t.C:
+				ctStorage.dupesInFlight.Store(0)
+			}
+		}
+	}()
+
 	return ctStorage, nil
 }
 
@@ -146,7 +159,6 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 			return 0, 0, fmt.Errorf("antispam in-flight %w", tessera.ErrPushback)
 		}
 		cts.dupesInFlight.Add(1)
-		defer cts.dupesInFlight.Add(-1)
 		return cts.dedupFuture(ctx, future)
 	}
 
