@@ -110,6 +110,10 @@ resource "google_compute_health_check" "healthz" {
     response     = "ok"
     port         = 80
   }
+
+  log_config {
+    enable = true
+  }
 }
 
 resource "google_compute_region_instance_group_manager" "instance_group_manager" {
