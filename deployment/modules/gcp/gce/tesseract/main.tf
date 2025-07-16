@@ -1,7 +1,7 @@
 terraform {
   required_providers {
     google = {
-      source = "hashicorp/google"
+      source  = "hashicorp/google"
       version = "6.43.0"
     }
   }
@@ -99,7 +99,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 }
 
 resource "google_compute_health_check" "healthz" {
-  name                = "${var.base_name}-health-check"
+  name                = "${var.base_name}-mig-hc-http"
   timeout_sec         = 10
   check_interval_sec  = 30
   healthy_threshold   = 1
@@ -134,9 +134,9 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     most_disruptive_allowed_action = "REPLACE"
     # TODO(phbnf): come back to this, it's a beta feature for now
     # min_ready_sec                  = 50
-    replacement_method             = "SUBSTITUTE"
-    max_surge_fixed                = 3 // must be greater or equal than the number of zones, which itself default to 3
-    max_unavailable_fixed          = 0 // wait for new VMs to be up before turning down the old ones
+    replacement_method    = "SUBSTITUTE"
+    max_surge_fixed       = 3 // must be greater or equal than the number of zones, which itself default to 3
+    max_unavailable_fixed = 0 // wait for new VMs to be up before turning down the old ones
   }
 
   named_port {
@@ -144,11 +144,10 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     port = 80
   }
 
-  # TODO(phbnf): re-enable this once we have approval to have custom firewall allowing these probes.
-  #   auto_healing_policies {
-  #     health_check      = google_compute_health_check.healthz.id
-  #     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
-  #   }
+  auto_healing_policies {
+    health_check      = google_compute_health_check.healthz.id
+    initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
+  }
 }
 
 // TODO(phbnf): move to external load balancer, or maybe forward to this one.
@@ -177,7 +176,6 @@ module "gce_ilb" {
     port_name           = "health-check-port"
     request             = ""
     request_path        = "/healthz"
-    host                = "1.2.3.4"
     enable_log          = false
   }
 
