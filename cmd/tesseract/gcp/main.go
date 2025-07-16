@@ -68,6 +68,7 @@ var (
 	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	pushbackMaxDupesInFlight  = flag.Uint("pushback_max_dupes_in_flight", 1024, "Maximum number of number of in-flight duplicate add requests. When 0, duplicate entries are always pushed back.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
@@ -208,7 +209,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter)
+	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter, *pushbackMaxDupesInFlight)
 }
 
 type timestampFlag struct {

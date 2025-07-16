@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/transparency-dev/tessera"
@@ -57,22 +58,25 @@ type IssuerStorage interface {
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers  func(context.Context, []KV) error
-	reader        tessera.LogReader
-	awaiter       *tessera.PublicationAwaiter
-	enableAwaiter bool
+	storeData        func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers     func(context.Context, []KV) error
+	reader           tessera.LogReader
+	awaiter          *tessera.PublicationAwaiter
+	enableAwaiter    bool
+	dupesInFlight    atomic.Int64
+	maxDupesInFlight uint
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool) (*CTStorage, error) {
+func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool, maxDupesInFlight uint) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:     tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers:  cachedStoreIssuers(issuerStorage),
-		reader:        reader,
-		awaiter:       awaiter,
-		enableAwaiter: enableAwaiter,
+		storeData:        tessera.NewCertificateTransparencyAppender(logStorage),
+		storeIssuers:     cachedStoreIssuers(issuerStorage),
+		reader:           reader,
+		awaiter:          awaiter,
+		enableAwaiter:    enableAwaiter,
+		maxDupesInFlight: maxDupesInFlight,
 	}
 	return ctStorage, nil
 }
@@ -138,6 +142,11 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 		}
 	}
 	if idx.IsDup {
+		if cts.dupesInFlight.Load() > int64(cts.maxDupesInFlight) {
+			return 0, 0, fmt.Errorf("antispam in-flight %w", tessera.ErrPushback)
+		}
+		cts.dupesInFlight.Add(1)
+		defer cts.dupesInFlight.Add(-1)
 		return cts.dedupFuture(ctx, future)
 	}
 
