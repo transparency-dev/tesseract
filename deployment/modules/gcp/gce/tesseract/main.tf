@@ -25,7 +25,7 @@ module "gce_container_tesseract" {
     args = [
       "--logtostderr",
       "--v=3",
-      "--http_endpoint=:6962",
+      "--http_endpoint=:80",
       "--bucket=${var.bucket}",
       "--spanner_db_path=${local.spanner_log_db_path}",
       "--spanner_antispam_db_path=${local.spanner_antispam_db_path}",
@@ -59,7 +59,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   // TODO(phbnf): come back to this: can we put base_name in there given
   // that this template applies to all logs?
-  tags = ["tesseract-allow-group"]
+  tags = ["tesseract-allow-group", "allow-health-checks"]
 
   labels = {
     environment  = var.env
@@ -108,7 +108,7 @@ resource "google_compute_health_check" "healthz" {
   http_health_check {
     request_path = "/healthz"
     response     = "ok"
-    port         = 6962
+    port         = 80
   }
 }
 
@@ -137,7 +137,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
 
   named_port {
     name = "http"
-    port = 6962
+    port = 80
   }
 
   # TODO(phbnf): re-enable this once we have approval to have custom firewall allowing these probes.
@@ -153,7 +153,7 @@ module "gce_ilb" {
   version     = "~> 7.0"
   region      = var.location
   name        = "${var.base_name}-ilb"
-  ports       = ["6962"]
+  ports       = ["80"]
   source_tags = []
   // TODO(phbnf): come back to this, it doesn't match with the VM tags.
   target_tags   = ["${var.base_name}-allow-group"]
@@ -167,7 +167,7 @@ module "gce_ilb" {
     unhealthy_threshold = 5
     response            = ""
     proxy_header        = "NONE"
-    port                = 6962
+    port                = 80
     port_name           = "health-check-port"
     request             = ""
     request_path        = "/healthz"
