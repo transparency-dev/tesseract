@@ -18,7 +18,7 @@ At a high level, this environment consists of:
 ### Automatic Deployment
 
 This GCP TesseraCT conformance CI environment is designed to be deployed by the
-Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/conformance/),
+Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/conformance/),
 [Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
 
 ### Manual Deployment
@@ -42,7 +42,7 @@ You need an Artifact Registry repository to store container images; adapt the
 configs and commands below to use your registry of choice. The rest of these
 instructions assume that the repository is hosted on GCP, and called
 `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci`. For reference,
-here's a [terraform module](/deployment/modules/gcp/artifactregistry/) you can
+here's a [OpenTofu module](/deployment/modules/gcp/artifactregistry/) you can
 use to set up such a registry.
 
 Build and push the Docker image to Artifact Registry repository:
@@ -55,7 +55,7 @@ docker tag conformance-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJE
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp
 ```
 
-Terraforming the project can be done by:
+OpenTofuing the project can be done by:
 
   1. `cd` to
   [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).

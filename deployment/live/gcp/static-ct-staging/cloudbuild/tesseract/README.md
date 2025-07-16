@@ -12,7 +12,7 @@ logs'](/deployment/live/gcp/static-ct-staging/logs/) Cloud Run service with the
 latest Docker image.
 1. Updating [staging
 logs'](/deployment/live/gcp/static-ct-staging/logs/) infrastructure with the
-latest Terraform config.
+latest OpenTofu config.
 
 ## Initial setup
 

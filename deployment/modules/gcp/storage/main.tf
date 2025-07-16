@@ -7,7 +7,7 @@ terraform {
   }
 }
 
-# TODO(phboneff): import tessera terraform directly
+# TODO(phboneff): import tessera OpenTofu directly
 # Services
 resource "google_project_service" "serviceusage_googleapis_com" {
   service            = "serviceusage.googleapis.com"

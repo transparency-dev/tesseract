@@ -74,7 +74,7 @@ export AWS_REGION={VALUE} # e.g: us-east-1
 export AWS_PROFILE=AdministratorAccess-<REDACTED>
 ```
 
-Terraforming the account can be done by:
+OpenTofuing the account can be done by:
 
   1. `cd` to [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
   1. Run `terragrunt apply`. If this fails to create the antispam database,
@@ -253,6 +253,6 @@ The easiest way to do this, is to [close the account](https://docs.aws.amazon.co
 
 If you prefer to delete the resources with `terragrunt destroy`, bear in mind
 that this command might not destroy all the resources that were created (like
-the S3 bucket or DynamoDB instance Terraform created to store its state for
+the S3 bucket or DynamoDB instance OpenTofu created to store its state for
 instance). If `terragrunt destroy` shows no output, run
 `terragrunt destroy --terragrunt-log-level debug --terragrunt-debug`.
