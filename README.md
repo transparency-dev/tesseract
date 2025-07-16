@@ -51,7 +51,7 @@ At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 |  4  | Basic Antispam                                 | :white_check_mark: | alpha          |
 |  5  | Monitoring and metrics                         | :white_check_mark: | alpha          |
 |  6  | Secure key management [#219](issues/219)       | :hammer:           | beta           |
-|  7  | Better Antispam performance [#322](issues/322) | :hammer:           | beta           |
+|  7  | Witnessing [#443](issues/443)                  | :hammer:           | beta           |
 |  8  | Structured logging [#346](issues/346)          | :hammer:           | beta           |
 |  9  | CCADB based root update [#212](issues/212)     | :hammer:           | beta           |
 |  10 | Client                                         | :hammer:           | 1.0            |
