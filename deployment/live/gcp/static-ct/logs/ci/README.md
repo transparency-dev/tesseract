@@ -55,7 +55,7 @@ docker tag conformance-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJE
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conformance-gcp
 ```
 
-OpenTofuing the project can be done by:
+Deploy the Terraform config with OpenTofu:
 
   1. `cd` to
   [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).

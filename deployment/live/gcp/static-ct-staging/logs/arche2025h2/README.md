@@ -71,7 +71,7 @@ docker tag tesseract-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp
 ```
 
-OpenTofuing the project can be done by:
+Deploy the Terraform config with OpenTofu:
 
 1. `cd` to
 [/deployment/live/gcp/static-ct-staging/logs/arche2025h2/](/deployment/live/gcp/static-ct-staging/logs/arche2025h2/).
