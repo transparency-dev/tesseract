@@ -30,7 +30,7 @@ awk \
 ### Automatic Deployment
 
 This GCP TesseraCT preloaded staging environment is designed to be deployed by
-the Cloud Build ([Terraform module](/deployment/modules/gcp/cloudbuild/tesseract/),
+the Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/tesseract/),
 [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/tesseract/)).
 
 ### Manual Deployment
@@ -57,7 +57,7 @@ You need an Artifact Registry repository to store container images; adapt the
 configs and commands below to use your registry of choice. The rest of these
 instructions assume that the repository is hosted on GCP, and called
 `${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging`. For
-reference, here's a [terraform
+reference, here's a [OpenTofu
 module](/deployment/modules/gcp/artifactregistry/) you can use to set up such a
 registry.
 
@@ -71,7 +71,7 @@ docker tag tesseract-staging-gcp:latest ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE
 docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tesseract-gcp
 ```
 
-Terraforming the project can be done by:
+Deploy the Terraform config with OpenTofu:
 
 1. `cd` to
 [/deployment/live/gcp/static-ct-staging/logs/arche2025h1/](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/).

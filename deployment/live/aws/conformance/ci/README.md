@@ -36,6 +36,6 @@ export TESSERACT_PREFIX_NAME={VALUE}
 Resources will be named using a `${TESSERACT_PREFIX_NAME}-${TESSERACT_BASE_NAME}`
 convention.
 
-Terraforming the project can be done by:
+Deploy the Terraform config with OpenTofu:
   1. `cd` to the relevant directory for the environment to deploy/change (e.g. `ci`)
   2. Run `terragrunt apply`

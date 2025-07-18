@@ -1,6 +1,6 @@
 # :gear: Deployment
 
-This directory contains Terraform [modules](./modules/) to deploy TesseraCT on
+This directory contains OpenTofu [modules](./modules/) to deploy TesseraCT on
 GCP and AWS with various setups, and the [instantiations](./live/) we use for
 our deployments.
 

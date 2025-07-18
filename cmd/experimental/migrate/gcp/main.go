@@ -87,7 +87,7 @@ func main() {
 	opts := tessera.NewMigrationOptions().WithCTLayout()
 	// Configure antispam storage, if necessary
 	var antispam tessera.Antispam
-	// Persistent antispam is currently experimental, so there's no terraform or documentation yet!
+	// Persistent antispam is currently experimental, so there's no OpenTofu or documentation yet!
 	if *persistentAntispam {
 		as_opts := gcp_as.AntispamOpts{
 			// 1500 appears to be give good performance for migrating logs, but you may need to lower it if you have

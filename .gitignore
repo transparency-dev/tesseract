@@ -27,7 +27,7 @@ go.work.sum
 # Project IDX
 .idx/
 
-# Terraform
+# Terraform/OpenTofu
 
 ## Local .terraform directories
 **/.terraform/*
@@ -36,7 +36,7 @@ go.work.sum
 *.tfstate
 *.tfstate.*
 
-## Ignore transient lock info files created by terraform apply
+## Ignore transient lock info files created by terraform/tofu apply
 .terraform.tfstate.lock.info
 
 # Terragrunt
