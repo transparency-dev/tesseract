@@ -58,50 +58,62 @@ type IssuerStorage interface {
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData        func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers     func(context.Context, []KV) error
-	reader           tessera.LogReader
-	awaiter          *tessera.PublicationAwaiter
-	enableAwaiter    bool
-	dupesInFlight    atomic.Int64
-	maxDupesInFlight uint
+	storeData          func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers       func(context.Context, []KV) error
+	reader             tessera.LogReader
+	awaiter            *tessera.PublicationAwaiter
+	enableAwaiter      bool
+	dedupesInFlight    atomic.Int64
+	maxDedupesInFlight uint
 }
 
 // NewCTStorage instantiates a CTStorage object.
 func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool, maxDupesInFlight uint) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:        tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers:     cachedStoreIssuers(issuerStorage),
-		reader:           reader,
-		awaiter:          awaiter,
-		enableAwaiter:    enableAwaiter,
-		maxDupesInFlight: maxDupesInFlight,
+		storeData:          tessera.NewCertificateTransparencyAppender(logStorage),
+		storeIssuers:       cachedStoreIssuers(issuerStorage),
+		reader:             reader,
+		awaiter:            awaiter,
+		enableAwaiter:      enableAwaiter,
+		maxDedupesInFlight: maxDupesInFlight,
 	}
 
-	t := time.NewTicker(1 * time.Second)
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			case <-t.C:
-				ctStorage.dupesInFlight.Store(0)
-			}
-		}
-	}()
+	go ctStorage.resetDedupesInFlightJob(ctx, 1*time.Second)
 
 	return ctStorage, nil
 }
 
-func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
-	return cts.reader.ReadCheckpoint(ctx)
+// resetDedupesInFlightJob resets the number of dupesInFlight to 0 every interval.
+// This allows
+func (cts *CTStorage) resetDedupesInFlightJob(ctx context.Context, interval time.Duration) {
+	t := time.NewTicker(interval)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			cts.dedupesInFlight.Store(0)
+		}
+	}
 }
 
+// dedupeFuture returns the index and timestamp matching a future.
+// It waits for the entry matching the future to be integrated, fetches it and
+// extracts the timstamp from it.
+//
+// dedupeFuture returns tessera.ErrPushback if too many concurent calls are in flight.
+// Use resetDedupesInFlightJob to periodically reset the number of calls in flight.
+//
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
+func (cts *CTStorage) dedupeFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
+
+	if cts.dedupesInFlight.Load() > int64(cts.maxDedupesInFlight) {
+		return 0, 0, fmt.Errorf("too many duplicate submissions %w", tessera.ErrPushback)
+	}
+	cts.dedupesInFlight.Add(1)
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
@@ -139,27 +151,21 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
-	var idx tessera.Index
-	var err error
 	future := cts.storeData(ctx, entry)
+	idx, err := future()
+	if err != nil {
+		return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
+	}
+
+	if idx.IsDup {
+		return cts.dedupeFuture(ctx, future)
+	}
 
 	if cts.enableAwaiter {
 		idx, _, err = cts.awaiter.Await(ctx, future)
 		if err != nil {
 			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
-	} else {
-		idx, err = future()
-		if err != nil {
-			return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
-		}
-	}
-	if idx.IsDup {
-		if cts.dupesInFlight.Load() > int64(cts.maxDupesInFlight) {
-			return 0, 0, fmt.Errorf("antispam in-flight %w", tessera.ErrPushback)
-		}
-		cts.dupesInFlight.Add(1)
-		return cts.dedupFuture(ctx, future)
 	}
 
 	return idx.Index, entry.Timestamp, nil
