@@ -68,6 +68,9 @@ var (
 	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	clientHTTPTimeout         = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
+	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 2000, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 1000, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
@@ -165,6 +168,14 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	gcpCfg := tgcp.Config{
 		Bucket:  *bucket,
 		Spanner: *spannerDB,
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConns:        *clientHTTPMaxIdle,
+				MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
+				DisableKeepAlives:   false,
+			},
+			Timeout: *clientHTTPTimeout,
+		},
 	}
 
 	driver, err := tgcp.New(ctx, gcpCfg)
