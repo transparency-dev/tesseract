@@ -38,7 +38,7 @@ import (
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
-	posixTessera "github.com/transparency-dev/tessera/storage/posix"
+	tposix "github.com/transparency-dev/tessera/storage/posix"
 	badger_as "github.com/transparency-dev/tessera/storage/posix/antispam"
 	"github.com/transparency-dev/tesseract/internal/testdata"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
@@ -154,7 +154,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-		driver, err := posixTessera.New(ctx, posixTessera.Config{Path: path.Join(root, logDir)})
+		driver, err := tposix.New(ctx, tposix.Config{Path: path.Join(root, logDir)})
 		if err != nil {
 			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
 		}
