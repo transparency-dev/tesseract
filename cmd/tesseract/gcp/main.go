@@ -28,7 +28,6 @@ import (
 	"syscall"
 	"time"
 
-	gcs "cloud.google.com/go/storage"
 	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
@@ -175,16 +174,10 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		Timeout: *clientHTTPTimeout,
 	}
 
-	gcsClient, err := gcs.NewGRPCClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("gcs.NewGRPCClient: %v", err)
-	}
-
 	gcpCfg := tgcp.Config{
 		Bucket:     *bucket,
 		Spanner:    *spannerDB,
 		HTTPClient: hc,
-		GCSClient:  gcsClient,
 	}
 
 	driver, err := tgcp.New(ctx, gcpCfg)
