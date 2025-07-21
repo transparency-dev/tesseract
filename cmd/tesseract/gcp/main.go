@@ -38,7 +38,6 @@ import (
 	"github.com/transparency-dev/tesseract/storage/gcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
-	"google.golang.org/api/option"
 	"k8s.io/klog/v2"
 )
 
@@ -71,8 +70,8 @@ var (
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	clientHTTPTimeout         = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
-	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 2000, "Maximum number of idle HTTP connections for outgoing requests.")
-	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 1000, "Maximum number of idle HTTP connections per host for outgoing requests.")
+	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
@@ -176,9 +175,9 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		Timeout: *clientHTTPTimeout,
 	}
 
-	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads(), option.WithHTTPClient(hc))
+	gcsClient, err := gcs.NewGRPCClient(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("gcs.NewClient: %v", err)
+		return nil, fmt.Errorf("gcs.NewGRPCClient: %v", err)
 	}
 
 	gcpCfg := tgcp.Config{
