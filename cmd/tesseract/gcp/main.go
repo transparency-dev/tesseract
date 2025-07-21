@@ -28,6 +28,7 @@ import (
 	"syscall"
 	"time"
 
+	gcs "cloud.google.com/go/storage"
 	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
@@ -37,6 +38,7 @@ import (
 	"github.com/transparency-dev/tesseract/storage/gcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
+	"google.golang.org/api/option"
 	"k8s.io/klog/v2"
 )
 
@@ -165,17 +167,25 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, errors.New("missing spannerDB")
 	}
 
-	gcpCfg := tgcp.Config{
-		Bucket:  *bucket,
-		Spanner: *spannerDB,
-		HTTPClient: &http.Client{
-			Transport: &http.Transport{
-				MaxIdleConns:        *clientHTTPMaxIdle,
-				MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
-				DisableKeepAlives:   false,
-			},
-			Timeout: *clientHTTPTimeout,
+	hc := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        *clientHTTPMaxIdle,
+			MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
+			DisableKeepAlives:   false,
 		},
+		Timeout: *clientHTTPTimeout,
+	}
+
+	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads(), option.WithHTTPClient(hc))
+	if err != nil {
+		return nil, fmt.Errorf("gcs.NewClient: %v", err)
+	}
+
+	gcpCfg := tgcp.Config{
+		Bucket:     *bucket,
+		Spanner:    *spannerDB,
+		HTTPClient: hc,
+		GCSClient:  gcsClient,
 	}
 
 	driver, err := tgcp.New(ctx, gcpCfg)
