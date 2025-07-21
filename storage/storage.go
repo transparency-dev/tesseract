@@ -56,6 +56,14 @@ type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
 }
 
+type CTStorageOptions struct {
+	Appender           *tessera.Appender
+	Reader             tessera.LogReader
+	IssuerStorage      IssuerStorage
+	EnableAwaiter      bool
+	MaxDedupesInFlight uint
+}
+
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
 	storeData          func(context.Context, *ctonly.Entry) tessera.IndexFuture
@@ -68,15 +76,15 @@ type CTStorage struct {
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool, maxDupesInFlight uint) (*CTStorage, error) {
-	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
+func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
+	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:          tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers:       cachedStoreIssuers(issuerStorage),
-		reader:             reader,
+		storeData:          tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:       cachedStoreIssuers(opts.IssuerStorage),
+		reader:             opts.Reader,
 		awaiter:            awaiter,
-		enableAwaiter:      enableAwaiter,
-		maxDedupesInFlight: maxDupesInFlight,
+		enableAwaiter:      opts.EnableAwaiter,
+		maxDedupesInFlight: opts.MaxDedupesInFlight,
 	}
 
 	go ctStorage.resetDedupesInFlightJob(ctx, 1*time.Second)

@@ -185,7 +185,14 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter, *pushbackMaxDupesInFlight)
+	sopts := storage.CTStorageOptions{
+		Appender:           appender,
+		Reader:             reader,
+		IssuerStorage:      issuerStorage,
+		EnableAwaiter:      *enablePublicationAwaiter,
+		MaxDedupesInFlight: *pushbackMaxDupesInFlight,
+	}
+	return storage.NewCTStorage(ctx, &sopts)
 }
 
 type timestampFlag struct {
