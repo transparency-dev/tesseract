@@ -154,7 +154,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-		driver, err := posixTessera.New(ctx, path.Join(root, logDir))
+		driver, err := posixTessera.New(ctx, posixTessera.Config{Path: path.Join(root, logDir)})
 		if err != nil {
 			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
 		}

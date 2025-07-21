@@ -65,6 +65,10 @@ var (
 	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	privKeyFile              = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+
+	clientHTTPTimeout        = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
+	clientHTTPMaxIdle        = flag.Int("client_http_max_idle", 2000, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost = flag.Int("client_http_max_idle_per_host", 1000, "Maximum number of idle HTTP connections per host for outgoing requests.")
 )
 
 func main() {
@@ -139,7 +143,19 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, errors.New("missing storage_dir")
 	}
 
-	driver, err := tposix.New(ctx, *storageDir)
+	cfg := tposix.Config{
+		Path: *storageDir,
+		HTTPClient: &http.Client{
+			Transport: &http.Transport{
+				MaxIdleConns:        *clientHTTPMaxIdle,
+				MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
+				DisableKeepAlives:   false,
+			},
+			Timeout: *clientHTTPTimeout,
+		},
+	}
+
+	driver, err := tposix.New(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize POSIX Tessera storage driver: %v", err)
 	}
