@@ -15,15 +15,20 @@
 package gcp
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"path"
 
 	gcs "cloud.google.com/go/storage"
+	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
 )
 
@@ -37,14 +42,17 @@ type IssuersStorage struct {
 // NewIssuerStorage creates a new GCSStorage.
 //
 // The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, bucket string) (*IssuersStorage, error) {
-	c, err := gcs.NewClient(ctx, gcs.WithJSONReads())
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GCS client: %v", err)
+func NewIssuerStorage(ctx context.Context, bucket string, gcsClient *gcs.Client) (*IssuersStorage, error) {
+	if gcsClient == nil {
+		c, err := gcs.NewClient(ctx, gcs.WithJSONReads())
+		if err != nil {
+			return nil, fmt.Errorf("failed to create GCS client: %v", err)
+		}
+		gcsClient = c
 	}
 
 	r := &IssuersStorage{
-		bucket:      c.Bucket(bucket),
+		bucket:      gcsClient.Bucket(bucket),
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
 	}
@@ -74,13 +82,32 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 		}
 
 		if err := w.Close(); err != nil {
+			// Need to check whether the issuer was already present so that we can hide the error if this is an idempotent write.
+			// Unfortunately, the way in which this is communicated by the gcs client differs depending on whether the underlying
+			// transport used is HTTP or gRPC, so we need to check both:
+			failedPrecondition := false
 			if ee, ok := err.(*googleapi.Error); ok && ee.Code == http.StatusPreconditionFailed {
-				for _, e := range ee.Errors {
-					if e.Reason == "conditionNotMet" {
-						klog.V(2).Infof("AddIssuersIfNotExist: object %q already exists in bucket %q, continuing", objName, s.bucket.BucketName())
-						return nil
-					}
+				failedPrecondition = true
+			} else if st, ok := status.FromError(err); ok && st.Code() == codes.FailedPrecondition {
+				failedPrecondition = true
+			}
+			if failedPrecondition {
+				r, err := obj.NewReader(ctx)
+				if err != nil {
+					return fmt.Errorf("failed to create reader for object %q in bucket %q: %w", objName, s.bucket.BucketName(), err)
 				}
+
+				existing, err := io.ReadAll(r)
+				if err != nil {
+					return fmt.Errorf("failed to read %q: %v", objName, err)
+				}
+
+				if !bytes.Equal(existing, kv.V) {
+					klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
+					return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
+				}
+				klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
+				return nil
 			}
 
 			return fmt.Errorf("failed to close write on %q: %v", objName, err)

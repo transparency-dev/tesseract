@@ -223,7 +223,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 	}
 
-	issuerStorage, err := gcp.NewIssuerStorage(ctx, *bucket)
+	issuerStorage, err := gcp.NewIssuerStorage(ctx, *bucket, gcsClient)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
