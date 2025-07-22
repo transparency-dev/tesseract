@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 
 	"k8s.io/klog/v2"
 )
@@ -35,7 +36,7 @@ type HammerOpts struct {
 	MMDDuration      time.Duration
 }
 
-func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc, w LeafWriter, gen func() []byte, seqLeafChan chan<- LeafTime, errChan chan<- error, opts HammerOpts) *Hammer {
+func NewHammer(tracker *client.LogStateTracker, f client.EntryBundleFetcherFunc, w LeafWriter, gen func() rfc6962.AddChainRequest, seqLeafChan chan<- LeafTime, errChan chan<- error, opts HammerOpts) *Hammer {
 	readThrottle := NewThrottle(opts.MaxReadOpsPerSecond)
 	writeThrottle := NewThrottle(opts.MaxWriteOpsPerSecond)
 
