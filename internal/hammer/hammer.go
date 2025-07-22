@@ -239,12 +239,12 @@ func main() {
 // Leaves will be unique if dupChance is 0, and if set to 1 then all values will be duplicates.
 // startSize should be set to the initial size of the log so that repeated runs of the
 // hammer can start seeding leaves to avoid duplicates with previous runs.
-func newLeafGenerator(startSize uint64, dupChance float64, intermediateCACert *x509.Certificate, intermediateCAKey, leafCertSigningPrivateKey any) func() []byte {
+func newLeafGenerator(startSize uint64, dupChance float64, intermediateCACert *x509.Certificate, intermediateCAKey, leafCertSigningPrivateKey any) func() rfc6962.AddChainRequest {
 	certGen := newChainGenerator(intermediateCACert, intermediateCAKey, publicKey(leafCertSigningPrivateKey))
 
 	sizeLocked := startSize
 	var mu sync.Mutex
-	return func() []byte {
+	return func() rfc6962.AddChainRequest {
 		mu.Lock()
 		thisSize := sizeLocked
 

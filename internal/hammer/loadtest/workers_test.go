@@ -16,11 +16,9 @@ package loadtest
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
-	"k8s.io/klog/v2"
 )
 
 func BenchmarkLogWriter(b *testing.B) {
@@ -48,18 +46,11 @@ func BenchmarkLogWriter(b *testing.B) {
 }
 
 // newAddChainReq mimics chainGenerator.addChainRequestBody since we don't have access to it from here.
-func newAddChainReq() []byte {
-	req := rfc6962.AddChainRequest{
+func newAddChainReq() rfc6962.AddChainRequest {
+	return rfc6962.AddChainRequest{
 		Chain: [][]byte{
 			[]byte("one"),
 			[]byte("two"),
 		},
 	}
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		klog.Errorf("Failed to json.Marshal add chain request body: %v", err)
-		return nil
-	}
-
-	return reqBody
 }
