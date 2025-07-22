@@ -24,7 +24,6 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"strconv"
-	"strings"
 	"sync"
 	"time"
 
@@ -200,17 +199,12 @@ func NewPathHandlers(ctx context.Context, opts *HandlerOptions, log *log) pathHa
 	once.Do(func() { setupMetrics() })
 	knownLogs.Record(ctx, 1, metric.WithAttributes(originKey.String(log.origin)))
 
-	prefix := strings.TrimRight(log.origin, "/")
-	if !strings.HasPrefix(prefix, "/") {
-		prefix = "/" + prefix
-	}
-
 	// Bind each endpoint to an appHandler instance.
 	// TODO(phboneff): try and get rid of PathHandlers and appHandler
 	ph := pathHandlers{
-		prefix + rfc6962.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
-		prefix + rfc6962.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
-		prefix + rfc6962.GetRootsPath:    appHandler{opts: opts, log: log, handler: getRoots, name: getRootsName, method: http.MethodGet},
+		rfc6962.AddChainPath:    appHandler{opts: opts, log: log, handler: addChain, name: addChainName, method: http.MethodPost},
+		rfc6962.AddPreChainPath: appHandler{opts: opts, log: log, handler: addPreChain, name: addPreChainName, method: http.MethodPost},
+		rfc6962.GetRootsPath:    appHandler{opts: opts, log: log, handler: getRoots, name: getRootsName, method: http.MethodGet},
 	}
 
 	return ph

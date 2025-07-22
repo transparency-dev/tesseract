@@ -62,7 +62,6 @@ var (
 
 	// Arbitrary origin for tests
 	origin = "example.com"
-	prefix = "/" + origin
 
 	// Default handler options for tests
 	hOpts = HandlerOptions{
@@ -201,31 +200,27 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 
 func getHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 	t.Helper()
-	path := path.Join(prefix, rfc6962.GetRootsPath)
-	handler, ok := handlers[path]
+	handler, ok := handlers[rfc6962.GetRootsPath]
 	if !ok {
 		t.Fatalf("%q path not registered", rfc6962.GetRootsPath)
 	}
-	return pathHandlers{path: handler}
+	return pathHandlers{rfc6962.GetRootsPath: handler}
 }
 
 func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 	t.Helper()
-	addChainPath := path.Join(prefix, rfc6962.AddChainPath)
-	addPreChainPath := path.Join(prefix, rfc6962.AddPreChainPath)
-
-	addChainHandler, ok := handlers[addChainPath]
+	addChainHandler, ok := handlers[rfc6962.AddChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", rfc6962.AddPreChainStr)
 	}
-	addPreChainHandler, ok := handlers[addPreChainPath]
+	addPreChainHandler, ok := handlers[rfc6962.AddPreChainPath]
 	if !ok {
 		t.Fatalf("%q path not registered", rfc6962.AddPreChainStr)
 	}
 
 	return map[string]appHandler{
-		addChainPath:    addChainHandler,
-		addPreChainPath: addPreChainHandler,
+		rfc6962.AddChainPath:    addChainHandler,
+		rfc6962.AddPreChainPath: addPreChainHandler,
 	}
 }
 
@@ -328,7 +323,7 @@ func TestNewPathHandlers(t *testing.T) {
 			t.Errorf("Handler names mismatch got: %v, want: %v", hNames, entrypoints)
 		}
 
-		entrypaths := []string{prefix + rfc6962.AddChainPath, prefix + rfc6962.AddPreChainPath, prefix + rfc6962.GetRootsPath}
+		entrypaths := []string{rfc6962.AddChainPath, rfc6962.AddPreChainPath, rfc6962.GetRootsPath}
 		if !cmp.Equal(entrypaths, hPaths, cmpopts.SortSlices(func(n1, n2 string) bool {
 			return n1 < n2
 		})) {
@@ -358,10 +353,10 @@ func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Cert
 
 func TestGetRoots(t *testing.T) {
 	log, _ := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
+	server := setupTestServer(t, log, rfc6962.GetRootsPath)
 	defer server.Close()
 
-	resp, err := http.Get(server.URL + path.Join(prefix, rfc6962.GetRootsPath))
+	resp, err := http.Get(server.URL + rfc6962.GetRootsPath)
 	if err != nil {
 		t.Fatalf("Failed to get roots: %v", err)
 	}
@@ -448,7 +443,7 @@ func TestAddChainWhitespace(t *testing.T) {
 	}
 
 	log, _ := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+	server := setupTestServer(t, log, rfc6962.AddChainPath)
 	defer server.Close()
 
 	for _, test := range tests {
@@ -519,7 +514,7 @@ func TestAddChain(t *testing.T) {
 	}
 
 	log, dir := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+	server := setupTestServer(t, log, rfc6962.AddChainPath)
 	defer server.Close()
 	defer timeSource.Reset()
 
@@ -667,7 +662,7 @@ func TestAddPreChain(t *testing.T) {
 	}
 
 	log, dir := setupTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
+	server := setupTestServer(t, log, rfc6962.AddPreChainPath)
 	defer server.Close()
 	defer timeSource.Reset()
 
