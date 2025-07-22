@@ -52,19 +52,20 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
-	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	httpDeadline             = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	storageDir               = flag.String("storage_dir", "", "Path to root of log storage.")
-	pushbackMaxOutstanding   = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
-	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
-	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
-	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
-	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
-	privKeyFile              = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	httpEndpoint              = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	maskInternalErrors        = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
+	origin                    = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	storageDir                = flag.String("storage_dir", "", "Path to root of log storage.")
+	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	pushbackMaxDedupeInFlight = flag.Uint("pushback_max_dedupe_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
+	rootsPemFile              = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rejectExpired             = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
+	rejectUnexpired           = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
+	extKeyUsages              = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	rejectExtensions          = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	privKeyFile               = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 
 	clientHTTPTimeout        = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
 	clientHTTPMaxIdle        = flag.Int("client_http_max_idle", 2000, "Maximum number of idle HTTP connections for outgoing requests.")
@@ -184,7 +185,14 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 	}
 
-	return storage.NewCTStorage(ctx, appender, issuerStorage, reader, *enablePublicationAwaiter)
+	sopts := storage.CTStorageOptions{
+		Appender:          appender,
+		Reader:            reader,
+		IssuerStorage:     issuerStorage,
+		EnableAwaiter:     *enablePublicationAwaiter,
+		MaxDedupeInFlight: *pushbackMaxDedupeInFlight,
+	}
+	return storage.NewCTStorage(ctx, &sopts)
 }
 
 type timestampFlag struct {

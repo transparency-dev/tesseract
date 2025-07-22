@@ -25,6 +25,7 @@ import (
 	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/transparency-dev/tessera"
@@ -55,36 +56,72 @@ type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
 }
 
+type CTStorageOptions struct {
+	Appender          *tessera.Appender
+	Reader            tessera.LogReader
+	IssuerStorage     IssuerStorage
+	EnableAwaiter     bool
+	MaxDedupeInFlight uint
+}
+
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers  func(context.Context, []KV) error
-	reader        tessera.LogReader
-	awaiter       *tessera.PublicationAwaiter
-	enableAwaiter bool
+	storeData               func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers            func(context.Context, []KV) error
+	reader                  tessera.LogReader
+	awaiter                 *tessera.PublicationAwaiter
+	enableAwaiter           bool
+	dedupeFutureInFlight    atomic.Int64
+	maxDedupeFutureInFlight uint
 }
 
 // NewCTStorage instantiates a CTStorage object.
-func NewCTStorage(ctx context.Context, logStorage *tessera.Appender, issuerStorage IssuerStorage, reader tessera.LogReader, enableAwaiter bool) (*CTStorage, error) {
-	awaiter := tessera.NewPublicationAwaiter(ctx, reader.ReadCheckpoint, 200*time.Millisecond)
+func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
+	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:     tessera.NewCertificateTransparencyAppender(logStorage),
-		storeIssuers:  cachedStoreIssuers(issuerStorage),
-		reader:        reader,
-		awaiter:       awaiter,
-		enableAwaiter: enableAwaiter,
+		storeData:               tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:            cachedStoreIssuers(opts.IssuerStorage),
+		reader:                  opts.Reader,
+		awaiter:                 awaiter,
+		enableAwaiter:           opts.EnableAwaiter,
+		maxDedupeFutureInFlight: opts.MaxDedupeInFlight,
 	}
+
+	// Reset the number of dedupteFutureInFlight every second allow new duplicate requests in.
+	go ctStorage.resetDedupeFutureInFlightJob(ctx, 1*time.Second)
+
 	return ctStorage, nil
 }
 
-func (cts *CTStorage) ReadCheckpoint(ctx context.Context) ([]byte, error) {
-	return cts.reader.ReadCheckpoint(ctx)
+// resetDedupeFutureInFlightJob resets the number of dedupteFutureInFlight to 0 every interval.
+func (cts *CTStorage) resetDedupeFutureInFlightJob(ctx context.Context, interval time.Duration) {
+	t := time.NewTicker(interval)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+			cts.dedupeFutureInFlight.Store(0)
+		}
+	}
 }
 
+// dedupeFuture returns the index and timestamp matching a future.
+// It waits for the entry matching the future to be integrated, fetches it and
+// extracts the timstamp from it.
+//
+// dedupeFuture returns tessera.ErrPushback if too many concurent calls are in flight.
+// Use resetDedupesInFlightJob to periodically reset the number of calls in flight.
+//
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
+func (cts *CTStorage) dedupeFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
+
+	if cts.dedupeFutureInFlight.Load() > int64(cts.maxDedupeFutureInFlight) {
+		return 0, 0, fmt.Errorf("too many duplicate submissions %w", tessera.ErrPushback)
+	}
+	cts.dedupeFutureInFlight.Add(1)
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
@@ -122,23 +159,21 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uin
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
-	var idx tessera.Index
-	var err error
 	future := cts.storeData(ctx, entry)
+	idx, err := future()
+	if err != nil {
+		return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
+	}
+
+	if idx.IsDup {
+		return cts.dedupeFuture(ctx, future)
+	}
 
 	if cts.enableAwaiter {
 		idx, _, err = cts.awaiter.Await(ctx, future)
 		if err != nil {
 			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
-	} else {
-		idx, err = future()
-		if err != nil {
-			return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
-		}
-	}
-	if idx.IsDup {
-		return cts.dedupFuture(ctx, future)
 	}
 
 	return idx.Index, entry.Timestamp, nil

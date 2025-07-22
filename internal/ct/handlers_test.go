@@ -184,7 +184,14 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
 
-		s, err := storage.NewCTStorage(t.Context(), appender, issuerStorage, reader, false)
+		sopts := storage.CTStorageOptions{
+			Appender:          appender,
+			Reader:            reader,
+			IssuerStorage:     issuerStorage,
+			EnableAwaiter:     false,
+			MaxDedupeInFlight: 10,
+		}
+		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
 			klog.Fatalf("Failed to initialize CTStorage: %v", err)
 		}
