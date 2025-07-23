@@ -24,13 +24,15 @@ Each cloud platform requires its own TesseraCT binary and Tessera
 infrastructure. This table summarizes which cloud providers are supported, and
 on which platform each instantiation runs:
 
-| Cloud| Binary               | Test log                         | CI logs                                            | Staging logs                                            |
-|------|----------------------|----------------------------------|----------------------------------------------------|---------------------------------------------------------|
-| GCP  | [cmd/tesseract/gcp](../cmd/tesseract/gcp/)| [VM](./live/gcp/test/)| [Cloud Run](./live/gcp/static-ct/logs/ci/)| [Cloud Run / MIG](./live/gcp/static-ct-staging/logs/)|
-| AWS  | [cmd/tesseract/aws](../cmd/tesseract/aws/)| [VM](./live/aws/test/)| [Fargate](./live/aws/conformance/ci/)      |                                                         |
+| Cloud | Binary                | Test log                         | CI logs                                            | Staging logs                                       |
+|-------|-----------------------|----------------------------------|----------------------------------------------------|----------------------------------------------------|
+| GCP   | [cmd/tesseract/gcp](/cmd/tesseract/gcp)     | [VM](/live/gcp/test)| [Cloud Run](/live/gcp/static-ct/logs/ci)  | [Cloud Run / MIG](/live/gcp/static-ct-staging/logs)|
+| AWS   | [cmd/tesseract/aws](/cmd/tesseract/aws)     | [VM](/live/aws/test)| [Fargate](/live/aws/conformance/ci)       |                                                    |
+| POSIX | [cmd/tesseract/posix](/cmd/tesseract/posix) | N/A                 | N/A                                       |                                                    |
 
 ## Codelab
 
 The [GCP](./live/gcp/test) and [AWS](./live/aws/test) codelabs will guide you
 through bringing up a test TesseraCT log, adding a few entries to it, and check
 that the log is sound.
+
