@@ -22,7 +22,7 @@ require (
 	github.com/rivo/tview v0.0.0-20240625185742-b0a7293b8130
 	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/tessera v0.2.1-0.20250722122444-1a4c5afd19f2
+	github.com/transparency-dev/tessera v0.2.1-0.20250723111457-83493470ded2
 	go.opentelemetry.io/contrib/detectors/gcp v1.37.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.62.0
 	go.opentelemetry.io/otel v1.37.0
@@ -34,6 +34,7 @@ require (
 	golang.org/x/net v0.42.0
 	golang.org/x/sync v0.16.0
 	google.golang.org/api v0.242.0
+	google.golang.org/grpc v1.73.0
 	k8s.io/klog/v2 v2.130.1
 )
 
@@ -104,6 +105,5 @@ require (
 	google.golang.org/genproto v0.0.0-20250505200425-f936aa4a68b2 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20250603155806-513f23925822 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250603155806-513f23925822 // indirect
-	google.golang.org/grpc v1.73.0 // indirect
 	google.golang.org/protobuf v1.36.6 // indirect
 )
