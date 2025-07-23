@@ -61,7 +61,7 @@ gcloud auth application-default login --project=$GOOGLE_PROJECT
 Apply the Terragrunt config to deploy resources:
 
 ```sh
-terragrunt apply --terragrunt_working_dir=deployment/live/gcp/test
+terragrunt apply --working_dir=deployment/live/gcp/test
 ```
 
 > [!NOTE]

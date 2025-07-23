@@ -73,6 +73,6 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-staging/tes
 
 Deploy the Terraform config with OpenTofu:
 
-1. `cd` to
-[/deployment/live/gcp/static-ct-staging/logs/arche2025h2/](/deployment/live/gcp/static-ct-staging/logs/arche2025h2/).
-2. Run `terragrunt apply`.
+```sh
+terragrunt apply --working-dir=deployment/live/gcp/static-ct-staging/logs/arche2025h2/
+```

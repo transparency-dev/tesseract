@@ -74,12 +74,15 @@ export AWS_REGION={VALUE} # e.g: us-east-1
 export AWS_PROFILE=AdministratorAccess-<REDACTED>
 ```
 
-OpenTofuing the account can be done by:
+Deploy the Terraform config with OpenTofu:
 
-  1. `cd` to [/deployment/live/aws/test/](/deployment/live/aws/test/) to deploy/change.
-  1. Run `terragrunt apply`. If this fails to create the antispam database,
-  connect the RDS instance to your VM using the instructions below, and run
-  `terragrunt apply` again.
+```sh
+terragrunt apply --working-dir=deployment/live/aws/test/
+```
+
+If this fails to create the antispam database,
+connect the RDS instance to your VM using the instructions below, and run
+`terragrunt apply` again.
   
 Store the Aurora RDS database and S3 bucket information into the environment variables:
 
