@@ -150,7 +150,7 @@ cat internal/testdata/fake-ca.cert >> /tmp/httpschain/chain.pem
 Finally, submit the chain to TesseraCT:
 
 ```bash
-go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/test-static-ct
+go run github.com/google/certificate-transparency-go/client/ctclient@master upload --cert_chain=/tmp/httpschain/chain.pem --skip_https_verify --log_uri=http://localhost:6962/
 ```
 
 #### Generate chains automatically
@@ -166,7 +166,7 @@ Generate the certificate chains and submit them to TesseraCT using the [hammer t
 ```bash
 go run ./internal/hammer \
   --log_url=https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com \
-  --write_log_url=http://localhost:6962/${TESSERA_BASE_NAME} \
+  --write_log_url=http://localhost:6962/ \
   --origin=$TESSERA_BASE_NAME \
   --log_public_key=$(openssl ec -pubin -inform PEM -in /tmp/log_public_key.pem -outform der | base64 -w 0) \
   --max_read_ops=0 \
@@ -225,7 +225,7 @@ to TesseraCT.
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
-  --target_log_uri=http://localhost:6962/${TESSERA_BASE_NAME} \
+  --target_log_uri=http://localhost:6962/ \
   --source_log_uri=${SOURCE_LOG_URI} \
   --num_workers=8 \
   --parallel_fetch=4 \

@@ -252,7 +252,7 @@ resource "aws_ecs_task_definition" "hammer" {
       "--intermediate_ca_key_path=/bin/test_intermediate_ca_private_key.pem",
       "--cert_sign_private_key_path=/bin/test_leaf_cert_signing_private_key.pem",
       "--log_url=https://${module.storage.s3_bucket_regional_domain_name}",
-      "--write_log_url=http://${aws_service_discovery_service.conformance.name}.${aws_service_discovery_private_dns_namespace.internal.name}:${local.port}/ci-static-ct",
+      "--write_log_url=http://${aws_service_discovery_service.conformance.name}.${aws_service_discovery_private_dns_namespace.internal.name}:${local.port}/",
       "--show_ui=false",
       "--logtostderr",
       "--num_writers=256",
