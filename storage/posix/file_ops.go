@@ -63,7 +63,7 @@ func mkdirAll(name string, perm os.FileMode) (err error) {
 		// We'll see an ENOENT if there's a problem with a non-existant path element, so
 		// we'll recurse and create the parent directory if necessary.
 		if dir != "" {
-			if err := mkdirAll(dir, perm); err != nil {
+			if err := mkdirAll(dir, perm); err != nil && !errors.Is(err, os.ErrExist) {
 				return err
 			}
 		}
