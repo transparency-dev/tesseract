@@ -70,6 +70,7 @@ var (
 		RequestLog:         &DefaultRequestLog{},
 		MaskInternalErrors: false,
 		TimeSource:         timeSource,
+		PathPrefix:         prefix,
 	}
 
 	// POSIX subdirectory
@@ -308,7 +309,7 @@ func TestPostHandlersFailure(t *testing.T) {
 func TestNewPathHandlers(t *testing.T) {
 	log, _ := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
-		handlers := NewPathHandlers(t.Context(), &HandlerOptions{}, log)
+		handlers := NewPathHandlers(t.Context(), &HandlerOptions{PathPrefix: prefix}, log)
 		// Check each entrypoint has a handler
 		if got, want := len(handlers), len(entrypoints); got != want {
 			t.Fatalf("len(info.handler)=%d; want %d", got, want)

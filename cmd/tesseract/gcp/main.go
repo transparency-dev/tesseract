@@ -54,7 +54,8 @@ var (
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
 	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints.")
+	pathPrefix               = flag.String("path_prefix", "", "Prefix to use on the submission URL: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
 	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
@@ -108,7 +109,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors, *pathPrefix)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}

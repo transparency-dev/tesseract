@@ -194,14 +194,16 @@ type HandlerOptions struct {
 	// TimeSource indicated the system time and can be injfected for testing.
 	// TODO(phbnf): hide inside the log
 	TimeSource TimeSource
+	// PathPrefix prefixes static-ct-api endpoint paths.
+	PathPrefix string
 }
 
 func NewPathHandlers(ctx context.Context, opts *HandlerOptions, log *log) pathHandlers {
 	once.Do(func() { setupMetrics() })
 	knownLogs.Record(ctx, 1, metric.WithAttributes(originKey.String(log.origin)))
 
-	prefix := strings.TrimRight(log.origin, "/")
-	if !strings.HasPrefix(prefix, "/") {
+	prefix := strings.TrimRight(opts.PathPrefix, "/")
+	if prefix != "" && !strings.HasPrefix(prefix, "/") {
 		prefix = "/" + prefix
 	}
 
