@@ -23,7 +23,7 @@ export LOGNAME=arche2025h1
 To apply the Terragrunt config, run:
 
 ```bash
-terragrunt apply --terragrunt-working-dir=deployment/live/gcp/static-ct-staging/preloaders/$LOGNAME
+terragrunt apply --working-dir=deployment/live/gcp/static-ct-staging/preloaders/$LOGNAME
 ```
 
 > [!NOTE]
