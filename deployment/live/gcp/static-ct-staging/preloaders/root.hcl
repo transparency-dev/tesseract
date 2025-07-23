@@ -4,7 +4,7 @@ locals {
   location            = get_env("GOOGLE_REGION", "us-central1")
   base_name           = path_relative_to_include()
   github_owner        = get_env("GITHUB_OWNER", "transparency-dev")
-  target_log_uri      = get_env("TARGET_LOG_URI", "http://${local.base_name}.${local.base_name}-ilb.il4.${local.location}.lb.${local.project_id}.internal:80/")
+  target_log_uri      = get_env("TARGET_LOG_URI", "http://${local.base_name}.${local.base_name}-ilb.il4.${local.location}.lb.${local.project_id}.internal:80")
   server_docker_image = "us-central1-docker.pkg.dev/static-ct-staging/docker-staging/preloader:latest"
 }
 

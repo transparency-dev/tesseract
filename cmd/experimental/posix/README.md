@@ -9,7 +9,7 @@ production log!
 Generate an ECDSA key like so:
 
 ```bash
-$ openssl ecparam -name prime256v1 -genkey -noout -out test-ecdsa-priv.pem 
+openssl ecparam -name prime256v1 -genkey -noout -out test-ecdsa-priv.pem 
 ```
 
 And then start a log with the following command:
@@ -33,7 +33,7 @@ You can try "preloading" the log with the contents of another CT log, e.g.:
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
-  --target_log_uri=http://localhost:6962/\
+  --target_log_uri=http://localhost:6962 \
   --source_log_uri=https://ct.googleapis.com/logs/eu1/xenon2025h2/ \
   --num_workers=2 \
   --start_index=130000 \

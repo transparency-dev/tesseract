@@ -4,7 +4,7 @@ locals {
   location       = get_env("GOOGLE_REGION", "us-central1")
   base_name      = path_relative_to_include()
   github_owner   = get_env("GITHUB_OWNER", "transparency-dev")
-  submission_url = get_env("SUBMISSION_URL", "https://${local.base_name}-64t3hlisgq-uc.a.run.app/")
+  submission_url = get_env("SUBMISSION_URL", "https://${local.base_name}-64t3hlisgq-uc.a.run.app")
   monitoring_url = get_env("MONITORING_URL", " https://storage.googleapis.com/static-ct-staging-${local.base_name}-bucket")
 }
 
