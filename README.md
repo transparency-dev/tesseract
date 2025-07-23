@@ -9,8 +9,8 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](./deployment/) on GCP and AWS.
-There is also an experimental binary which uses Tessera's POSIX storage backend.
+At the moment, TesseraCT can run on GCP, AWS, a POSIX filesystems, or on some
+S3-compatible systems alongside a SQL database with [different levels of maturity](#mega-status).
 
 ## Table of contents
 
@@ -29,11 +29,25 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 
-At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
-Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
-or if [you're interested in others](#can-i-run-tesseract-outside-gcp-or-aws).
+|Platform         |Architecture            |Our use-case          |Performance|Binary                                  |Deployment                                                      |
+|-----------------|------------------------|----------------------|-----------|----------------------------------------|----------------------------------------------------------------|
+|GCP              |Spanner + GCS + MIG     |public staging logs   |TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/) |
+|GCP              |Spanner + GCS + CloudRun|continuous integration|TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[example](/deployment/live/gcp/static-ct/logs/ci)               |
+|GCP              |Spanner + GCS + VM      |codelab, load tests   |TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/test/)                               |
+|AWS              |RDS + S3 + ECS          |continuous integration|TODO       |[aws](/cmd/tesseract/aws/main.go)       |[example](/deployment/live/aws/conformance/ci/)                 |
+|AWS              |RDS + S3 + VM           |codelab, load tests   |TODO       |[aws](/cmd/tesseract/aws/main.go)       |[doc](/deployment/live/aws/test/)                               |
+|POSIX            |ZFS + VM                |one-off test          |NA         |[posix](/cmd/experimental/posix/main.go)|[doc](/cmd/experimental/posix/)                                 |
+|Custom S3 + MySQL|MinIO + MySQL + VM      |one-off test          |NA         |[aws](/cmd/tesseract/aws/main.go)       |[doc](/docs/architecture/NONCLOUD.md)                           |
 
-[Public test instances](#test_tube-public-test-instances) run on GCP.
+These deployments come with different levels of maturity depending on
+our use-case.
+We dedicated most of our time to the GCP with Spanner + GCS + MIG implementation
+since we use it for our [public staging logs](#test_tube-public-test-instances).
+
+We'd love to [hear your feedback](#wave-contact) on any of these implementations,
+no matter wihch status it is at.
+
+Read the FAQ to understand [why we chose these platforms](#why-these-platforms).
 
 ## :motorway: Roadmap
 
@@ -83,15 +97,15 @@ Last, you can explore our [documentation](#card_index_dividers-repository-struct
 ### Running on a different platform
 
 TesseraCT can theoretically run on any platform
-[Tessera](https://github.com/transparency-dev/tessera) supports. We've already experimented
-with platforms other than GCP and AWS, [have a look at the FAQ for more information](#can-i-run-tesseract-outside-gcp-or-aws).
+[Tessera](https://github.com/transparency-dev/tessera) supports.
 
 If you'd still like to run TesseraCT on a different platform that Tessera
 supports, have a look at Tessera's [Getting Started guide](https://github.com/transparency-dev/tessera/tree/main?tab=readme-ov-file#getting-started),
 TesseraCT's `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/) and their
 respective [architecture docs](https://github.com/transparency-dev/tesseract/tree/main/docs/architecture).
 
-For any other request, please [come and talk to us](#wave-contact)!
+We'd love to know what platform you're interested in using,
+[come and talk to us](#wave-contact)!
 
 ## :test_tube: Public test instances
 
@@ -114,7 +128,8 @@ depend on them
      - Architecture
        - GCP: TODO
        - AWS: TODO
-       - [Non-cloud](./docs/architecture/NONCLOUD.md)
+       - POSIX: TODO
+       - [S3+MySQL](./docs/architecture/NONCLOUD.md)
      - [Deployment](./deployment/)
      - Codelabs
        - [GCP](./deployment/live/gcp/test/)
@@ -143,21 +158,10 @@ subset of Tessera's backends. A TesseraCT serving stack is composed of:
 
 ### Why these platforms?
 
-After chatting with various CT log operators, we decided to focus on GCP and AWS
-to begin with in an effort address current needs of log operators. We're
-welcoming contributions and requests for additional backend implementations.
-If you're interested, [come and talk to us](#wave-contact)!
-
-### Can I run TesseraCT outside GCP or AWS?
-
-At the moment, this is not officially supported. If you're interested in
-running outside GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
-[get in touch](#wave-contact)!
-
-There is an experimental [POSIX binary](/cmd/posix) which uses
-Tessera's POSIX backend for storing the log on local filesystems.
-
-Questions and bug reports for any of these uses are very welcome!
+After chatting with various CT log operators, we decided to focus on GCP, AWS,
+and to explore non-cloud-native deloyments. We welcome feedbacks on these and
+requests for additional backend implementations. If you have any,
+[come and talk to us](#wave-contact)!
 
 ## :troll: History
 
