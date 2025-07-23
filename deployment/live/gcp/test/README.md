@@ -101,6 +101,7 @@ go run ./cmd/tesseract/gcp/ \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --roots_pem_file=/tmp/fake_log_roots.pem \
   --origin=${TESSERA_BASE_NAME} \
+  --path_prefix=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   --otel_project_id=${GOOGLE_PROJECT}
@@ -188,6 +189,7 @@ go run ./cmd/tesseract/gcp/ \
   --spanner_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-db \
   --roots_pem_file=/tmp/log_roots.pem \
   --origin=${TESSERA_BASE_NAME} \
+  --path_prefix=${TESSERA_BASE_NAME} \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
