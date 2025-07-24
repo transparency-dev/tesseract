@@ -45,7 +45,7 @@ At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 
 |  #  | Step                                           | Status             | Target release |
 | --- | ---------------------------------------------- | ------------------ | ---------------|
-|  1  | Storage for GCP and AWS                        | :white_check_mark: | alpha          |
+|  1  | Storage for GCP, AWS, and POSIX                | :white_check_mark: | alpha          |
 |  2  | Lightweight CT compatible x509 fork            | :white_check_mark: | alpha          |
 |  3  | static-ct-api APIs                             | :white_check_mark: | alpha          |
 |  4  | Basic Antispam                                 | :white_check_mark: | alpha          |
@@ -67,8 +67,9 @@ If you're interested in additional features, [get in touch](#wave-contact).
 
 ### Getting Started
 
-The most hands-on place to start is with the [GCP](./deployment/live/gcp/test) or
-[AWS](./deployment/live/aws/test) codelab. These codelabs will guide you
+The most hands-on place to start is with one of the
+[GCP](./deployment/live/gcp/test),[AWS](./deployment/live/aws/test), or
+[POSIX](/cmd/tesseract/posix#codelab) codelabs. These codelabs will guide you
 through bringing up your own test TesseraCT deployment.
 
 We also run [public test instances](#test_tube-public-test-instances) that you
@@ -153,10 +154,10 @@ At the moment, this is not officially supported. If you're interested in
 running outside GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
 [get in touch](#wave-contact)!
 
-There is an experimental [POSIX binary](/cmd/experimental/posix) which uses
-Tessera's POSIX backend for storing the log on local filesystems. At the moment
-this is not ready for production use, but questions and bug reports are
-very welcome!
+There is an experimental [POSIX binary](/cmd/posix) which uses
+Tessera's POSIX backend for storing the log on local filesystems.
+
+Questions and bug reports for any of these uses are very welcome!
 
 ## :troll: History
 
