@@ -52,6 +52,7 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
+	checkpointInterval        = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Minimum interval between publishing checkpoints.")
 	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	httpEndpoint              = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -172,6 +173,7 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		WithCTLayout().
 		WithAntispam(uint(250<<10), antispam).
 		WithBatching(256, 500*time.Millisecond).
+		WithCheckpointInterval(*checkpointInterval).
 		WithPushback(*pushbackMaxOutstanding)
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down

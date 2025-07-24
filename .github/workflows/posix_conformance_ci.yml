@@ -1,0 +1,52 @@
+name: POSIX Conformance CI
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  posix-conformance-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Setup test data
+        shell: bash
+        run: |
+          mkdir -p ${{ github.workspace }}/testlog
+          openssl ecparam -name prime256v1 -genkey -noout -out ${{ github.workspace }}/testlog/test-ecdsa-priv.pem
+          openssl ec -in ${{ github.workspace }}/testlog/test-ecdsa-priv.pem -pubout > ${{ github.workspace }}/testlog/test-ecdsa-pub.pem
+          echo "WORKSPACE=${{ github.workspace }}" > ${{ github.workspace }}/env
+          cat ${{ github.workspace }}/env
+
+      - name: Spin up POSIX tesseract CI test
+        shell: bash
+        run: |
+          echo "Launching POSIX tesseract"
+
+          export CT_LOG_PUBLIC_KEY=$(openssl ec -pubin -inform PEM -in ${{ github.workspace }}/testlog/test-ecdsa-pub.pem -outform der | base64 -w 0)
+          export UID
+          export GID
+          docker compose -f ./cmd/tesseract/posix/ci/docker-compose.yml \
+            --env-file="${{ github.workspace }}/env" up \
+            --abort-on-container-exit \
+            --exit-code-from hammer
+
+      - name: fsck the log
+        shell: bash
+        run: |
+          echo "Launching fsck"
+
+          export CT_LOG_PUBLIC_KEY=$(openssl ec -pubin -inform PEM -in ${{ github.workspace }}/testlog/test-ecdsa-pub.pem -outform der | base64 -w 0)
+          docker build -f ./cmd/fsck/Dockerfile -t fsck:latest .
+          docker run \
+            --mount "type=bind,src=${{ github.workspace }}/testlog,dst=/testlog" \
+              fsck:latest \
+                --monitoring_url=file:///testlog \
+                --origin=example.com/test-ecdsa \
+                --public_key=${CT_LOG_PUBLIC_KEY} \
+                --N=5
