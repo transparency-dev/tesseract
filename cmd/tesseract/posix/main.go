@@ -56,7 +56,8 @@ var (
 	httpEndpoint              = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
 	maskInternalErrors        = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin                    = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
+	origin                    = flag.String("origin", "", "Origin of the log, for checkpoints.")
+	pathPrefix                = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
 	storageDir                = flag.String("storage_dir", "", "Path to root of log storage.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxDedupeInFlight = flag.Uint("pushback_max_dedupe_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
@@ -89,7 +90,7 @@ func main() {
 		NotAfterLimit:    notAfterLimit.t,
 	}
 
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors, *pathPrefix)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}

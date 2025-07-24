@@ -121,7 +121,7 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 // The HTTP server handlers implement https://c2sp.org/static-ct-api write
 // endpoints.
-func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool) (http.Handler, error) {
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string) (http.Handler, error) {
 	cv, err := newChainValidator(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
@@ -136,6 +136,7 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		RequestLog:         &ct.DefaultRequestLog{},
 		MaskInternalErrors: maskInternalErrors,
 		TimeSource:         sysTimeSource,
+		PathPrefix:         pathPrefix,
 	}
 
 	handlers := ct.NewPathHandlers(ctx, opts, log)

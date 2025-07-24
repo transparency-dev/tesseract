@@ -121,6 +121,7 @@ go run ./cmd/tesseract/aws \
   --http_endpoint=localhost:6962 \
   --roots_pem_file=./internal/testdata/fake-ca.cert \
   --origin=test-static-ct \
+  --path_prefix=test-static-ct \
   --bucket=${TESSERACT_BUCKET_NAME} \
   --db_name=tesseract \
   --db_host=${TESSERACT_DB_HOST} \
@@ -212,6 +213,7 @@ go run ./cmd/tesseract/aws \
   --http_endpoint=localhost:6962 \
   --roots_pem_file=/tmp/log_roots.pem \
   --origin=test-static-ct \
+  --path_prefix=test-static-ct \
   --bucket=${TESSERACT_BUCKET_NAME} \
   --db_name=tesseract \
   --db_host=${TESSERACT_DB_HOST} \

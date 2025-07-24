@@ -163,6 +163,7 @@ resource "aws_ecs_task_definition" "conformance" {
       "--http_endpoint=:${local.port}",
       "--roots_pem_file=/bin/test_root_ca_cert.pem",
       "--origin=ci-static-ct",
+      "--path_prefix=ci-static-ct",
       "--bucket=${module.storage.s3_bucket_name}",
       "--db_user=tesseract",
       "--db_password=${module.storage.rds_aurora_cluster_master_user_secret_unsafe}",
