@@ -25,6 +25,10 @@ The table below shows the measured performance over 12 hours in each instance ty
 | e2-medium (2 vCPUs, 4 GB Memory)     | 100 PUs       | 250       |
 | e2-standard-2 (2 vCPUs, 8 GB Memory) | 100 PUs       | 600       |
 
+| Managed Instance Group Type           | Instances | Cloud Spanner | Write QPS |
+| ------------------------------------- | --------- | ------------- | --------- |
+| n2-standard-4 (4 vCPUs, 16 GB Memory) | 3         | 200 PUs       | 1700      |
+
 #### Free Tier e2-micro VM Instance + Cloud Spanner 100 PUs
 
 - e2-micro (2 vCPUs, 1 GB Memory)
@@ -136,6 +140,33 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5921.5 avail Mem
 ![e2-standard-2 VM CPU Utilization](./assets/gcp/e2-standard-2-cloud-spanner-100pu/vm-cpu-utilization.png)
 
 ![Cloud Spanner 100 PUs CPU Utilization](./assets/gcp/e2-standard-2-cloud-spanner-100pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
+
+#### n2-standard-4 Managed Instance x 3 + Cloud Spanner 200 PUs
+
+- n2-standard-4 (4 vCPUs, 16 GB Memory)
+
+The write QPS is around 1700. The Cloud Spanner utilization is around 50%.
+The VM CPU utilization is around 50%.
+
+```sh
+┌────────────────────────────────────────────────────────────────────────┐
+│Read (0 workers): Current max: 0/s. Oversupply in last second: 0        │
+│Write (10240 workers): Current max: 1740/s. Oversupply in last second: 0│
+│TreeSize: 23034935 (Δ 1484qps over 30s)                                 │
+│Time-in-queue: 62ms/863ms/5473ms (min/avg/max)                          │
+│Observed-time-to-integrate: 80ms/1027ms/7580ms (min/avg/max)            │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+<details>
+
+<summary>Graphs</summary>
+
+![n2-standard-4 VM CPU Utilization](./assets/gcp/mig-n2-standard-4-cloud-spanner-200pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 200 PUs CPU Utilization](./assets/gcp/mig-n2-standard-4-cloud-spanner-200pu/cloud-spanner-total-cpu-utilization.png)
 
 </details>
 
