@@ -1,0 +1,67 @@
+services:
+  tesseract:
+    build:
+      context: ../../../../
+      dockerfile: cmd/tesseract/posix/ci/Dockerfile
+    container_name: tesseract
+    ports:
+      - "6962:6962"
+    command:
+      - "--http_endpoint=0.0.0.0:6962"
+      - "--storage_dir=/testlog"
+      - "--v=1"
+      - "--roots_pem_file=/testdata/test_root_ca_cert.pem"
+      - "--origin=example.com/test-ecdsa"
+      - "--private_key=/testlog/test-ecdsa-priv.pem"
+      - "--enable_publication_awaiter=false"
+    volumes:
+      - ../../../../internal/hammer/testdata:/testdata:ro
+      - type: bind
+        source: ${WORKSPACE}/testlog
+        target: /testlog
+    healthcheck:
+      test: ["CMD", cat", "/testlog/checkpoint"]
+      interval: 1s
+      timeout: 1s
+      retries: 60
+    networks:
+      - tesseract-net
+
+  hammer:
+    build:
+      context: ../../../../
+      dockerfile: internal/hammer/Dockerfile
+    container_name: hammer
+    command:
+     - "--log_url=file:///testlog"
+     - "--write_log_url=http://tesseract:6962/"
+     - "--origin=example.com/test-ecdsa"
+     - "--log_public_key=${CT_LOG_PUBLIC_KEY}"
+     - "--cert_sign_private_key_path=/testdata/test_leaf_cert_signing_private_key.pem"
+     - "--intermediate_ca_cert_path=/testdata/test_intermediate_ca_cert.pem"
+     - "--intermediate_ca_key_path=/testdata/test_intermediate_ca_private_key.pem"
+     - "--max_read_ops=10"
+     - "--num_readers_random=2"
+     - "--num_readers_full=2"
+     - "--num_writers=500"
+     - "--max_write_ops=500"
+     - "--num_mmd_verifiers=1"
+     - "--mmd_duration=60s"
+     - "--leaf_write_goal=5000"
+     - "--show_ui=false"
+     - "--dup_chance=0.1"
+    volumes:
+      - ../../../../internal/hammer/testdata:/testdata:ro
+      - type: bind
+        source: ${WORKSPACE}/testlog
+        target: /testlog
+        read_only: true
+    depends_on:
+      - tesseract
+    networks:
+      - tesseract-net
+
+networks:
+  tesseract-net:
+    driver: bridge
+
