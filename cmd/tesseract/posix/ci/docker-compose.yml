@@ -4,6 +4,7 @@ services:
       context: ../../../../
       dockerfile: cmd/tesseract/posix/ci/Dockerfile
     container_name: tesseract
+    user: "${UID:-1000}:${GID:-1000}"
     ports:
       - "6962:6962"
     command:
@@ -13,6 +14,7 @@ services:
       - "--roots_pem_file=/testdata/test_root_ca_cert.pem"
       - "--origin=example.com/test-ecdsa"
       - "--private_key=/testlog/test-ecdsa-priv.pem"
+      - "--checkpoint_interval=2s"
       - "--enable_publication_awaiter=false"
     volumes:
       - ../../../../internal/hammer/testdata:/testdata:ro
@@ -32,6 +34,7 @@ services:
       context: ../../../../
       dockerfile: internal/hammer/Dockerfile
     container_name: hammer
+    user: "${UID:-1000}:${GID:-1000}"
     command:
      - "--log_url=file:///testlog"
      - "--write_log_url=http://tesseract:6962/"
