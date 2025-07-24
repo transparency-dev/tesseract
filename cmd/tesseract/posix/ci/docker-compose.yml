@@ -47,7 +47,7 @@ services:
      - "--max_write_ops=500"
      - "--num_mmd_verifiers=1"
      - "--mmd_duration=60s"
-     - "--leaf_write_goal=5000"
+     - "--leaf_write_goal=4000"
      - "--show_ui=false"
      - "--dup_chance=0.1"
     volumes:

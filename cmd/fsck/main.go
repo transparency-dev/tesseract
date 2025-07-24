@@ -52,35 +52,16 @@ const (
 	userAgent = "TesseraCT fsck"
 )
 
+type fetcher interface {
+	fsck.Fetcher
+	ReadIssuer(context.Context, []byte) ([]byte, error)
+}
+
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
-	logURL, err := url.Parse(*monitoringURL)
-	if err != nil {
-		klog.Exitf("Invalid --storage_url %q: %v", *monitoringURL, err)
-	}
-	hc := &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        int(*N),
-			MaxIdleConnsPerHost: int(*N),
-			DisableKeepAlives:   false,
-		},
-		Timeout: 30 * time.Second,
-	}
-	src, err := client.NewHTTPFetcher(logURL, hc)
-	if err != nil {
-		klog.Exitf("Failed to create HTTP fetcher: %v", err)
-	}
-	src.EnableRetries(10)
-	ua := userAgent
-	if *userAgentInfo != "" {
-		ua = fmt.Sprintf("%s (%s)", userAgent, *userAgentInfo)
-	}
-	src.SetUserAgent(ua)
-	if *bearerToken != "" {
-		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
-	}
+	src := fetcherFromFlags()
 	v := verifierFromFlags()
 	lsc := newLogStateCollector(*N)
 	eg := errgroup.Group{}
@@ -286,6 +267,40 @@ func copyUint24LengthPrefixed(from *cryptobyte.String, to *cryptobyte.Builder) b
 		c.AddBytes(b)
 	})
 	return true
+}
+
+func fetcherFromFlags() fetcher {
+	logURL, err := url.Parse(*monitoringURL)
+	if err != nil {
+		klog.Exitf("Invalid --storage_url %q: %v", *monitoringURL, err)
+	}
+
+	if logURL.Scheme == "file" {
+		return &client.FileFetcher{Root: logURL.Path}
+	}
+
+	hc := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        int(*N),
+			MaxIdleConnsPerHost: int(*N),
+			DisableKeepAlives:   false,
+		},
+		Timeout: 30 * time.Second,
+	}
+	src, err := client.NewHTTPFetcher(logURL, hc)
+	if err != nil {
+		klog.Exitf("Failed to create HTTP fetcher: %v", err)
+	}
+	src.EnableRetries(10)
+	ua := userAgent
+	if *userAgentInfo != "" {
+		ua = fmt.Sprintf("%s (%s)", userAgent, *userAgentInfo)
+	}
+	src.SetUserAgent(ua)
+	if *bearerToken != "" {
+		src.SetAuthorizationHeader(fmt.Sprintf("Bearer %s", *bearerToken))
+	}
+	return src
 }
 
 func verifierFromFlags() note.Verifier {

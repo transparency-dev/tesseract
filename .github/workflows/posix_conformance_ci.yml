@@ -29,3 +29,11 @@ jobs:
           echo "Launching POSIX tesseract"
           export CT_LOG_PUBLIC_KEY=$(openssl ec -pubin -inform PEM -in ${{ github.workspace }}/testlog/test-ecdsa-pub.pem -outform der | base64 -w 0)
           docker compose -f ./cmd/tesseract/posix/ci/docker-compose.yml --env-file=${{ github.workspace }}/env up --abort-on-container-exit --exit-code-from hammer
+
+      - name: fsck the log
+        shell: bash
+        run: |
+          echo "Launching fsck"
+          export CT_LOG_PUBLIC_KEY=$(openssl ec -pubin -inform PEM -in ${{ github.workspace }}/testlog/test-ecdsa-pub.pem -outform der | base64 -w 0)
+          docker build -f ./cmd/fsck/Dockerfile -t fsck:latest .
+          docker run fsck:latest --monitoring_url=file:///${{ github.workspace }}/testlog --origin=example.com/test-ecdsa --public_key=${CT_LOG_PUBLIC_KEY} --N=5
