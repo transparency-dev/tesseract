@@ -9,8 +9,8 @@ log implementation. It implements [static-ct-api](https://c2sp.org/static-ct-api
 using the [Tessera](https://github.com/transparency-dev/tessera)
 library to store data, and is aimed at running production-grade CT logs.
 
-At the moment, TesseraCT can be [deployed](./deployment/) on GCP and AWS.
-There is also an experimental binary which uses Tessera's POSIX storage backend.
+At the moment, TesseraCT can run on GCP, AWS, POSIX-compliant, or on
+S3-compatible systems alongside a MySQL database with [different levels of maturity](#mega-status).
 
 ## Table of contents
 
@@ -29,11 +29,24 @@ There is also an experimental binary which uses Tessera's POSIX storage backend.
 
 TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 
-At the moment, TesseraCT supports Amazon Web Service and Google Cloud Platform.
-Read the FAQ to understand [why we chose these platforms](#why-these-platforms),
-or if [you're interested in others](#can-i-run-tesseract-outside-gcp-or-aws).
+|Platform         |Architecture                                                                                                                                                                          |Our use-case                   |Performance|Binary                                  |Deployment                                                     |
+|-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|-----------|----------------------------------------|---------------------------------------------------------------|
+|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|public staging logs            |TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)|
+|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |continuous integration         |TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[example](/deployment/live/gcp/static-ct/logs/ci)              |
+|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |codelab, load tests            |TODO       |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/test/)                              |
+|AWS              |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |continuous integration         |TODO       |[aws](/cmd/tesseract/aws/main.go)       |[example](/deployment/live/aws/conformance/ci/)                |
+|AWS              |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/fr/ec2/)                                                                      |codelab, load tests            |TODO       |[aws](/cmd/tesseract/aws/main.go)       |[doc](/deployment/live/aws/test/)                              |
+|POSIX            |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |codelab, continuous integration|NA         |[posix](/cmd/experimental/posix/main.go)|[doc](/cmd/posix/)                                             |
+|Custom S3 + MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                   |NA         |[aws](/cmd/tesseract/aws/main.go)       |[doc](/docs/architecture/NONCLOUD.md)                          |
 
-[Public test instances](#test_tube-public-test-instances) run on GCP.
+These deployments come with different levels of maturity depending on
+our use-case.
+Our primary focus so far has been on the GCP with Spanner + GCS + MIG configuration
+since we use it for our [public staging logs](#test_tube-public-test-instances).
+However, we believe all implementations are correct, and we'd love to
+[hear your feedback](#wave-contact) on any of these implementations.
+
+Read the FAQ to understand [why we chose these platforms](#why-these-platforms).
 
 ## :motorway: Roadmap
 
@@ -83,15 +96,15 @@ Last, you can explore our [documentation](#card_index_dividers-repository-struct
 ### Running on a different platform
 
 TesseraCT can theoretically run on any platform
-[Tessera](https://github.com/transparency-dev/tessera) supports. We've already experimented
-with platforms other than GCP and AWS, [have a look at the FAQ for more information](#can-i-run-tesseract-outside-gcp-or-aws).
+[Tessera](https://github.com/transparency-dev/tessera) supports.
 
 If you'd still like to run TesseraCT on a different platform that Tessera
 supports, have a look at Tessera's [Getting Started guide](https://github.com/transparency-dev/tessera/tree/main?tab=readme-ov-file#getting-started),
 TesseraCT's `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/) and their
 respective [architecture docs](https://github.com/transparency-dev/tesseract/tree/main/docs/architecture).
 
-For any other request, please [come and talk to us](#wave-contact)!
+We'd love to know what platform you're interested in using,
+[come and talk to us](#wave-contact)!
 
 ## :test_tube: Public test instances
 
@@ -114,11 +127,13 @@ depend on them
      - Architecture
        - GCP: TODO
        - AWS: TODO
-       - [Non-cloud](./docs/architecture/NONCLOUD.md)
+       - POSIX: TODO
+       - [S3+MySQL](./docs/architecture/NONCLOUD.md)
      - [Deployment](./deployment/)
      - Codelabs
        - [GCP](./deployment/live/gcp/test/)
        - [AWS](./deployment/live/aws/test/)
+       - [POSIX](/cmd/tesseract/posix/README.md#codelab)
      - [Chain parsing with lax509](./internal/lax509/)
 
 ## :raising_hand: FAQ
@@ -143,21 +158,10 @@ subset of Tessera's backends. A TesseraCT serving stack is composed of:
 
 ### Why these platforms?
 
-After chatting with various CT log operators, we decided to focus on GCP and AWS
-to begin with in an effort address current needs of log operators. We're
-welcoming contributions and requests for additional backend implementations.
-If you're interested, [come and talk to us](#wave-contact)!
-
-### Can I run TesseraCT outside GCP or AWS?
-
-At the moment, this is not officially supported. If you're interested in
-running outside GCP or AWS, [read this](./docs/architecture/NONCLOUD.md) and
-[get in touch](#wave-contact)!
-
-There is an experimental [POSIX binary](/cmd/posix) which uses
-Tessera's POSIX backend for storing the log on local filesystems.
-
-Questions and bug reports for any of these uses are very welcome!
+After chatting with various CT log operators, we decided to focus on GCP, AWS,
+and to explore non-cloud-native deloyments. We welcome feedback on these and
+requests for additional backend implementations. If you have any,
+[come and talk to us](#wave-contact)!
 
 ## :troll: History
 
