@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -32,6 +33,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
 	tposix "github.com/transparency-dev/tessera/storage/posix"
 	tposix_as "github.com/transparency-dev/tessera/storage/posix/antispam"
@@ -52,26 +54,34 @@ var (
 	notAfterStart timestampFlag
 	notAfterLimit timestampFlag
 
-	checkpointInterval        = flag.Duration("checkpoint_interval", tessera.DefaultCheckpointInterval, "Minimum interval between publishing checkpoints.")
-	enablePublicationAwaiter  = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
-	httpEndpoint              = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	// Functionality flags
+	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
+	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
+	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints.")
+	pathPrefix               = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
+	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
+	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
+	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+
+	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	maskInternalErrors        = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
-	origin                    = flag.String("origin", "", "Origin of the log, for checkpoints.")
-	pathPrefix                = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
-	storageDir                = flag.String("storage_dir", "", "Path to root of log storage.")
+	inMemoryAntispamCacheSize = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
+	checkpointInterval        = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between checkpoint publishing")
+	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
+	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxDedupeInFlight = flag.Uint("pushback_max_dedupe_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
-	rootsPemFile              = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
-	rejectExpired             = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
-	rejectUnexpired           = flag.Bool("reject_unexpired", false, "If true then CTFE rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages              = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
-	rejectExtensions          = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
-	privKeyFile               = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", tessera.DefaultPushbackMaxOutstanding, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
+	clientHTTPTimeout         = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
+	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
-	clientHTTPTimeout        = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
-	clientHTTPMaxIdle        = flag.Int("client_http_max_idle", 2000, "Maximum number of idle HTTP connections for outgoing requests.")
-	clientHTTPMaxIdlePerHost = flag.Int("client_http_max_idle_per_host", 1000, "Maximum number of idle HTTP connections per host for outgoing requests.")
+	// Infrastructure setup flags
+	storageDir  = flag.String("storage_dir", "", "Path to root of log storage.")
+	privKeyFile = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 )
 
 func main() {
@@ -103,8 +113,8 @@ func main() {
 	// Bring up the HTTP server and serve until we get a signal not to.
 	srv := http.Server{Addr: *httpEndpoint}
 	shutdownWG := new(sync.WaitGroup)
+	shutdownWG.Add(1)
 	go awaitSignal(func() {
-		shutdownWG.Add(1)
 		defer shutdownWG.Done()
 		// Allow 60s for any pending requests to finish then terminate any stragglers
 		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
@@ -162,18 +172,28 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize POSIX Tessera storage driver: %v", err)
 	}
-	asOpts := tposix_as.AntispamOpts{}
+	asOpts := tposix_as.AntispamOpts{
+		PushbackThreshold: *pushbackMaxAntispamLag,
+	}
 	antispam, err := tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), asOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize POSIX antispam database: %v", err)
 	}
 
+	antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
+	if unit != "" {
+		return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
+	}
+	if error != nil {
+		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
+	}
+
 	opts := tessera.NewAppendOptions().
 		WithCheckpointSigner(signer).
 		WithCTLayout().
-		WithAntispam(uint(250<<10), antispam).
-		WithBatching(256, 500*time.Millisecond).
+		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
+		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
