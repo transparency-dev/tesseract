@@ -10,6 +10,14 @@ measured using the average values collected over the test period.
 > These are not definitive numbers, and that more tests are to come with an
 > improved codebase.
 
+## Index
+
+* [GCP](#gcp)
+* [AWS](#aws)
+* [POSIX](#posix)
+  + [NVMe SSD](#nvme)
+  + [SAS HDD](#sas-hdd)
+
 ## Backends
 
 ### GCP
