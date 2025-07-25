@@ -47,7 +47,8 @@ module "gce-lb-http" {
       groups = [
         {
           // todo(phbnf): come back to this, set the load balancing mode etc.
-          group = "${log_name}-instance-group-manager"
+          // TODO(phboneff): the region should be set somehow
+          group = "projects/${var.project_id}/regions/us-central1/instanceGroups/${log_name}-instance-group-manager"
         },
       ]
 
@@ -60,7 +61,7 @@ module "gce-lb-http" {
 }
 
 resource "google_compute_url_map" "urlmap" {
-  name        = "static-ct-staging url map"
+  name        = "tesseract-url-map"
   description = "URL map of static-ct-staging logs"
 
   default_url_redirect {
@@ -92,7 +93,7 @@ resource "google_compute_url_map" "urlmap" {
           "/ct/v1/add-chain",
           "/ct/v1/get-roots",
         ]
-        service = module.gce-lb-http.backend_services["${log_name.value}-backend"].id
+        service = module.gce-lb-http.backend_services["${log_name.value}-backend"].self_link
       }
     }
   }
