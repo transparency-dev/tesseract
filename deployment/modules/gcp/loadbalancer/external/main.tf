@@ -5,6 +5,8 @@ terraform {
       version = "6.43.0"
     }
   }
+
+  backend "gcs" {}
 }
 
 module "gce-lb-http" {
@@ -90,7 +92,7 @@ resource "google_compute_url_map" "urlmap" {
           "/ct/v1/add-chain",
           "/ct/v1/get-roots",
         ]
-        service = module.gce-lb-http.backend_services["${log_name.value}_backend"].id
+        service = module.gce-lb-http.backend_services["${log_name.value}-backend"].id
       }
     }
   }
