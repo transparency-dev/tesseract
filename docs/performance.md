@@ -28,16 +28,19 @@ as of [commit `fe7687c`](https://github.com/transparency-dev/tesseract/commit/fe
 The table below shows the measured performance over 12 hours in each instance type:
 
 | Instance Type                        | Cloud Spanner | Write QPS |
-| ------------------------------------ | ------------- | --------- |
+| ------------------------------------ | ------------- | --------: |
 | e2-micro (2 vCPUs, 1 GB Memory)      | 100 PUs       | 60        |
 | e2-medium (2 vCPUs, 4 GB Memory)     | 100 PUs       | 250       |
 | e2-standard-2 (2 vCPUs, 8 GB Memory) | 100 PUs       | 600       |
 
 | Managed Instance Group Type           | Instances | Cloud Spanner | Write QPS |
-| ------------------------------------- | --------- | ------------- | --------- |
+| ------------------------------------- | :-------: | ------------- | --------: |
+| n2-standard-4 (4 vCPUs, 16 GB Memory) | 1         | 100 PUs       | 1000      |
 | n2-standard-4 (4 vCPUs, 16 GB Memory) | 3         | 200 PUs       | 1700      |
 
-#### Free Tier e2-micro VM Instance + Cloud Spanner 100 PUs
+#### Standalone VM
+
+##### Free Tier e2-micro VM Instance + Cloud Spanner 100 PUs
 
 - e2-micro (2 vCPUs, 1 GB Memory)
 
@@ -75,7 +78,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.     68.8 avail Mem
 
 </details>
 
-#### e2-medium VM Instance + Cloud Spanner 100 PUs
+##### e2-medium VM Instance + Cloud Spanner 100 PUs
 
 - e2-medium (2 vCPUs, 4 GB Memory)
 
@@ -113,7 +116,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   1502.3 avail Mem
 
 </details>
 
-#### e2-standard-2 VM Instance + Cloud Spanner 100 PUs
+##### e2-standard-2 VM Instance + Cloud Spanner 100 PUs
 
 - e2-standard-2 (2 vCPUs, 8 GB Memory)
 
@@ -151,34 +154,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5921.5 avail Mem
 
 </details>
 
-#### n2-standard-4 Managed Instance x 3 + Cloud Spanner 200 PUs
-
-- n2-standard-4 (4 vCPUs, 16 GB Memory)
-
-The write QPS is around 1700. The Cloud Spanner utilization is around 50%.
-The VM CPU utilization is around 50%.
-
-```sh
-┌────────────────────────────────────────────────────────────────────────┐
-│Read (0 workers): Current max: 0/s. Oversupply in last second: 0        │
-│Write (10240 workers): Current max: 1740/s. Oversupply in last second: 0│
-│TreeSize: 23034935 (Δ 1484qps over 30s)                                 │
-│Time-in-queue: 62ms/863ms/5473ms (min/avg/max)                          │
-│Observed-time-to-integrate: 80ms/1027ms/7580ms (min/avg/max)            │
-└────────────────────────────────────────────────────────────────────────┘
-```
-
-<details>
-
-<summary>Graphs</summary>
-
-![n2-standard-4 VM CPU Utilization](./assets/gcp/mig-n2-standard-4-cloud-spanner-200pu/vm-cpu-utilization.png)
-
-![Cloud Spanner 200 PUs CPU Utilization](./assets/gcp/mig-n2-standard-4-cloud-spanner-200pu/cloud-spanner-total-cpu-utilization.png)
-
-</details>
-
-##### Publication Awaiter Enabled
+###### Publication Awaiter Enabled
 
 The following flags are used:
 
@@ -209,6 +185,74 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5580.2 avail Mem
     PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND                                                                                                               
    4886 user      20   0 5289880   1.2g  28172 R 154.8  15.2  46:12.52 gcp                                                                                                                   
 ```
+
+#### Managed Instance Group
+
+The managed instance group setup included a HTTP load balancer on top of the VMs.
+The binary was executed in a container.
+
+The following flags were set on the `tesseract` server:
+
+```
+--inmemory_antispam_cache_size=256k
+--batch_max_size=1024
+--batch_max_age=500ms
+--enable_publication_awaiter=true
+```
+
+##### n2-standard-4 Managed Instance x 1 + Cloud Spanner 100 PUs
+
+- n2-standard-4 (4 vCPUs, 16 GB Memory)
+
+The write QPS was around 1000. The Cloud Spanner utilization was around 55%.
+The VM CPU utilization was around 80%.
+
+```sh
+┌─────────────────────────────────────────────────────────────────────────┐
+│Read (0 workers): Current max: 0/s. Oversupply in last second: 0         │
+│Write (10240 workers): Current max: 1018/s. Oversupply in last second: 0 │
+│TreeSize: 49456387 (Δ 946qps over 30s)                                   │
+│Time-in-queue: 71ms/868ms/3669ms (min/avg/max)                           │
+│Observed-time-to-integrate: 153ms/1184ms/5111ms (min/avg/max)            │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+<details>
+
+<summary>Graphs</summary>
+
+![n2-standard-4 VM CPU Utilization](./assets/gcp/mig-n2-standard-4-x1-cloud-spanner-100pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 100 PUs CPU Utilization](./assets/gcp/mig-n2-standard-4-x1-cloud-spanner-100pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
+
+##### n2-standard-4 Managed Instance x 3 + Cloud Spanner 200 PUs
+
+- n2-standard-4 (4 vCPUs, 16 GB Memory)
+
+The write QPS was around 1700. The Cloud Spanner utilization was around 50%.
+The VM CPU utilization was around 50%.
+
+```sh
+┌────────────────────────────────────────────────────────────────────────┐
+│Read (0 workers): Current max: 0/s. Oversupply in last second: 0        │
+│Write (10240 workers): Current max: 1740/s. Oversupply in last second: 0│
+│TreeSize: 23034935 (Δ 1484qps over 30s)                                 │
+│Time-in-queue: 62ms/863ms/5473ms (min/avg/max)                          │
+│Observed-time-to-integrate: 80ms/1027ms/7580ms (min/avg/max)            │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+<details>
+
+<summary>Graphs</summary>
+
+![n2-standard-4 VM CPU Utilization](./assets/gcp/mig-n2-standard-4-x3-cloud-spanner-200pu/vm-cpu-utilization.png)
+
+![Cloud Spanner 200 PUs CPU Utilization](./assets/gcp/mig-n2-standard-4-x3-cloud-spanner-200pu/cloud-spanner-total-cpu-utilization.png)
+
+</details>
 
 ### AWS
 
