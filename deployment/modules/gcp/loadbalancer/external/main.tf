@@ -87,6 +87,16 @@ resource "google_compute_url_map" "urlmap" {
 
     content {
       name = "${log_name.value}-path-matcher"
+
+      // TODO(phboneff): point at json
+      default_url_redirect {
+        host_redirect          = "transparency.dev"
+        path_redirect          = "/"
+        https_redirect         = true
+        redirect_response_code = "MOVED_PERMANENTLY_DEFAULT"
+        strip_query            = true
+      }
+
       path_rule {
         paths = [
           "/ct/v1/add-prechain",
