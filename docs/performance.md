@@ -10,6 +10,14 @@ measured using the average values collected over the test period.
 > These are not definitive numbers, and that more tests are to come with an
 > improved codebase.
 
+## Index
+
+* [GCP](#gcp)
+* [AWS](#aws)
+* [POSIX](#posix)
+  + [NVMe SSD](#nvme)
+  + [SAS HDD](#sas-hdd)
+
 ## Backends
 
 ### GCP
@@ -236,4 +244,83 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.    704.2 avail Mem
 
     PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
   92354 ec2-user  20   0 2794864 560568  14980 S 182.7  28.7  48:42.28 aws
+```
+
+
+### POSIX
+
+These tests were performed in a NixOS VM under Proxmox running on a local Threadripper PRO 3975WX machine.
+
+The machine has two independent ZFS mirror pools consisting of:
+- 2x 6TB SAS (12Gb) HDD
+- 2x 1TB NVMe SSD
+
+The VM was allocated 30 cores and 32 GB of RAM.
+
+The following flags were set on the `tesseract` server:
+
+```
+  --checkpoint_interval=1500ms
+  --enable_publication_awaiter=true
+  --pushback_max_outstanding=40000
+  --pushback_max_antispam_lag=40000
+```
+
+#### NVMe
+
+The log and hammer were both run in the same VM, with the log using a ZFS subvolume from the NVMe mirror.
+
+TesseraCT sustained around 10,000 write qps, using up to 7 cores for the server.
+
+
+```bash
+┌───────────────────────────────────────────────────────────────────────────┐
+│Read (8 workers): Current max: 20/s. Oversupply in last second: 0          │
+│Write (30000 workers): Current max: 10000/s. Oversupply in last second: 0  │
+│TreeSize: 5042936 (Δ 10567qps over 30s)                                    │
+│Time-in-queue: 1889ms/2990ms/3514ms (min/avg/max)                          │
+│Observed-time-to-integrate: 2255ms/3103ms/3607ms (min/avg/max)             │
+├───────────────────────────────────────────────────────────────────────────┤
+
+```
+
+```bash
+top - 14:47:55 up 19:35,  2 users,  load average: 38.65, 31.78, 20.94
+Tasks:  39 total,   1 running,  37 sleeping,   0 stopped,   1 zombie
+%Cpu(s): 79.5 us,  2.6 sy,  0.0 ni, 17.3 id,  0.0 wa,  0.0 hi,  0.6 si,  0.0 st
+MiB Mem :  32768.0 total,  24956.1 free,   7136.5 used,    676.7 buff/cache
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.  25631.5 avail Mem
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 280328 al        20   0   18.1g   2.7g  11776 S  1853   8.6  27:11.80 hammer 
+ 275077 al        20   0   17.7g   3.3g 258716 S 615.6  10.3  52:31.11 posix 
+```
+
+#### SAS HDD
+
+The log and hammer were both run in the same VM, with the log using a ZFS subvolume from the SAS mirror.
+
+TesseraCT sustained around 1,600 write qps, using around 1 core for the server.
+
+```bash
+┌─────────────────────────────────────────────────────────────────────────────┐
+│Read (8 workers): Current max: 20/s. Oversupply in last second: 0            │
+│Write (4000 workers): Current max: 2000/s. Oversupply in last second: 1280   │
+│TreeSize: 6398419 (Δ 1777qps over 30s)                                       │
+│Time-in-queue: 1672ms/2356ms/2819ms (min/avg/max)                            │
+│Observed-time-to-integrate: 1909ms/2568ms/3389ms (min/avg/max)               │
+├─────────────────────────────────────────────────────────────────────────────┤
+```
+
+```bash
+top - 14:34:46 up 19:22,  2 users,  load average: 5.16, 6.53, 7.20
+Tasks:  39 total,   1 running,  37 sleeping,   0 stopped,   1 zombie
+%Cpu(s): 12.3 us,  0.8 sy,  0.0 ni, 85.7 id,  1.2 wa,  0.0 hi,  0.1 si,  0.0 st
+MiB Mem :  32768.0 total,  29933.8 free,   2413.3 used,    422.2 buff/cache
+MiB Swap:      0.0 total,      0.0 free,      0.0 used.  30354.7 avail Mem
+
+    PID USER      PR  NI    VIRT    RES    SHR S  %CPU  %MEM     TIME+ COMMAND
+ 272780 al        20   0 4760036 380704  11776 S 283.1   1.1  14:09.56 hammer
+ 272507 al        20   0   24.3g   1.4g 336236 S  97.0   4.3   4:42.73 posix
+
 ```
