@@ -86,3 +86,9 @@ variable "enable_publication_awaiter" {
   type        = bool
   default     = true
 }
+
+variable "create_internal_load_balancer" {
+  description = "If true, sets up an internal load balancer in front of TesseraCT servers."
+  type        = bool
+  default     = false
+}
