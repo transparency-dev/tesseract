@@ -83,6 +83,8 @@ var (
 	dbMaxIdle                  = flag.Int("db_max_idle_conns", 2, "Maximum idle database connections in the connection pool, defaults to 2")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
+	signerPublicKeyFile        = flag.String("signer_public_key_file", "", "Path to public key file for checkpoints and SCTs signer (alternative to secrets manager)")
+	signerPrivateKeyFile       = flag.String("signer_private_key_file", "", "Path to private key file for checkpoints and SCTs signer (alternative to secrets manager)")
 )
 
 // nolint:staticcheck
@@ -91,9 +93,22 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	signer, err := NewSecretsManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
-	if err != nil {
-		klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
+	var signer *ECDSAWithSHA256Signer
+	var err error
+
+	// Check if local key files are specified
+	if *signerPublicKeyFile != "" && *signerPrivateKeyFile != "" {
+		signer, err = NewLocalSigner(*signerPublicKeyFile, *signerPrivateKeyFile)
+		if err != nil {
+			klog.Exitf("Can't create local file signer: %v", err)
+		}
+	} else if *signerPublicKeySecretName != "" && *signerPrivateKeySecretName != "" {
+		signer, err = NewSecretsManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
+		if err != nil {
+			klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
+		}
+	} else {
+		klog.Exit("Must specify either local key files (--signer_public_key_file and --signer_private_key_file) or secrets manager keys (--signer_public_key_secret_name and --signer_private_key_secret_name)")
 	}
 
 	chainValidationConfig := tesseract.ChainValidationConfig{
