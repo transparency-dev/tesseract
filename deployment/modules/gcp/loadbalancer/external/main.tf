@@ -14,10 +14,8 @@ module "gce-lb-http" {
   version = "~> 12.0"
   name    = "tesseract-lb-http"
   project = var.project_id
-  // phboneff double check this
-  target_tags = ["tesseract-allow-group"]
-  // TODO(phbnf): come back to this
-  // firewall_networks = [google_compute_network.default.name]
+  // Firewalls are defined externally.
+  firewall_networks = []
 
   create_url_map = false
   url_map        = google_compute_url_map.urlmap.id
@@ -38,7 +36,7 @@ module "gce-lb-http" {
         logging      = true
       }
 
-      // todo(phbnf): come back to this
+      // TODO(phbnf): come back to this
       log_config = {
         enable      = true
         sample_rate = 1.0
@@ -46,7 +44,7 @@ module "gce-lb-http" {
 
       groups = [
         {
-          // todo(phbnf): come back to this, set the load balancing mode etc.
+          // TODO(phbnf): come back to this, set the load balancing mode etc.
           // TODO(phboneff): the region should be set somehow
           group = "projects/${var.project_id}/regions/us-central1/instanceGroups/${log_name}-instance-group-manager"
         },
