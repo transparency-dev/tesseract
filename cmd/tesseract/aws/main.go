@@ -70,6 +70,7 @@ var (
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxDedupeInFlight = flag.Uint("pushback_max_dupes_in_flight", 100, "Maximum number of number of in-flight duplicate add requests. When 0, duplicate entries are always pushed back.")
+	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", aws_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the S3 bucket to store the log in.")
@@ -165,7 +166,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 
 	var antispam tessera.Antispam
 	if *antispamDBName != "" {
-		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{})
+		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
 		if err != nil {
 			klog.Exitf("Failed to create new AWS antispam storage: %v", err)
 		}

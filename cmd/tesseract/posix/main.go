@@ -74,7 +74,7 @@ var (
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxDedupeInFlight = flag.Uint("pushback_max_dedupe_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
-	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", tessera.DefaultPushbackMaxOutstanding, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
+	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", tposix_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
 	clientHTTPTimeout         = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
 	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
 	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
