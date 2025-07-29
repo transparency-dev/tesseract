@@ -18,7 +18,7 @@ module "gce-lb-http" {
   firewall_networks = []
 
   create_url_map = false
-  url_map        = google_compute_url_map.urlmap.id
+  url_map        = google_compute_url_map.url_map.id
 
   backends = { for log_name in var.log_names :
     "${log_name}-backend" => {
@@ -57,7 +57,7 @@ module "gce-lb-http" {
   }
 }
 
-resource "google_compute_url_map" "urlmap" {
+resource "google_compute_url_map" "url_map" {
   name        = "tesseract-url-map"
   description = "URL map of static-ct-staging logs"
 
