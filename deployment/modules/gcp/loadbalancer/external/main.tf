@@ -44,8 +44,13 @@ module "gce-lb-http" {
 
       groups = [
         {
-          // TODO(phbnf): come back to this, set the load balancing mode etc.
-          group = "projects/${var.project_id}/regions/${var.log_location}/instanceGroups/${log_name}-instance-group-manager"
+          group          = "projects/${var.project_id}/regions/${var.log_location}/instanceGroups/${log_name}-instance-group-manager"
+          balancing_mode = "RATE"
+          // Based on the most recent load tests /docs/performance.md
+          // Caution:
+          //  - The target maximum RPS/QPS can be exceeded if all backends are at or above capacity. 
+          //  - Traffic could be routed to instances without going through this load balancer.
+          max_rate_per_instance = 1000
         },
       ]
 
