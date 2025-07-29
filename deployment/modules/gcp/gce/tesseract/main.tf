@@ -148,3 +148,51 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
   }
 }
+
+module "gce-lb-http" {
+  source  = "terraform-google-modules/lb-http/google"
+  version = "~> 12.0"
+  name    = var.base_name
+  project = var.project_id
+  // TODO(phbnf): come back to this
+  target_tags = ["${var.base_name}-allow-group"]
+  // TODO(phbnf): come back to this
+  // firewall_networks = [google_compute_network.default.name]
+
+  backends = {
+    default = {
+
+      protocol = "HTTP"
+      // TODO(phbnf): come back to this
+      port        = 80
+      port_name   = "http"
+      timeout_sec = 10
+      // TODO(phbnf): come back to this
+      enable_cdn = false
+
+      health_check = {
+        request_path = "/healthz"
+        response     = "ok"
+        port         = 80
+        logging      = true
+      }
+
+      // todo(phbnf): come back to this
+      log_config = {
+        enable      = true
+        sample_rate = 1.0
+      }
+
+      groups = [
+        {
+          // todo(phbnf): come back to this, set the load balancing mode etc.
+          group = google_compute_region_instance_group_manager.instance_group_manager.instance_group
+        },
+      ]
+
+      iap_config = {
+        enable = false
+      }
+    }
+  }
+}
