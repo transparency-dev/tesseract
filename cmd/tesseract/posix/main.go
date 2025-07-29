@@ -89,6 +89,8 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
+	shutdownOTel := initOTel(ctx, *origin)
+	defer shutdownOTel(ctx)
 	signer := signerFromFlags()
 
 	chainValidationConfig := tesseract.ChainValidationConfig{
