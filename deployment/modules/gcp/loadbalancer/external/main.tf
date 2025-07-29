@@ -10,10 +10,12 @@ terraform {
 }
 
 module "gce-lb-http" {
-  source  = "terraform-google-modules/lb-http/google"
-  version = "~> 12.0"
-  name    = "tesseract-lb-http"
-  project = var.project_id
+  source                = "terraform-google-modules/lb-http/google"
+  version               = "~> 12.0"
+  name                  = "tesseract-lb-http"
+  project               = var.project_id
+  load_balancing_scheme = "CLASSIC"
+
   // Firewalls are defined externally.
   firewall_networks = []
 
