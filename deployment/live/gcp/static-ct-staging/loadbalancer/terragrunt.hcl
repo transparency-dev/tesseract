@@ -6,6 +6,7 @@ locals {
   env                    = "staging"
   project_id             = get_env("GOOGLE_PROJECT", "static-ct-staging")
   location               = get_env("GOOGLE_REGION", "us-central1")
+  log_location           = get_env("GOOGLE_REGION", "us-central1")
   log_names              = []
   submission_host_suffix = ".staging.ct.transparency.dev"
 }

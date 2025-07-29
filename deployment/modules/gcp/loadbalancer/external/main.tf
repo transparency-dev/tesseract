@@ -45,8 +45,7 @@ module "gce-lb-http" {
       groups = [
         {
           // TODO(phbnf): come back to this, set the load balancing mode etc.
-          // TODO(phboneff): the region should be set somehow
-          group = "projects/${var.project_id}/regions/us-central1/instanceGroups/${log_name}-instance-group-manager"
+          group = "projects/${var.project_id}/regions/${var.log_location}/instanceGroups/${log_name}-instance-group-manager"
         },
       ]
 
