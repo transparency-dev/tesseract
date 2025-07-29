@@ -26,7 +26,7 @@ module "gce-lb-http" {
       port        = 80
       port_name   = "http"
       timeout_sec = 10
-      // TODO(phbnf): come back to this
+      // TODO(phbnf): Come back to this.
       enable_cdn = false
 
       health_check = {
@@ -36,7 +36,7 @@ module "gce-lb-http" {
         logging      = true
       }
 
-      // TODO(phbnf): come back to this
+      // TODO(phbnf): Probabaly a bit too much, but safer to start with.
       log_config = {
         enable      = true
         sample_rate = 1.0
@@ -44,6 +44,7 @@ module "gce-lb-http" {
 
       groups = [
         {
+          // A Backend group must have beed deployed independently at this URI.
           group          = "projects/${var.project_id}/regions/${var.log_location}/instanceGroups/${log_name}-instance-group-manager"
           balancing_mode = "RATE"
           // Based on the most recent load tests /docs/performance.md
@@ -90,7 +91,7 @@ resource "google_compute_url_map" "url_map" {
     content {
       name = "${log_name.value}-path-matcher"
 
-      // TODO(phboneff): point at json
+      // TODO(phboneff): point at json once we have it
       default_url_redirect {
         host_redirect          = "transparency.dev"
         path_redirect          = "/"
