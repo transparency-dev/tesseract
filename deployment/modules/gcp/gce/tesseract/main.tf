@@ -12,7 +12,6 @@ locals {
   cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
   spanner_antispam_db_path    = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
-  tesseract_url               = "http://${var.base_name}.${var.base_name}-ilb.il4.${var.location}.lb.${var.project_id}.internal" // will be created by ilb
 }
 
 module "gce_container_tesseract" {
@@ -148,43 +147,4 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     health_check      = google_compute_health_check.healthz.id
     initial_delay_sec = 90 // Give enough time for the TesseraCT container to start.
   }
-}
-
-// TODO(phbnf): move to external load balancer, or maybe forward to this one.
-module "gce_ilb" {
-  source      = "GoogleCloudPlatform/lb-internal/google"
-  version     = "~> 7.0"
-  region      = var.location
-  name        = "${var.base_name}-ilb"
-  ports       = ["80"]
-  source_tags = []
-  // TODO(phbnf): come back to this, it doesn't match with the VM tags.
-  target_tags                  = []
-  service_label                = var.base_name
-  create_backend_firewall      = false
-  create_health_check_firewall = false
-
-  health_check = {
-    type                = "http"
-    check_interval_sec  = 1
-    healthy_threshold   = 4
-    timeout_sec         = 1
-    unhealthy_threshold = 5
-    response            = ""
-    proxy_header        = "NONE"
-    port                = 80
-    port_name           = "health-check-port"
-    request             = ""
-    request_path        = "/healthz"
-    enable_log          = false
-  }
-
-  backends = [
-    {
-      group          = google_compute_region_instance_group_manager.instance_group_manager.instance_group
-      description    = ""
-      failover       = false
-      balancing_mode = "CONNECTION"
-    },
-  ]
 }

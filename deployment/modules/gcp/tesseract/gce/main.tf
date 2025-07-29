@@ -46,3 +46,17 @@ module "gce" {
     module.storage
   ]
 }
+
+module "ilb" {
+  source = "../../loadbalancer/internal"
+
+  env           = var.env
+  project_id    = var.project_id
+  base_name     = var.base_name
+  location      = var.location
+  backend_group = module.gce.instance_group
+
+  depends_on = [
+    module.gce,
+  ]
+}
