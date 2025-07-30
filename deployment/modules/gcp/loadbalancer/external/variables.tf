@@ -9,11 +9,11 @@ variable "log_names" {
 }
 
 variable "submission_host_suffix" {
-  description = "Submission host suffix, appended to each logname."
+  description = "Submission host suffix, appended to each log name."
   type        = string
 }
 
 variable "log_location" {
-  description = "Region the logs are in."
+  description = "Location in which log resources are."
   type        = string
 }
