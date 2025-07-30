@@ -108,7 +108,47 @@ We'd love to know what platform you're interested in using,
 
 ## :test_tube: Public test instances
 
-TODO
+The following logs are available for testing. These logs run in a staging
+environment and should not used for production use cases.
+
+```json
+"description": "Google staging 'Arche2025h1'",
+"log_id": "v4vLUgreyaZJbsQJYM1zN+YKJbfu0ef6TGSJJcd2h2s=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEn7khjUQH1H3NJ/C8QmmBgzoNTptlH6hT5bgiQ6mQcYYg5KZoe4ZK4xCszXu4NH5NiLaDH0wHKsvg3RIQ+TTaag==",
+"submission_url": "https://arche2025h1.staging.ct.transparency.dev/",
+"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2025h1-bucket/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2025-01-01T00:00:00Z",
+  "end_exclusive": "2025-07-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google staging 'Arche2025h2'",
+"log_id": "L2UYNygi6ysgrNQ0osu5ivLTWAzifbdx/LfHcYDhOi4=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGbSp66Dmq0b3QILTYVpwRgMV9v4tYG2jqBFeWUyg46yW7QL0KbSOUZjN4PYK5dPxfamSkp8Z0JEGL7IA5X9aMg==",
+"submission_url": "https://arche2025h2.staging.ct.transparency.dev/",
+"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2025h2-bucket/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2025-07-01T00:00:00Z",
+  "end_exclusive": "2026-01-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google staging 'Arche2026h1'",
+"log_id": "J+sqNJffaHpkC2Q4TkhW/Nyj6H+NzWbzTtbxvkKB7fw=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ+3YKoZTMruov4cmlImbk4MckBNzEdCyMuHlwGgJ8BUrzFLlR5U0619xDDXIXespkpBgCNVQAkhMTTXakM6KMg==",
+"submission_url": "https://arche2026h1.staging.ct.transparency.dev/",
+"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2026h1-bucket/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2026-01-01T00:00:00Z",
+  "end_exclusive": "2026-07-01T00:00:00Z"
+}
+```
 
 ## :card_index_dividers: Repository structure
 
