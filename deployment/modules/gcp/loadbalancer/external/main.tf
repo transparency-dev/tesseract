@@ -15,6 +15,11 @@ module "gce-lb-http" {
   name                  = "tesseract-lb-http"
   project               = var.project_id
   load_balancing_scheme = "EXTERNAL"
+  ssl                   = true
+  // Create one cert per log, wildcard certificates are not supported.
+  // Put staging.ct.transparency.dev first for it be used as the Common Name.
+  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for log_name in var.log_names : "${log_name}.staging.ct.transparency.dev"])
+  random_certificate_suffix       = true
 
   // Firewalls are defined externally.
   firewall_networks = []
