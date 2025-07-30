@@ -14,7 +14,7 @@ module "gce-lb-http" {
   version               = "~> 12.0"
   name                  = "tesseract-lb-http"
   project               = var.project_id
-  load_balancing_scheme = "CLASSIC"
+  load_balancing_scheme = "EXTERNAL"
 
   // Firewalls are defined externally.
   firewall_networks = []
