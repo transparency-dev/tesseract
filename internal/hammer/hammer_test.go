@@ -16,6 +16,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"testing"
 )
 
@@ -38,21 +39,35 @@ func TestLeafGenerator(t *testing.T) {
 		t.Fatalf("Failed to load private key: %v", err)
 	}
 
-	// Always generate new values.
-	gN := newLeafGenerator(0, 0, intermediateCACert, caKey, leafCertPrivateKey)
 	vs := make(map[string]bool)
-	for range 256 {
-		v := string(gN())
-		vs[v] = true
-	}
 
-	// Always generate duplicate.
-	gD := newLeafGenerator(256, 1.0, intermediateCACert, caKey, leafCertPrivateKey)
-	for range 256 {
-		if !vs[string(gD())] {
-			t.Error("Expected duplicate")
+	// Always generate new values.
+	func() {
+		gN := newLeafGenerator(0, 0, intermediateCACert, caKey, leafCertPrivateKey)
+		for range 256 {
+			l := gN()
+			s, err := json.MarshalIndent(l, "", "  ")
+			if err != nil {
+				t.Fatalf("Failed to marshal leaf: %v", err)
+			}
+			vs[string(s)] = true
 		}
-	}
+	}()
+
+	func() {
+		// Always generate duplicate.
+		gD := newLeafGenerator(256, 1.0, intermediateCACert, caKey, leafCertPrivateKey)
+		for range 256 {
+			l := gD()
+			s, err := json.MarshalIndent(l, "", "  ")
+			if err != nil {
+				t.Fatalf("Failed to marshal leaf: %v", err)
+			}
+			if !vs[string(s)] {
+				t.Error("Expected duplicate")
+			}
+		}
+	}()
 }
 
 func TestCertificateGeneratorDeterministic(t *testing.T) {

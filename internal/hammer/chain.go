@@ -18,7 +18,6 @@ import (
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"encoding/json"
 	"math/big"
 	"time"
 
@@ -84,17 +83,11 @@ func (g *chainGenerator) certificate(serialNumber int64) []byte {
 }
 
 // addChainRequestBody generates the add-chain request body for submission.
-func (g *chainGenerator) addChainRequestBody(serialNumber int64) []byte {
+func (g *chainGenerator) addChainRequestBody(serialNumber int64) rfc6962.AddChainRequest {
 	var req rfc6962.AddChainRequest
 
 	req.Chain = append(req.Chain, g.certificate(serialNumber))
 	req.Chain = append(req.Chain, g.intermediateCert.Raw)
 
-	reqBody, err := json.Marshal(req)
-	if err != nil {
-		klog.Errorf("Failed to json.Marshal add chain request body: %v", err)
-		return nil
-	}
-
-	return reqBody
+	return req
 }
