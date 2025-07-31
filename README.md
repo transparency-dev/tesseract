@@ -31,13 +31,13 @@ TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 
 |Platform         |Architecture                                                                                                                                                                          |Our use-case                   |Performance|Binary                                  |Deployment                                                                                           |
 |-----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------|-----------|----------------------------------------|-----------------------------------------------------------------------------------------------------|
-|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|public staging logs            |[gcp](/docs/performance.md#gcp)         |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)         |
+|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|public staging logs            |[gcp](/docs/PERFORMANCE.md#gcp)         |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)         |
 |GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |continuous integration         |N/A                                     |[gcp](/cmd/tesseract/gcp/main.go)       |[example](/deployment/live/gcp/static-ct/logs/ci)                       |
-|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |codelab, load tests            |[gcp](/docs/performance.md#gcp)         |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/test/)                                       |
+|GCP              |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |codelab, load tests            |[gcp](/docs/PERFORMANCE.md#gcp)         |[gcp](/cmd/tesseract/gcp/main.go)       |[doc](/deployment/live/gcp/test/)                                       |
 |AWS              |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |continuous integration         |N/A                                     |[aws](/cmd/tesseract/aws/main.go)       |[example](/deployment/live/aws/conformance/ci/)                         |
-|AWS              |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/fr/ec2/)                                                                      |codelab, load tests            |[aws](/docs/performance.md#aws)         |[aws](/cmd/tesseract/aws/main.go)       |[doc](/deployment/live/aws/test/)                                       |
-|POSIX            |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |codelab, continuous integration|[posix](/docs/performance.md#posix)     |[posix](/cmd/experimental/posix/main.go)|[doc](/cmd/posix/)                                                      |
-|Custom S3 + MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                   |N/A                                     |[aws](/cmd/tesseract/aws/main.go)       |[doc](/docs/architecture.md#s3-compliant-systems-with-a-mysql-database) |
+|AWS              |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/fr/ec2/)                                                                      |codelab, load tests            |[aws](/docs/PERFORMANCE.md#aws)         |[aws](/cmd/tesseract/aws/main.go)       |[doc](/deployment/live/aws/test/)                                       |
+|POSIX            |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |codelab, continuous integration|[posix](/docs/PERFORMANCE.md#posix)     |[posix](/cmd/experimental/posix/main.go)|[doc](/cmd/posix/)                                                      |
+|Custom S3 + MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                   |N/A                                     |[aws](/cmd/tesseract/aws/main.go)       |[doc](/docs/ARCHITECTURE.md#s3-compliant-systems-with-a-mysql-database) |
 
 These deployments come with different levels of maturity depending on
 our use-case.
@@ -162,9 +162,9 @@ depend on them
    [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
 1. Documentation
      <!--Please, keep this in sync with ./docs/README.md -->
-     - [Configuration](./docs/configuration.md)
-     - [Performance](./docs/performance.md)
-     - [Architecture](./docs/architecture.md)
+     - [Configuration](./docs/CONFIGURATION.md)
+     - [Performance](./docs/PERFORMANCE.md)
+     - [Architecture](./docs/ARCHITECTURE.md)
      - [Deployment](./deployment/)
      - Codelabs
        - [GCP](./deployment/live/gcp/test/)

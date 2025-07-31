@@ -1,9 +1,9 @@
 # Documentation
 
 <!--Please, keep this in sync with ../README.md -->
-- [Configuration](./configuration.md)
-- [Performance](./performance.md)
-- [Architecture](./architecture.md)
+- [Configuration](./CONFIGURATION.md)
+- [Performance](./PERFORMANCE.md)
+- [Architecture](./ARCHITECTURE.md)
 - [Deployment](../deployment/)
 - Codelabs
   - [GCP](../deployment/live/gcp/test/)
