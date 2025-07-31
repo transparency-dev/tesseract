@@ -1,0 +1,139 @@
+# Architecture
+
+> [!NOTE]
+> This doc is meant to be purely informative, and makes no commitment
+> to any support level nor future plan.
+
+## Platforms
+
+At the moment, TesseraCT can run on the following platforms:
+
+- [Google Cloud Platform](https://cloud.google.com) (GCP)
+- [Amazon Web Services](https://aws.amazon.com) (AWS)
+- S3-compliant systems alongside a MySQL database
+- POSIX-compliant systems
+
+TesseraCT is built on top of[Tessera](https://github.com/transparency-dev/tessera/).
+On top of these 4 implementations, Tessera also [supports](https://github.com/transparency-dev/tessera?tab=readme-ov-file#storage-drivers)
+MySQL driver. At the moement, this driver is not supported by TesseraCT.
+
+## Common infrastructure
+
+Regardless of the platform, TesseraCT is componsed of the following elements:
+
+1. At least one server built using the [Tessera](https://github.com/transparency-dev/tessera/)
+library configured with [a driver](https://github.com/transparency-dev/tessera/?tab=readme-ov-file#storage-drivers)
+for that platform.
+1. The Tessera backend infrastructure required by this driver, configured with
+the [Antispam](https://github.com/transparency-dev/tessera/?tab=readme-ov-file#antispam)
+option.
+1. An additional storage system to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
+This systems is usually co-hosted with Tessera's log storage system.
+
+TesseraCT uses Tessera's CT [specific](https://github.com/transparency-dev/tessera/blob/main/ct_only.go)
+[features](https://github.com/transparency-dev/tessera/blob/main/ctonly/ct.go)
+to be compatible with [static-ct-api specs](https://c2sp.org/static-ct-api).
+
+By design, a TesseraCT server is responsible for submitting to single log.
+For reliability, multiple servers submitting to the same log can run concurently.
+To serve multiple logs, bring at least TesseraCT server per log.
+See each patform's section for additional details.
+
+For additional details, read [Tessera's design document](https://github.com/transparency-dev/tessera/tree/main/docs/design).
+
+### Antispam
+
+[Tessera's Antispam](https://github.com/transparency-dev/tessera/blob/main/docs/design/antispam.md)
+minimises the number of duplicate entries in a log.
+
+When Tessera detect that a new submission is a duplicate of previous one, it
+returns the index of that preivous entry, without adding an additional entry.
+This index alone is required, but no enough to build the
+[`SignedCertificateTimestamp` (`SCT`)](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#sct-extension)
+returned to clients. To build this `SCT`, TesseraCT also needs the timestamp of
+that previous entry. TesseraCT fetches the full previous entry at the given
+index, and then extract its timestamp out of it to rebuild the SCT.
+
+TesseraCT can rate limit these duplicate submission independently from
+non-duplicate ones, thus allowing logs to prioritize non-duplicate submissions.
+
+### Chain filtering
+
+TesseraCT needs to parse incoming certificate chains to process them. This allows:
+
+- building log entries
+- filtering chains based on various criterias such as the root certificates they
+roll up to, or their validity date
+
+By design, Go's [`crypto/x509`](https://pkg.go.dev/crypto/x509) library blocks
+non-standard certificate chains, such as [precertificate chains](https://www.rfc-editor.org/rfc/rfc6962#section-3.1)
+or chains that are not safe to use.
+TesseraCT uses [`internal/lax509`](/internal/lax509/), a lightweight fork of
+Go's [`crypto/x509`](https://pkg.go.dev/crypto/x509) library to parse chains.
+
+## Detailed architecture
+
+### Google Cloud Platform (GCP)
+
+This implementation is composed of:
+
+ 1. One or multiple TesseraCT servers. For reliability, multiple servers can run
+ concurently.
+ 1. Tesssera's backend infrastructure:
+    1. A [GCS](https://cloud.google.com/storage) bucket. TesseraCT re-uses this
+    bucket to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
+    1. A [Spanner](https://cloud.google.com/spanner) database used for
+    sequencing entries, and antispam.
+ 1. Key materials, stored in [Secret Manager](https://cloud.google.com/security/products/secret-manager)
+
+APIs:
+
+ 1. Submssion requests (`add-chain`, `add-pre-chain`, `get-roots`) are processed
+ by TesseraCT servers.
+ 2. Monitoring requests (fetching tiles, log entries and
+ issuers) are processed directly by GCS, without going through TesseraCT
+ servers.
+
+See Tessera [GCP design doc](https://github.com/transparency-dev/tessera/tree/main/storage/gcp)
+for additional details.
+
+### Amazon Web Services (AWS)
+
+This implementation is composed of:
+
+ 1. One or multiple TesseraCT servers. For reliability, multiple servers can run
+ concurently.
+ 1. Tesssera's backend infrastructure:
+    1. An [S3](https://aws.amazon.com/s3/) bucket. TesseraCT re-uses this bucket
+    to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
+    1. A MySQL [RDS](https://aws.amazon.com/rds/) database used for sequencing
+    entries, and antispam.
+ 1. Key materials, stored in [Secrets Manager](https://aws.amazon.com/secrets-manager/)
+
+APIs:
+
+ 1. Submssion requests (`add-chain`, `add-pre-chain`, `get-roots`) are processed
+by TesseraCT servers.
+ 2. Monitoring requests (fetching tiles, log entries and
+issuers) are processed directly by S3, without going through TesseraCT
+servers.
+
+See Tessera [GCP design doc](https://github.com/transparency-dev/tessera/tree/main/storage/gcp)
+for additional details.
+
+### S3-compliant systems with a MySQL database
+
+While TesseraCT's [AWS implementation](#amazon-web-services-aws)
+uses [RDS](https://aws.amazon.com/rds/) and [S3](https://aws.amazon.com/s3/),
+its configuration APIs _should_ be compatible with any MySQL database, and S3
+compatible backend, such as [MinIO](https://min.io/). This might be a good option
+to consider depending on your needs.
+
+> [!WARNING]
+> S3-compatible backends do not all provide the same guarantees
+> that S3 does, and might therefore not be suitable to run TesseraCT.
+
+### POSIX-compliant systems
+
+TODO
+[](#s3-compliant-systems-with-a-mysql-database)

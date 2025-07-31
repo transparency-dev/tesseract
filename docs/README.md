@@ -3,10 +3,7 @@
 <!--Please, keep this in sync with ../README.md -->
 - [Configuration](./configuration.md)
 - [Performance](./performance.md)
-- Architecture
-  - GCP: TODO
-  - AWS: TODO
-  - [Non-cloud](./architecture/NONCLOUD.md)
+- [Architecture](./architecture.md)
 - [Deployment](../deployment/)
 - Codelabs
   - [GCP](../deployment/live/gcp/test/)
