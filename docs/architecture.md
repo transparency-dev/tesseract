@@ -134,6 +134,17 @@ your needs.
 > S3-compatible backends do not all provide the same guarantees
 > that S3 does, and might therefore not be suitable to run TesseraCT.
 
-### POSIX-compliant systems
+### POSIX-compliant filesystems
 
-TODO
+This implementation needs only:
+
+1. A POSIX-compliant filesystem (e.g. ZFS) to store the log, and
+1. Any HTTP server capable of directly serving the files from the log stored on
+that filesystem.
+
+See the Tessera [POSIX design doc](https://pkg.go.dev/github.com/transparency-dev/tessera/storage/posix)
+for additional details.
+
+If you are comfortable running a web-server and unix-style binaries in a VM
+(or on bare metal) and do not want the complexity of running additional storage
+and database services, this might be a good option.
