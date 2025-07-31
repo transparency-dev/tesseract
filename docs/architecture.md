@@ -38,8 +38,6 @@ To increase reliability, multiple identical TesseraCT instances can run
 concurrently for a single CT log.
 To serve multiple distinct CT logs, bring up at least one TesseraCT server per log.
 
-See each patform's section for additional details.
-
 For additional details, read [Tessera's design document](https://github.com/transparency-dev/tessera/tree/main/docs/design),
 and the platform-specific details below.
 
@@ -80,8 +78,8 @@ Go's [`crypto/x509`](https://pkg.go.dev/crypto/x509) library to parse chains.
 This implementation is composed of:
 
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
- concurently.
- 1. Tesssera's backend infrastructure:
+ concurrently.
+ 1. Tessera's backend infrastructure:
     1. A [GCS](https://cloud.google.com/storage) bucket. TesseraCT re-uses this
     bucket to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
     1. A [Spanner](https://cloud.google.com/spanner) database used for
@@ -104,8 +102,8 @@ for additional details.
 This implementation is composed of:
 
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
- concurently.
- 1. Tesssera's backend infrastructure:
+ concurrently.
+ 1. Tessera's backend infrastructure:
     1. An [S3](https://aws.amazon.com/s3/) bucket. TesseraCT re-uses this bucket
     to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
     1. A MySQL [RDS](https://aws.amazon.com/rds/) database used for sequencing
@@ -120,7 +118,7 @@ directly by TesseraCT servers.
 issuers) are handled directly by S3, without going through TesseraCT
 servers.
 
-See the Tessera [GCP design doc](https://github.com/transparency-dev/tessera/tree/main/storage/gcp)
+See the Tessera [AWS design doc](https://github.com/transparency-dev/tessera/tree/main/storage/aws)
 for additional details.
 
 ### S3-compliant systems with a MySQL database
