@@ -10,8 +10,8 @@ At the moment, TesseraCT can run on the following platforms:
 
 - [Google Cloud Platform](https://cloud.google.com) (GCP)
 - [Amazon Web Services](https://aws.amazon.com) (AWS)
-- S3-compliant systems alongside a MySQL database
-- POSIX-compliant filesystems
+- Vanilla S3 storage systems alongside a MySQL database
+- POSIX filesystems
 
 TesseraCT is built on top of [Tessera](https://github.com/transparency-dev/tessera/).
 At the moment, the Tessera [MySQL-only driver](https://github.com/transparency-dev/tessera?tab=readme-ov-file#storage-drivers)
@@ -121,7 +121,7 @@ servers.
 See the Tessera [AWS design doc](https://github.com/transparency-dev/tessera/tree/main/storage/aws)
 for additional details.
 
-### S3-compliant systems with a MySQL database
+### Vanilla S3+MySQL
 
 While TesseraCT's [AWS implementation](#amazon-web-services-aws)
 uses [RDS](https://aws.amazon.com/rds/) and [S3](https://aws.amazon.com/s3/),
@@ -134,7 +134,7 @@ your needs.
 > S3-compatible backends do not all provide the same guarantees
 > that S3 does, and might therefore not be suitable to run TesseraCT.
 
-### POSIX-compliant filesystems
+### POSIX filesystems
 
 This implementation needs only:
 
