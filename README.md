@@ -201,10 +201,6 @@ requests for additional backend implementations. If you have any,
 
 ### Which platform should I use?
 
-<details>
-
-<summary>Click to reveal a decision tree to follow.</summary>
-
 ```mermaid
 graph TD
     A[Are you already running on:] --> B{GCP?}
@@ -217,8 +213,6 @@ graph TD
     G -- I cannot --> I
     H -- I cannot --> I[<a href="https://github.com/transparency-dev/tesseract/blob/main/README.md#wave-contact">Get in touch</a>]
 ```
-
-</details>
 
 ## :troll: History
 
