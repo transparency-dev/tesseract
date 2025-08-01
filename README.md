@@ -208,6 +208,21 @@ and to explore non-cloud-native deloyments. We welcome feedback on these and
 requests for additional backend implementations. If you have any,
 [come and talk to us](#wave-contact)!
 
+### Which platform should I use?
+
+```mermaid
+graph TD
+    A[Are you already running on:] --> B{GCP?}
+    B -- Yes --> C[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#google-cloud-platform-gcp">Use TesseraCT for GCP</a>]
+    B -- No --> D{AWS?}
+    D -- Yes --> E[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#amazon-web-services-aws">Use TesseraCT for AWS</aws>]
+    D -- No --> F{On-prem with S3 & MySQL?}
+    F -- Yes --> G[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#vanilla-s3mysql">Use TesseraCT for Vanilla S3+MySQL</a>]
+    F -- No --> H[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#posix-filesystems">Use TesseraCT for POSIX</a>]
+    G -- I cannot --> I
+    H -- I cannot --> I[<a href="https://github.com/transparency-dev/tesseract/blob/main/README.md#wave-contact">Get in touch</a>]
+```
+
 ## :troll: History
 
 TesseraCT is the successor to [Trillian's CTFE](https://github.com/google/certificate-transparency-go/tree/master/trillian/ctfe).
