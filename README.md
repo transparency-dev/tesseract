@@ -110,7 +110,15 @@ We'd love to know what platform you're interested in using,
 ## :test_tube: Public test instances
 
 The following logs are available for testing. These logs run in a staging
-environment and should not used for production use cases.
+environment and should not used for production use cases. They accept chains
+rolling up to roots trusted by major root programs.
+
+These logs have been named after La Grande Arche de la Défense
+([The Great Arche of the Defense](https://en.wikipedia.org/wiki/Grande_Arche)),
+a building in the outskirts of Paris, designed by Johan Otto von Spreckelsen and
+Erik Reitzel to celebrate the 200th aniversary of the French Revolution. It is
+shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https://c2sp.org/tlog-tiles)
+(transparent !) windows.
 
 ```json
 "description": "Google staging 'Arche2025h1'",
