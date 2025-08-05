@@ -7,16 +7,18 @@ deterministic synthetic certificates for a limited amount of time. QPS was
 measured using the average values collected over the test period.
 
 > [!NOTE]
-> These are not definitive numbers, and that more tests are to come with an
-> improved codebase.
+> These are not definitive numbers, and performance might evolve as we improve TesseraCT.
+> These load tests should be considered as a snapshot of how TesseraCT performed
+> at a point in time. Do not hesitate to run such tests with your own infrastructure.
 
 ## Index
 
 * [GCP](#gcp)
 * [AWS](#aws)
 * [POSIX](#posix)
-  + [NVMe SSD](#nvme)
-  + [SAS HDD](#sas-hdd)
+  * [NVMe SSD](#nvme)
+  * [SAS HDD](#sas-hdd)
+* [S3+MySQL](#s3--mysql)
 
 ## Backends
 
@@ -42,7 +44,7 @@ The table below shows the measured performance over 12 hours in each instance ty
 
 ##### Free Tier e2-micro VM Instance + Cloud Spanner 100 PUs
 
-- e2-micro (2 vCPUs, 1 GB Memory)
+* e2-micro (2 vCPUs, 1 GB Memory)
 
 The write QPS is around 60. The bottleneck comes from the VM CPU usage which is
 always above 90%. The Cloud Spanner CPU utilization is around 10%.
@@ -80,7 +82,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.     68.8 avail Mem
 
 ##### e2-medium VM Instance + Cloud Spanner 100 PUs
 
-- e2-medium (2 vCPUs, 4 GB Memory)
+* e2-medium (2 vCPUs, 4 GB Memory)
 
 The write QPS is around 250. The bottleneck comes from the VM CPU utilization
 which is always around 100%. The Cloud Spanner CPU utilization is around 20%.
@@ -118,7 +120,7 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   1502.3 avail Mem
 
 ##### e2-standard-2 VM Instance + Cloud Spanner 100 PUs
 
-- e2-standard-2 (2 vCPUs, 8 GB Memory)
+* e2-standard-2 (2 vCPUs, 8 GB Memory)
 
 The write QPS is around 600. The bottleneck comes from the VM CPU utilization
 which is always around 100%. The Cloud Spanner CPU utilization is around 50%.
@@ -158,8 +160,8 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.   5921.5 avail Mem
 
 The following flags are used:
 
-- `--enable_publication_awaiter`
-- `--checkpoint_interval=1500ms`
+* `--enable_publication_awaiter`
+* `--checkpoint_interval=1500ms`
 
 When the publication awaiter is enabled, the write QPS drops to around 500. The
 bottleneck comes from the checkpoint publishing wait time. The VM CPU
@@ -202,7 +204,7 @@ The following flags were set on the `tesseract` server:
 
 ##### n2-standard-4 Managed Instance x 1 + Cloud Spanner 100 PUs
 
-- n2-standard-4 (4 vCPUs, 16 GB Memory)
+* n2-standard-4 (4 vCPUs, 16 GB Memory)
 
 The write QPS was around 1000. The Cloud Spanner utilization was around 55%.
 The VM CPU utilization was around 80%.
@@ -229,7 +231,7 @@ The VM CPU utilization was around 80%.
 
 ##### n2-standard-4 Managed Instance x 3 + Cloud Spanner 200 PUs
 
-- n2-standard-4 (4 vCPUs, 16 GB Memory)
+* n2-standard-4 (4 vCPUs, 16 GB Memory)
 
 The write QPS was around 1700. The Cloud Spanner utilization was around 50%.
 The VM CPU utilization was around 50%.
@@ -261,10 +263,10 @@ tool](/internal/hammer/) as of [commit `fe7687c`](https://github.com/transparenc
 
 #### t3a.small EC2 Instance + Aurora MySQL db.r5.large
 
-- t3a.small (2 vCPUs, 2 GB Memory)
-  - General Purpose SSD (gp3)
-    - IOPS: 3,000
-    - Throughput: 125 MiB/s
+* t3a.small (2 vCPUs, 2 GB Memory)
+  * General Purpose SSD (gp3)
+    * IOPS: 3,000
+    * Throughput: 125 MiB/s
 
 The write QPS is around 450. The bottleneck comes from the VM CPU utilization
 which is always around 100%. The Aurora MySQL CPU utilization is around 30%.
@@ -290,14 +292,14 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.    704.2 avail Mem
   92354 ec2-user  20   0 2794864 560568  14980 S 182.7  28.7  48:42.28 aws
 ```
 
-
 ### POSIX
 
 These tests were performed in a NixOS VM under Proxmox running on a local Threadripper PRO 3975WX machine.
 
 The machine has two independent ZFS mirror pools consisting of:
-- 2x 6TB SAS (12Gb) HDD
-- 2x 1TB NVMe SSD
+
+* 2x 6TB SAS (12Gb) HDD
+* 2x 1TB NVMe SSD
 
 The VM was allocated 30 cores and 32 GB of RAM.
 
@@ -315,7 +317,6 @@ The following flags were set on the `tesseract` server:
 The log and hammer were both run in the same VM, with the log using a ZFS subvolume from the NVMe mirror.
 
 TesseraCT sustained around 10,000 write qps, using up to 7 cores for the server.
-
 
 ```bash
 ┌───────────────────────────────────────────────────────────────────────────┐
@@ -368,3 +369,30 @@ MiB Swap:      0.0 total,      0.0 free,      0.0 used.  30354.7 avail Mem
  272507 al        20   0   24.3g   1.4g 336236 S  97.0   4.3   4:42.73 posix
 
 ```
+
+### S3 + MySQL
+
+S3 + MySQL performance number will highly depend on the S3 and MySQL setup. If
+you have the opportunity to run load tests with different relevant setups, we'd
+love to hear about them: [get in touch](../README.md#wave-contact)!
+
+#### MinIO MariaDB (from IPng Networks)
+
+This test was performed by [IPng Networks](https://ipng.ch/), more details are
+available on their [blog post](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1/).
+Kudos to IPng and Pim!
+
+This test was performed with on a Dell R630s running with two Xeon E5-2640 v4
+CPUs, with 20 cores, 40 threads, and 512GB of DDR4 memory. The machine had a
+SAS controller with 6pcs of 1.92TB enterprise storage (Samsung part
+number P1633N19).
+
+The log, hammer, MinIO and MariaDB were running on the same machine.
+
+TesseraCT sustained 500 write qps for a few hours, with:
+
+* TesseraCT using about 2.9 CPUs/s
+* MariaDB using 0.3 CPUs/s
+* The hammer using 6.0 CPUs/s
+
+Performance started to degrade around 600 write qps.
