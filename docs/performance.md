@@ -378,8 +378,8 @@ love to hear about them: [get in touch](../README.md#wave-contact)!
 
 #### MinIO MariaDB (from IPng Networks)
 
-This test was performed by [IPng Networks](https://ipng.ch/), more details are
-available on their [blog post](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1/).
+This test was performed by [IPng Networks](https://ipng.ch/), around 2025-07-26.
+More details are available on their [blog post](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1/).
 Kudos to IPng and Pim!
 
 This test was performed with on a Dell R630s running with two Xeon E5-2640 v4
