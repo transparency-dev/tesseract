@@ -40,7 +40,7 @@ resource "google_compute_instance" "preloader" {
   machine_type = var.machine_type
   zone         = "${var.location}-f"
 
-  tags = ["preloader-allow-group"]
+  tags = ["preloader"]
 
   boot_disk {
     initialize_params {
