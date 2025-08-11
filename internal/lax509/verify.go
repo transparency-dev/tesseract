@@ -59,6 +59,8 @@ type VerifyOptions struct {
 	// chain is accepted if it allows any of the listed values. An empty list
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []x509.ExtKeyUsage
+	// AllowSHA1 specifies whether SHA-1 based signature algorithms are accepted.
+	AllowSHA1 bool
 }
 
 const (

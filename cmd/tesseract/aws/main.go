@@ -60,6 +60,7 @@ var (
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
 	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
+	allowSHA1                = flag.Bool("allow_sha1_signing_algorithms", false, "If true, allow chains that use SHA-1 based signing algorithms.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 
 	// Performance flags
@@ -120,6 +121,7 @@ func main() {
 		RejectExtensions: *rejectExtensions,
 		NotAfterStart:    notAfterStart.t,
 		NotAfterLimit:    notAfterLimit.t,
+		AllowSHA1:        *allowSHA1,
 	}
 
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors, *pathPrefix)

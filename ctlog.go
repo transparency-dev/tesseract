@@ -60,6 +60,8 @@ type ChainValidationConfig struct {
 	// exclusive.
 	// Leaving this unset implies no upper bound to the range.
 	NotAfterLimit *time.Time
+	// AllowSHA1 specifies whether SHA-1 based signing algorigthms are allowed.
+	AllowSHA1 bool
 }
 
 // systemTimeSource implements ct.TimeSource.
@@ -114,7 +116,7 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 		}
 	}
 
-	cv := ct.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds)
+	cv := ct.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds, cfg.AllowSHA1)
 	return &cv, nil
 }
 
