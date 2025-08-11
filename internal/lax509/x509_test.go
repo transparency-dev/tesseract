@@ -65,7 +65,7 @@ func TestCertificateParse(t *testing.T) {
 		return
 	}
 
-	err = certs[0].CheckSignatureFrom(certs[1])
+	err = checkSignatureFrom(certs[0], certs[1])
 	if err != nil {
 		t.Error(err)
 	}
@@ -181,7 +181,7 @@ func TestECDSA(t *testing.T) {
 		if pka := cert.PublicKeyAlgorithm; pka != x509.ECDSA {
 			t.Errorf("%d: public key algorithm is %v, want ECDSA", i, pka)
 		}
-		if err = cert.CheckSignatureFrom(cert); err != nil {
+		if err = checkSignatureFrom(cert, cert); err != nil {
 			t.Errorf("%d: certificate verification failed: %s", i, err)
 		}
 	}
@@ -221,7 +221,7 @@ func TestVerifyCertificateWithDSASignature(t *testing.T) {
 		t.Fatalf("Failed to parse certificate: %s", err)
 	}
 	// test cert is self-signed
-	if err = cert.CheckSignatureFrom(cert); err == nil {
+	if err = checkSignatureFrom(cert, cert); err == nil {
 		t.Fatalf("Expected error verifying DSA certificate")
 	}
 }
@@ -304,7 +304,7 @@ func TestRSAPSSSelfSigned(t *testing.T) {
 			continue
 		}
 
-		if err = cert.CheckSignatureFrom(cert); err != nil {
+		if err = checkSignatureFrom(cert, cert); err != nil {
 			t.Errorf("#%d: signature check failed: %s", i, err)
 			continue
 		}
@@ -376,7 +376,7 @@ func TestEd25519SelfSigned(t *testing.T) {
 		t.Fatalf("Invalid Ed25519 key")
 	}
 
-	if err = cert.CheckSignatureFrom(cert); err != nil {
+	if err = checkSignatureFrom(cert, cert); err != nil {
 		t.Fatalf("Signature check failed: %s", err)
 	}
 }
@@ -406,7 +406,7 @@ func TestMD5(t *testing.T) {
 	if sa := cert.SignatureAlgorithm; sa != x509.MD5WithRSA {
 		t.Errorf("signature algorithm is %v, want %v", sa, x509.MD5WithRSA)
 	}
-	if err = cert.CheckSignatureFrom(cert); err == nil {
+	if err = checkSignatureFrom(cert, cert); err == nil {
 		t.Fatalf("certificate verification succeeded incorrectly")
 	}
 	if _, ok := err.(x509.InsecureAlgorithmError); !ok {
@@ -423,10 +423,10 @@ func TestSHA1(t *testing.T) {
 	if sa := cert.SignatureAlgorithm; sa != x509.ECDSAWithSHA1 {
 		t.Errorf("signature algorithm is %v, want %v", sa, x509.ECDSAWithSHA1)
 	}
-	if err = cert.CheckSignatureFrom(cert); err == nil {
-		t.Fatalf("certificate verification succeeded incorrectly")
-	}
-	if _, ok := err.(x509.InsecureAlgorithmError); !ok {
-		t.Fatalf("certificate verification returned %v (%T), wanted InsecureAlgorithmError", err, err)
+	// lax509: this test previously expected an error, since crypto/x509 did not
+	// allow SHA-1 based signing algorithms by default. lax509 accepts SHA-1 based
+	// signing algorithms.
+	if err = checkSignatureFrom(cert, cert); err != nil {
+		t.Fatalf("certificate verification did not succeeded %v", err)
 	}
 }
