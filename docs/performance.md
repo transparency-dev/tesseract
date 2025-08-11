@@ -379,15 +379,15 @@ love to hear about them: [get in touch](../README.md#wave-contact)!
 #### MinIO MariaDB (from IPng Networks)
 
 This test was performed by [IPng Networks](https://ipng.ch/), around 2025-07-26.
-More details are available on their [blog post](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1/).
+More details are available on their [blog post](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1-tesseract/).
 Kudos to IPng and Pim!
 
-This test was performed with on a Dell R630s running with two Xeon E5-2640 v4
-CPUs, with 20 cores, 40 threads, and 512GB of DDR4 memory. The machine had a
-SAS controller with 6pcs of 1.92TB enterprise storage (Samsung part
-number P1633N19).
+This test was performed using two Dell R630s running with two Xeon E5-2640 v4
+CPUs each, with 20 cores, 40 threads, and 512GB of DDR4 memory.
 
-The log, hammer, MinIO and MariaDB were running on the same machine.
+The log, hammer, MariaDB were running on a single machine. MinIO was running
+on a second machine with a SAS controller and 6pcs of 1.92TB enterprise storage
+(Samsung part number P1633N19).
 
 TesseraCT sustained 500 write qps for a few hours, with:
 
