@@ -56,9 +56,7 @@ resource "google_compute_region_instance_template" "tesseract" {
     create_before_destroy = true
   }
 
-  // TODO(phbnf): come back to this: can we put base_name in there given
-  // that this template applies to all logs?
-  tags = ["tesseract-allow-group", "allow-health-checks"]
+  tags = ["tesseract", "allow-health-checks"]
 
   labels = {
     environment  = var.env
