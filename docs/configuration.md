@@ -4,15 +4,16 @@ This file explains how to configure TesseraCT.
 
 It contains two main parts:
 
- 1. Chain lifecyle: with settings impacting how submission are processed
- 2. Setup: with instructions on how to setup TesseraCT resources
+ 1. [Chain lifecyle](#chain-lifecycle): with settings impacting how submission
+ are processed
+ 2. [Setup](#setup): with instructions on how to setup TesseraCT resources
 
 ## Chain lifecycle
 
 When TesseraCT receives a new chain submssion, it is first
 [filtered](#chain-filtering), and is then sent to the Tessera library where it goes
 through the [Append Lifecycle](#append-lifecycle).
-The chain may may be [deduplicated using TesseraCT's and Tessera's antispam features](#antispam).
+The chain may be [deduplicated using TesseraCT's and Tessera's antispam features](#antispam).
 
 ### Chain filtering
 
@@ -48,7 +49,7 @@ hashes commiting to them), and then [published every checkpoint interval](#check
 can [wait for the full process to be done](#publication-awaiter) before sending
 responses to clients.
 
-### Sequencing Batch
+#### Sequencing Batch
 
 The `batch_max_age` and `batch_max_size` flags control the maximum age and number
 of entries in a single [sequencing batch](https://github.com/transparency-dev/tessera?tab=readme-ov-file#sequencing).
@@ -123,11 +124,11 @@ recently and which have not yet been processed by the asynchronous process in
 The `pushback_max_dedupe_in_flight` flag rate limits how many concurrent `add-*`
 requests identified as duplicates will be processed by the
 **synchronous** process in `(3)` wich fetches entries and extracts information
-*required
-to build SCTs. When this value is exceeded, TesseraCT returns `429 - Too Many
-Requests` to subsequent **duplicate** `add-*` requests only.  Non-duplicate
-`add-*` requests are not impacted, and can still be processed. This limits the
-amount of resources TesseraCT spends on servicing duplicate requests.
+required to build SCTs. When this value is exceeded, TesseraCT returns
+`429 -Too Many Requests` to subsequent **duplicate** `add-*` requests only.
+Non-duplicate `add-*` requests are not impacted, and can still be processed.
+This limits the amount of resources TesseraCT spends on servicing duplicate
+requests.
 
 ## Setup
 
@@ -158,8 +159,8 @@ are kept in memory
 - `batch_max_size`: the number of entries that are kept in memory before
 sequenced in a batch
 - [The number of cached issuers keys](https://github.com/transparency-dev/tesseract/blob/main/storage/storage.go)
-- The number of concurent requests, which itself is impacted by the
-`enable_publication_awaiter` and `http_deadline` flags
+- `enable_publication_awaiter` and `http_deadline`: they impact the number of
+concurent requests, hence the amount of RAM being used
 
 ### Frontend redundancy
 
