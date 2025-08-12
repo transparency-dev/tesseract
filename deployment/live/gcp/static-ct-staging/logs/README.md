@@ -1,21 +1,22 @@
-# Arche2025h1 staging log
+# static-ct-staging log
 
 ## Overview
 
-This config uses the
-[gcp/tesseract/cloudrun](/deployment/modules/gcp/tesseract/cloudrun) module to
-run TesseraCT on Cloud Run, backed by Tessera and preloaded with
-argon2025h1 entries.
+This directory contains the config we use to deploy our staging logs. Each log
+uses
+[/deployment/modules/gcp/tesseract/gce/](/deployment/modules/gcp/tesseract/gce/)
+module to run TesseraCT on Managed Instance Groups backed by Tessera.
 
-### Update the roots
+### Update roots
 
 Run the following command from the root of the repository.
 
-It fetches roots from argon2025h1, and filters out roots that don't parse with
-`crypto/x509` and `internal/lax509`.  As of 2025-03-21, these roots are:
+It fetches roots from a Google RFC6962 log, and filters out roots that don't
+parse with `crypto/x509` and `internal/lax509`. As of 2025-03-21, these roots
+are:
 
-- https://crt.sh/?id=298, with a negative serial number
-- https://crt.sh/?id=9027356, affected by https://github.com/golang/go/issues/69463.
+- <https://crt.sh/?id=298>, with a negative serial number
+- <https://crt.sh/?id=9027356>, affected by <https://github.com/golang/go/issues/69463>
 
 ```bash
 go run github.com/google/certificate-transparency-go/client/ctclient@master get-roots --log_uri=https://ct.googleapis.com/logs/us1/argon2025h1/ --text=false | \
@@ -29,8 +30,8 @@ awk \
 
 ### Automatic Deployment
 
-This GCP TesseraCT preloaded staging environment is designed to be deployed by
-the Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/tesseract/),
+These GCP TesseraCT logs are designed to be deployed by
+Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/tesseract/),
 [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/tesseract/)).
 
 ### Manual Deployment
