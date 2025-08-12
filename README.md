@@ -37,7 +37,7 @@ TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 |GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |[codelab](/deployment/live/gcp/test/)                                                                  |[gcp](/docs/performance.md#gcp)        |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/test/)                              |
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                    |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)                |
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/fr/ec2/)                                                                      |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)        |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                              |
-|POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)    |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/posix/)                                             |
+|POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)    |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/tesseract/posix/)                                   |
 |Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance#s3--mysql)|[aws](/cmd/tesseract/aws/main.go)    |[doc](/docs/architecture.md#vanilla-s3mysql)                   |
 
 These deployments come with different levels of maturity depending on
@@ -82,12 +82,12 @@ If you're interested in additional features, [get in touch](#wave-contact).
 ### Getting Started
 
 The most hands-on place to start is with one of the
-[GCP](./deployment/live/gcp/test),[AWS](./deployment/live/aws/test), or
+[GCP](./deployment/live/gcp/test), [AWS](./deployment/live/aws/test), or
 [POSIX](/cmd/tesseract/posix#codelab) codelabs. These codelabs will guide you
 through bringing up your own test TesseraCT deployment.
 
 We also run [public test instances](#test_tube-public-test-instances) that you
-can interact with using the [static-ct-api](https://c2sp.org/static-ct-api) API.
+can interact with using [static-ct-api](https://c2sp.org/static-ct-api).
 
 You can also have a look at the `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/)
 to understand how to build a TesseraCT server.
@@ -101,8 +101,8 @@ TesseraCT can theoretically run on any platform
 
 If you'd still like to run TesseraCT on a different platform that Tessera
 supports, have a look at Tessera's [Getting Started guide](https://github.com/transparency-dev/tessera/tree/main?tab=readme-ov-file#getting-started),
-TesseraCT's `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/) and their
-respective [architecture docs](https://github.com/transparency-dev/tesseract/tree/main/docs/architecture).
+TesseraCT's `main.go` files under [`/cmd/tesseract/`](./cmd/tesseract/) and the
+[architecture documentation](https://github.com/transparency-dev/tesseract/tree/main/docs/architecture.md).
 
 We'd love to know what platform you're interested in using,
 [come and talk to us](#wave-contact)!
@@ -115,10 +115,11 @@ rolling up to roots trusted by major root programs.
 
 These logs have been named after La Grande Arche de la Défense
 ([The Great Arche of the Defense](https://en.wikipedia.org/wiki/Grande_Arche)),
-a building in the outskirts of Paris, designed by Johan Otto von Spreckelsen and
-Erik Reitzel to celebrate the 200th aniversary of the French Revolution. It is
-shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https://c2sp.org/tlog-tiles)
-(transparent !) windows.
+a building in the outskirts of Paris, designed by [Johan Otto von Spreckelsen](https://en.wikipedia.org/wiki/Johan_Otto_von_Spreckelsen)
+and [Erik Reitzel](https://en.wikipedia.org/wiki/Erik_Reitzel) to celebrate the
+200th aniversary of the [French Revolution](https://en.wikipedia.org/wiki/French_Revolution).
+It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https://c2sp.org/tlog-tiles)
+(transparent!) windows.
 
 ```json
 "description": "Google staging 'Arche2025h1'",
@@ -243,7 +244,7 @@ need a proto config anymore.
 - **Chain parsing**: TesseraCT uses [internal/lax509](./internal/lax509/) to
 validate certificate chains. It is built on top of Go's standard
 [crypto/x509](https://pkg.go.dev/crypto/x509) library, with a minimal set of CT
-specific enhancements. It **does not** use the full [crypto/x509 fork](https://github.com/google/certificate-transparency-go/tree/master/x509)
+specific enhancements. It **does not** use the full `crypto/x509` [fork](https://github.com/google/certificate-transparency-go/tree/master/x509)
 that the CTFE was using. This means that TesseraCT can benefit from the good care
 and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). As a
 result, a very small number of chains do not validate anymore, head over to

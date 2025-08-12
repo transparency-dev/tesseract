@@ -75,7 +75,7 @@ Go's [`crypto/x509`](https://pkg.go.dev/crypto/x509) library to parse chains.
 
 ### Google Cloud Platform (GCP)
 
-This implementation is composed of:
+This [implementation](/cmd/tesseract/gcp) is composed of:
 
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
  concurrently.
@@ -99,7 +99,7 @@ for additional details.
 
 ### Amazon Web Services (AWS)
 
-This implementation is composed of:
+This [implementation](/cmd/tesseract/aws) is composed of:
 
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
  concurrently.
@@ -136,7 +136,7 @@ your needs.
 
 ### POSIX filesystems
 
-This implementation needs only:
+This [implementation](/cmd/tesseract/posix) needs only:
 
 1. A POSIX-compliant filesystem (e.g. ZFS) to store the log, and
 1. Any HTTP server capable of directly serving the files from the log stored on
