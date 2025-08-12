@@ -11,5 +11,5 @@ the TesseraCT binary, and deploying it automatically to logs under
 The [./preloaders](./preloaders/) directory contains config for running [preloaders](https://github.com/google/certificate-transparency-go/blob/master/preload/preloader/preloader.go),
 populating Arche logs with entries from [Argon logs](https://bugs.chromium.org/p/chromium/issues/detail?id=889033).
 
-The [/.loadbalancer](./loadbalancer/) directory contains config for running
+The [./loadbalancer](./loadbalancer/) directory contains config for running
 Arche logs behind global public load balancer.
