@@ -120,6 +120,22 @@ database cached locally
 sequenced in a batch
 - [The number of cached issuers keys](https://github.com/transparency-dev/tesseract/blob/main/storage/storage.go)
 
+## Multi-tenancy
+
+For added availability multiple TesseraCT instances can run concurently with the
+same Tessera resources. Adding more instances will not necessarily increase
+performance, the primary goal of concurrency is to allow for better
+availability.
+
+Multiple TesseraCT server can run concurently on AWS or GCP. It is also
+possible to run concurent servers with the POSIX and Vanilla S3 + MySQL
+implementations, **but** this will depend on the underlying storage systems
+being used.
+
+To run multiple logs, run multiple TesseraCT instances configured with different
+Tessera resources. For simplicity, it is not possible to serve multiple logs
+from a single TesseraCT instance.
+
 ## Platform specific configuration
 
 ### AWS
