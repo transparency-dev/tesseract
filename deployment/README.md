@@ -27,10 +27,10 @@ Each cloud platform requires its own TesseraCT binary and Tessera
 infrastructure. This table summarizes which cloud providers are supported, and
 on which platform each instantiation runs:
 
-| Cloud   | Binary                                      | Test log              | CI logs                                   | Staging logs                                         |
-|---------|---------------------------------------------|-----------------------|-------------------------------------------|------------------------------------------------------|
-| GCP     | [cmd/tesseract/gcp](/cmd/tesseract/gcp)     | [VM](./live/gcp/test) | [Cloud Run](./live/gcp/static-ct/logs/ci) | [Cloud Run / MIG](./live/gcp/static-ct-staging/logs) |
-| AWS     | [cmd/tesseract/aws](/cmd/tesseract/aws)     | [VM](./live/aws/test) | [Fargate](./live/aws/conformance/ci)      |                                                      |
+| Cloud   | Binary                                      | Test log              | CI logs                                   | Staging logs                             |
+|---------|---------------------------------------------|-----------------------|-------------------------------------------|------------------------------------------|
+| GCP     | [cmd/tesseract/gcp](/cmd/tesseract/gcp)     | [VM](./live/gcp/test) | [Cloud Run](./live/gcp/static-ct/logs/ci) | [MIG](./live/gcp/static-ct-staging/logs) |
+| AWS     | [cmd/tesseract/aws](/cmd/tesseract/aws)     | [VM](./live/aws/test) | [Fargate](./live/aws/conformance/ci)      |                                          |
 
 ## Codelab
 
