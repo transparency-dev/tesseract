@@ -11,8 +11,9 @@ module to run TesseraCT on Managed Instance Groups backed by Tessera.
 
 Run the following command from the root of the repository.
 
-It fetches roots from argon2025h1, and filters out roots that don't parse with
-`crypto/x509` and `internal/lax509`.  As of 2025-03-21, these roots are:
+It fetches roots from a Google RFC6962 log, and filters out roots that don't
+parse with `crypto/x509` and `internal/lax509`. As of 2025-03-21, these roots
+are:
 
 - <https://crt.sh/?id=298>, with a negative serial number
 - <https://crt.sh/?id=9027356>, affected by <https://github.com/golang/go/issues/69463>
