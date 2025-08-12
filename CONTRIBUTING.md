@@ -15,7 +15,7 @@ You can find instructions on how to do that [here](https://golang.org/doc/instal
 Once you have Go installed, you can clone the repository:
 
 ```bash
-git clone https://github.com/transparency-dev/tessera.git
+git clone https://github.com/transparency-dev/tesseract.git
 ```
 
 ## Contributor License Agreement
@@ -25,11 +25,11 @@ License Agreement. This is not a copyright **assignment**, it simply gives
 Google permission to use and redistribute your contributions as part of the
 project.
 
-  * If you are an individual writing original source code and you're sure you
+* If you are an individual writing original source code and you're sure you
     own the intellectual property, then you'll need to sign an [individual
     CLA][].
 
-  * If you work for a company that wants to allow you to contribute your work,
+* If you work for a company that wants to allow you to contribute your work,
     then you'll need to sign a [corporate CLA][].
 
 You generally only need to submit a CLA once, so if you've already submitted
@@ -46,7 +46,6 @@ of your first [pull request][].
 
 [AUTHORS]: AUTHORS
 [CONTRIBUTORS]: CONTRIBUTORS
-
 
 ## Submitting a patch
 
