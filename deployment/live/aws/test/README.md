@@ -14,7 +14,7 @@ which a TesseraCT server running on a VM can then use.
 You'll need to have a EC2 Amazon Linux VM running in the same AWS account that
 you can SSH to, with [Go](https://go.dev/doc/install) and
 [terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/)
-installed, and your favourite terminal multiplexer.
+with [OpenTofu](https://opentofu.org/) installed, and your favourite terminal multiplexer.
 
 ## Overview
 

@@ -14,7 +14,7 @@ which a TesseraCT server running on a VM can then use.
 You'll need to have a VM running in the same GCP project that you can SSH to,
 with [Go](https://go.dev/doc/install) and
 [terragrunt](https://terragrunt.gruntwork.io/docs/getting-started/install/)
-installed, and your favourite terminal multiplexer.
+with [OpenTofu](https://opentofu.org/) installed, and your favourite terminal multiplexer.
 
 ## Overview
 
