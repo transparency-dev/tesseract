@@ -39,7 +39,7 @@ module "gce_container_tesseract" {
       "--batch_max_size=${var.batch_max_size}",
       "--batch_max_age=${var.batch_max_age}",
       "--enable_publication_awaiter=${var.enable_publication_awaiter}",
-      "--allow_sha1_signing_algorithms=true"
+      "--accept_sha1_signing_algorithms=true"
     ]
     tty : true # maybe remove this
   }

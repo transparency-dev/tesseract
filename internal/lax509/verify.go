@@ -59,10 +59,11 @@ type VerifyOptions struct {
 	// chain is accepted if it allows any of the listed values. An empty list
 	// means ExtKeyUsageServerAuth. To accept any key usage, include ExtKeyUsageAny.
 	KeyUsages []x509.ExtKeyUsage
-	// AllowSHA1 specifies whether SHA-1 based signature algorithms are accepted.
+	// AcceptSHA1 specifies whether cert chains using SHA-1 based signing algorithms
+	// are allowed.
 	// CAUTION: This is a temporary solution and it will eventually be removed.
 	// DO NOT depend on it.
-	AllowSHA1 bool
+	AcceptSHA1 bool
 }
 
 const (
@@ -292,7 +293,7 @@ func buildChains(c *x509.Certificate, currentChain []*x509.Certificate, sigCheck
 			return
 		}
 
-		if opts.AllowSHA1 {
+		if opts.AcceptSHA1 {
 			err = checkSignatureFrom(c, candidate.cert)
 		} else {
 			err = c.CheckSignatureFrom(candidate.cert)

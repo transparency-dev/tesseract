@@ -108,11 +108,11 @@ type chainValidator struct {
 	extKeyUsages []x509.ExtKeyUsage
 	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
 	rejectExtIds []asn1.ObjectIdentifier
-	// allowSHA1 specifies whether SHA-1 based signing algorithms are allowed.
-	allowSHA1 bool
+	// acceptSHA1 specifies whether cert chains using SHA-1 based signing algorithms are allowed.
+	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, allowSHA1 bool) chainValidator {
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) chainValidator {
 	return chainValidator{
 		trustedRoots:    trustedRoots,
 		rejectExpired:   rejectExpired,
@@ -121,7 +121,7 @@ func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, reject
 		notAfterLimit:   notAfterLimit,
 		extKeyUsages:    extKeyUsages,
 		rejectExtIds:    rejectExtIds,
-		allowSHA1:       allowSHA1,
+		acceptSHA1:      acceptSHA1,
 	}
 }
 
@@ -242,7 +242,7 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		Roots:         cv.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
 		KeyUsages:     cv.extKeyUsages,
-		AllowSHA1:     cv.allowSHA1,
+		AcceptSHA1:    cv.acceptSHA1,
 	}
 
 	verifiedChains, err := lax509.Verify(cert, verifyOpts)
