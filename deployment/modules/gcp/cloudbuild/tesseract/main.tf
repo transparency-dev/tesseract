@@ -49,6 +49,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   name            = "build-docker-${var.docker_env}"
   service_account = "projects/${var.project_id}/serviceAccounts/${local.cloudbuild_service_account}"
   location        = var.location
+  tags            = ["preloader"] // allow Cloud Build to talk to the public internet to fetch OpenTofu resources. 
 
   # TODO(phboneff): use a better mechanism to trigger releases that re-uses Docker containters, or based on branches rather.
   # This is a temporary mechanism to speed up development.
