@@ -12,6 +12,7 @@ var (
 //
 // This is a low-level API that performs very limited checks, and not a full
 // path verifier. Most users should use [Certificate.Verify] instead.
+//
 // lax509: this method has been forked to allow SHA-1 based signature algorithms.
 // Old signature: func (c *Certificate) CheckSignatureFrom(parent *Certificate) error
 func checkSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
@@ -33,6 +34,8 @@ func checkSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
 		return x509.ErrUnsupportedAlgorithm
 	}
 
-	// PHBNF WAS HERE: checkSignature --> parent.CheckSignature
+	// lax509: Here be dragons. Use parent.CheckSignature instead of
+	// checksignature, since parent.CheckSignature allows SHA-1 signature for now.
+	// checkSignature --> parent.CheckSignature
 	return parent.CheckSignature(c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
 }

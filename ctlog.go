@@ -61,6 +61,8 @@ type ChainValidationConfig struct {
 	// Leaving this unset implies no upper bound to the range.
 	NotAfterLimit *time.Time
 	// AllowSHA1 specifies whether SHA-1 based signing algorigthms are allowed.
+	// CAUTION: This is a temporary solution and it will eventually be removed.
+	// DO NOT depend on it.
 	AllowSHA1 bool
 }
 
