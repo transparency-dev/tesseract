@@ -31,6 +31,10 @@ At a high level, these resources consists of:
 - A GCS Bucket
 - Secret Manager
 
+The TesseraCT binary will provide [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis),
+while [static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
+are provided directly by Tessera's GCS bucket.
+
 ## Codelab
 
 This codelab will guide you to bring up a test TesseraCT log infrastructure, add

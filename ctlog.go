@@ -119,8 +119,14 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
-// The HTTP server handlers implement https://c2sp.org/static-ct-api write
-// endpoints.
+//
+// HTTP server handlers implement static-ct-api submission APIs:
+// https://c2sp.org/static-ct-api#submission-apis.
+// It populates the data served via monitoring APIs (https://c2sp.org/static-ct-api#submission-apis)
+// but it _does not_ implement monitoring APIs itself. Monitoring APIs should
+// be served independently, either through the storage's system serving
+// infrastructure directly (GCS over HTTPS for instance), or with an
+// independent serving stack of your choice.
 func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string) (http.Handler, error) {
 	cv, err := newChainValidator(cfg)
 	if err != nil {
