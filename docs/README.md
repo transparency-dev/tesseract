@@ -8,5 +8,5 @@
 - Codelabs
   - [GCP](../deployment/live/gcp/test/)
   - [AWS](../deployment/live/aws/test/)
-  - [POSIX](/cmd/tesseract/posix/README.md#codelab)
+  - [POSIX](../cmd/tesseract/posix/README.md#codelab)
 - [Chain parsing with lax509](../internal/lax509/)

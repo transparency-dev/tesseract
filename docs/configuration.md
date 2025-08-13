@@ -10,7 +10,7 @@ It contains two main parts:
 
 ## Chain lifecycle
 
-When TesseraCT receives a new chain submssion, it is first
+When TesseraCT receives a new chain submission, it is first
 [filtered](#chain-filtering), and is then sent to the Tessera library where it goes
 through the [Append Lifecycle](#append-lifecycle).
 The chain may be [deduplicated using TesseraCT's and Tessera's antispam features](#antispam).
@@ -42,9 +42,9 @@ means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 ### Append lifecycle
 
 Tessera stages entries submitted via `Add`, then [sequences them in a batch](#sequencing-batch)
-to assign them with a durable sequence number. Asynronously from this, entries
+to assign them with a durable sequence number. Asynchronously from this, entries
 are first integrated into the log (i.e durably written into the log together with
-hashes commiting to them), and then [published every checkpoint interval](#checkpoint-interval)
+hashes committing to them), and then [published every checkpoint interval](#checkpoint-interval)
 (i.e a checkpoint which index covers these entries is published). TesseraCT
 can [wait for the full process to be done](#publication-awaiter) before sending
 responses to clients.
@@ -80,7 +80,7 @@ The `enable_publication_awaiter` flag enables [Tessera's publication awaiter](ht
 when this flag is on, TesseraCT responds to `add-*` requests only after a
 `checkpoint` committing to that entry has been published. When this flag is off,
 TesseraCT responses to `add-*` requests as soon as Tessera has durably assigned a
-sequence number to the corresponding entry. Such entries entries would then get integrated
+sequence number to the corresponding entry. Such entries would then get integrated
 and published asynchronously, which might happen before TesseraCT responses to the
 `add-*` request are sent, or after.
 
@@ -148,7 +148,7 @@ slashes.
 Use your upstream serving infrastructure to make sure that requests to these
 URLs are correctly routed to a TesseraCT server. TesseraCT will serve the
 requests it receives regardless of their `$HOST`. However, it will expect
-requests to be received on `$PATH_PREFIX`, as specifid by the `path_prefix` flag.
+requests to be received on `$PATH_PREFIX`, as specified by the `path_prefix` flag.
 
 ### Memory considerations
 
@@ -164,13 +164,13 @@ concurent requests, hence the amount of RAM being used
 
 ### Frontend redundancy
 
-For added availability multiple TesseraCT instances can run concurently with the
+For added availability multiple TesseraCT instances can run concurrently with the
 same Tessera resources. Adding more instances will not necessarily increase
 performance, the primary goal of concurrency is to allow for better
 availability.
 
-Multiple TesseraCT server can run concurently on AWS or GCP. It is also
-possible to run concurent servers with the POSIX and Vanilla S3 + MySQL
+Multiple TesseraCT server can run concurrently on AWS or GCP. It is also
+possible to run concurrent servers with the POSIX and Vanilla S3 + MySQL
 implementations, **but** this will depend on the underlying storage systems
 being used.
 
