@@ -36,9 +36,9 @@ TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
 |GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |[continuous integration](/deployment/live/gcp/static-ct/logs/ci/)                                      |N/A                                    |[gcp](/cmd/tesseract/gcp/main.go)    |[example](/deployment/live/gcp/static-ct/logs/ci)              |
 |GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |[codelab](/deployment/live/gcp/test/)                                                                  |[gcp](/docs/performance.md#gcp)        |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/test/)                              |
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                    |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)                |
-|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/ec2/)                                                                      |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)        |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                              |
+|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/ec2/)                                                                         |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)        |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                              |
 |POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)    |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/tesseract/posix/)                                   |
-|Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance.md#s3--mysql)|[aws](/cmd/tesseract/aws/main.go)    |[doc](/docs/architecture.md#vanilla-s3mysql)                   |
+|Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance.md#s3--mysql)|[aws](/cmd/tesseract/aws/main.go) |[doc](/docs/architecture.md#vanilla-s3mysql)                   |
 
 These deployments come with different levels of maturity depending on
 our use-case.
@@ -57,19 +57,19 @@ covering 2026 onwards.
 
 At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 
-|  #  | Step                                           | Status             | Target release |
-| --- | ---------------------------------------------- | ------------------ | ---------------|
-|  1  | Storage for GCP, AWS, and POSIX                | :white_check_mark: | alpha          |
-|  2  | Lightweight CT compatible x509 fork            | :white_check_mark: | alpha          |
-|  3  | static-ct-api APIs                             | :white_check_mark: | alpha          |
-|  4  | Basic Antispam                                 | :white_check_mark: | alpha          |
-|  5  | Monitoring and metrics                         | :white_check_mark: | alpha          |
-|  6  | Secure key management [#219](https://github.com/transparency-dev/tesseract/issues/219)       | :hammer:           | beta           |
-|  7  | Witnessing [#443](https://github.com/transparency-dev/tesseract/issues/443)                  | :hammer:           | beta           |
-|  8  | Structured logging [#346](https://github.com/transparency-dev/tesseract/issues/346)          | :hammer:           | beta           |
-|  9  | CCADB based root update [#212](https://github.com/transparency-dev/tesseract/issues/212)     | :hammer:           | beta           |
-|  10 | Client                                         | :hammer:           | 1.0            |
-|  11 | Stable APIs                                    | :hammer:           | 1.0            |
+|  #  | Step                                                                                     | Status             | Target release |
+| --- | ---------------------------------------------------------------------------------------- | ------------------ | ---------------|
+|  1  | Storage for GCP, AWS, and POSIX                                                          | :white_check_mark: | alpha          |
+|  2  | Lightweight CT compatible x509 fork                                                      | :white_check_mark: | alpha          |
+|  3  | static-ct-api APIs                                                                       | :white_check_mark: | alpha          |
+|  4  | Basic Antispam                                                                           | :white_check_mark: | alpha          |
+|  5  | Monitoring and metrics                                                                   | :white_check_mark: | alpha          |
+|  6  | Secure key management [#219](https://github.com/transparency-dev/tesseract/issues/219)   | :hammer:           | beta           |
+|  7  | Witnessing [#443](https://github.com/transparency-dev/tesseract/issues/443)              | :hammer:           | beta           |
+|  8  | Structured logging [#346](https://github.com/transparency-dev/tesseract/issues/346)      | :hammer:           | beta           |
+|  9  | CCADB based root update [#212](https://github.com/transparency-dev/tesseract/issues/212) | :hammer:           | beta           |
+|  10 | Client                                                                                   | :hammer:           | 1.0            |
+|  11 | Stable APIs                                                                              | :hammer:           | 1.0            |
 
 Current public library APIs are unlikely to change in any significant way,
 however the API is subject to minor breaking changes until we tag 1.0.
@@ -118,7 +118,7 @@ These logs have been named after La Grande Arche de la Défense
 a building in the outskirts of Paris, designed by [Johan Otto von Spreckelsen](https://en.wikipedia.org/wiki/Johan_Otto_von_Spreckelsen)
 and [Erik Reitzel](https://en.wikipedia.org/wiki/Erik_Reitzel) to celebrate the
 200th anniversary of the [French Revolution](https://en.wikipedia.org/wiki/French_Revolution).
-It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](httpshttps://c2sp.org/tlog-tiles)
+It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https://c2sp.org/tlog-tiles)
 (transparent!) windows.
 
 ```json
