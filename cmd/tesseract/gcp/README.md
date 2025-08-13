@@ -4,8 +4,7 @@ This binary can be deployed on GCP, and primarily meant to be deployed on
 [Managed Instance Groups (MIG)](./live/gcp/static-ct-staging/logs).
 It also runs on [Cloud Run](./live/gcp/static-ct/logs/ci) and directly on [GCE VMs](./live/gcp/test).
 
-In this document, you will find information specific to this implementation.
-
+In this document, you will find information specific to this GCP implementation.
 You can find more information about TesseraCT in general in the
 [architecture design doc](/docs/architecture.md), and in TesseraCT's
 [configuration guide](../).

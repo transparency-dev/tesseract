@@ -3,8 +3,8 @@
 This binary is primarily intended to run on AWS infrastructure, but may also be used
 on-prem with local S3 and MySQL services.
 
-In this document, you will find information specific to this implementation.
-You can find more information about TesseraCT in general in the
+In this document, you will find information specific to this AWS and S3+MySQL
+implementation. You can find more information about TesseraCT in general in the
 [architecture design doc](/docs/architecture.md), and in TesseraCT's
 [configuration guide](../).
 
