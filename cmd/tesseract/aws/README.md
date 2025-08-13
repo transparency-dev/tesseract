@@ -1,19 +1,29 @@
-# AWS and Vanilla S3+MySQL
+# TesseraCT on AWS and Vanilla S3+MySQL
 
 This binary is primarily intended to run on AWS infrastructure, but may also be used
 on-prem with local S3 and MySQL services.
 
+In this document, you will find information specific to this implementation.
+You can find more information about TesseraCT in general in the
+[architecture design doc](/docs/architecture.md), and in TesseraCT's
+[configuration guide](../).
+
 For AWS-specific information on how to run this binary, see the documentation under
 [/deployment](/deployment).
 
+## AWS
+
+TesseraCT expects the databases configured with the `db_name` and
+`antispam_db_name` flags to be located in the same Aurora DB cluster.
+
 ## Vanilla S3+MySQL support
 
-Setting up S3 and MySQL infrastructure is out of scope for this document, but the binary
-has been tested with both local MinIO and SeaweedFS instances along with a local MySQL
-instance.
+Setting up S3 and MySQL infrastructure is out of scope for this document, but
+the binary has been tested with both local MinIO and SeaweedFS instances along
+with a local MySQL instance.
 
-Configuring the binary to use these services rather than looking for AWS-specific services
-is mostly achieved through the use of
+Configuring the binary to use these services rather than looking for
+AWS-specific services is mostly achieved through the use of
 [environment variables](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-gosdk.html#:~:text=profile%20you%20specify.-,Environment%20Variables,-By%20default%2C%20the)
 and flags.
 
@@ -31,7 +41,8 @@ assumes the presence of:
   + with a provisioned user called `tesseract-mysql` with password `tiger`.
   + and two empty database instances (named `tesseract_test_db` and `tesseract_test_antispam_db`) for which the `tesseract-mysql` user has create, read, and write privileges for all tables.
 
-First, we need to have generated private keys for the log - this only needs doing once per log instance:
+First, we need to have generated private keys for the log - this only needs
+doing once per log instance:
 
 ```bash
 openssl ecparam -name prime256v1 -genkey -noout -out testlog-priv-key.pem
@@ -62,8 +73,8 @@ go run ./cmd/tesseract/aws \
   --roots_pem_file=internal/hammer/testdata/test_root_ca_cert.pem
 ```
 
-A quick test to check that things have started ok can be made by looking for the `checkpoint` file in the
-S3 bucket:
+A quick test to check that things have started ok can be made by looking for the
+`checkpoint` file in the S3 bucket:
 
 ```bash
 curl http://s3-server:9001/tesseract-test/checkpoint
@@ -74,7 +85,8 @@ example.com/testlog
 — example.com/testlog zqR9XAAAAZij9qPeBAMARzBFAiBL/FQimRIlQ9898LXClfQs+Lnx+iUiKemU8Vy0vZTdcQIhANfdCSKE3afv/PyRbgOj/jiDe65DSTLGh4ir67qusqMB
 ```
 
-You can further test that everything is working ok using the [hammer](/internal/hammer) tool:
+You can further test that everything is working ok using the [hammer](/internal/hammer)
+tool:
 
 ```bash
 go run ./internal/hammer \
