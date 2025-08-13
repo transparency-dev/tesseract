@@ -126,7 +126,7 @@ for additional details.
 While TesseraCT's [AWS implementation](#amazon-web-services-aws)
 uses [RDS](https://aws.amazon.com/rds/) and [S3](https://aws.amazon.com/s3/),
 its configuration APIs are intended to be compatible with any MySQL database,
-and S3 compatible backend, such as [MinIO](https://min.io/). If you are already
+and S3 compatible backend, such as [MinIO](https://min.io). If you are already
 running these services, this might be a good option to consider depending on
 your needs.
 
