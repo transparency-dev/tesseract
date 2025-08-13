@@ -38,18 +38,37 @@ type IssuersStorage struct {
 	contentType string
 }
 
+// Options holds various settings for NewIssuerStorage.
+type Options struct {
+	// Bucket is the bucket to use for storing issuers.
+	Bucket string
+	// SDKConfig is an optional configuration for the AWS SDK, if nil the default config will be used.
+	SDKConfig *aws.Config
+	// S3Options are used when creating a new AWS S3 client. This MUST be provided if SDKConfig is not nil.
+	S3Options func(*s3.Options)
+}
+
 // NewIssuerStorage creates a new IssuerStorage.
 //
 // The specified bucket must exist or an error will be returned.
-func NewIssuerStorage(ctx context.Context, bucket string) (*IssuersStorage, error) {
-	sdkConfig, err := config.LoadDefaultConfig(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to load default AWS configuration: %v", err)
+func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error) {
+	var sdkConfig aws.Config
+	if opts.SDKConfig != nil {
+		sdkConfig = *opts.SDKConfig
+	} else {
+		var err error
+		sdkConfig, err = config.LoadDefaultConfig(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load default AWS configuration: %v", err)
+		}
+		// We need a non-nil options func to pass in to s3.NewFromConfig below or it'll panic, so
+		// we'll use a "do nothing" placeholder.
+		opts.S3Options = func(_ *s3.Options) {}
 	}
 
 	r := &IssuersStorage{
-		s3Client:    s3.NewFromConfig(sdkConfig),
-		bucket:      bucket,
+		s3Client:    s3.NewFromConfig(sdkConfig, opts.S3Options),
+		bucket:      opts.Bucket,
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
 	}
