@@ -77,13 +77,13 @@ export AWS_PROFILE=AdministratorAccess-<REDACTED>
 Deploy the Terraform config with OpenTofu:
 
 ```sh
-terragrunt apply --working-dir=deployment/live/aws/test/
+terragrunt apply --working-dir=deployment/live/aws/test
 ```
 
 > [!NOTE]
 > If this is the first time, it is expected to fail to create the antispam database.
 > Connect the RDS instance to your VM following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database), and run
-> `terragrunt apply` again.
+> `terragrunt apply --working-dir=deployment/live/aws/test` again.
   
 Store the Aurora RDS database and S3 bucket information into the environment variables:
 
