@@ -55,3 +55,5 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
 Note that running this command a second time may show a lot of errors with
 `HTTP status 429 Too Many Requests`; this is protection against too many duplicate
 entries being sent to the log.
+Use a larger `start_index` to avoid submitting duplicate entries and running into
+this behaviour.
