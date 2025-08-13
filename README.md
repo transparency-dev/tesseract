@@ -198,8 +198,11 @@ with CT specific settings to implement Certificate Transparency logs complying
 with [static-ct-api](https://c2sp.org/static-ct-api). TesseraCT supports a
 subset of Tessera's backends. A TesseraCT serving stack is composed of:
 
-- one or multiple instances of a TesseraCT binary using the Tessera library
+- one or multiple instances of a TesseraCT binary using the Tessera library,
+providing [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
 - Tessera's backend infrastructure
+- [static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
+via direct access to Tessera's log storage system
 - a minor additional storage system for [chain issuers](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers)
 
 ### Why these platforms?

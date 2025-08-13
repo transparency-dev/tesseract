@@ -150,6 +150,12 @@ URLs are correctly routed to a TesseraCT server. TesseraCT will serve the
 requests it receives regardless of their `$HOST`. However, it will expect
 requests to be received on `$PATH_PREFIX`, as specified by the `path_prefix` flag.
 
+### Monitoring URL
+
+The TesseraCT HTTP server does not expose [monitoring apis](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
+itself. To access monitoring APIs, use the corresponding storage system's
+default serving infrastructure, or setup a custom serving stack.
+
 ### Memory considerations
 
 TesseraCT's memory footprint is directly impacted by:

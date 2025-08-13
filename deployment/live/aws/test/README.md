@@ -28,10 +28,14 @@ At a high level, this environment consists of:
 - Two secrets (log public key and private key for signing digests) in
 AWS Secrets Manager
 
+The TesseraCT binary will provide [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis),
+while [static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
+are provided directly by Tessera's S3 bucket.
+
 ## Codelab
 
 This codelab will guide you to bring up a test TesseraCT log infrastructure, add
-a few entries to it, and check that the log is sound.  Authenticate with a role
+a few entries to it, and check that the log is sound. Authenticate with a role
 that has sufficient access to create resources.
 
 For the purpose of this codelab and for ease of demonstration, we'll use the
