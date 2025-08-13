@@ -38,6 +38,10 @@ RFC3339 UTC format, e.g: `2024-01-02T15:04:05Z`.
 strictly _before_ `not_after_limit` will be accepted. Leaving this unset or empty
 means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 `2024-01-02T15:04:05Z`.
+- `accept_sha1_signing_algorithms`: If true, allow chains that use SHA-1 based
+signing algorithms. This flag is a temporary solution to allow chains submitted
+by Chrome's Merge Delay Monitor Root. It will eventually be removed and such algorithms
+will be disallowed.
 
 ### Append lifecycle
 

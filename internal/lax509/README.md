@@ -51,18 +51,25 @@ discoverable through CT logs.
 
 ## To take arms against a sea of troubles
 
-These additional checks can be disabled:
+These additional constraints can be disabled:
 
 - Negative serial numbers are not allowed starting from go1.23. To allow
    them, set `x509negativeserial=1` in the GODEBUG environment variable, either
    in your terminal at build time or with `//go:debug x509negativeserial=1` at
    the top of your main file.
+- SHA-1 based signing algorithms are not allowed by default. Set `AcceptSHA1` to
+   `true` in the lax509 `VerifyOptions` to allow them, which can be done by
+   setting the `accept_sha1_signing_algorithms` TesseraCT flag.
+   This is a temporary solution to accept chains issued by Chrome's Merge Delay
+   Monitor Root until it stops using SHA-1 based signatures.
 
 ## No more; and by a sleep to say we end
 
 We've identified that the following root certificates and chains do not validate
 with this library, while they would have validated with the [old CTFE library](https://github.com/google/certificate-transparency-go/tree/master/x509)
-used by RFC6962 logs:
+used by RFC6962 logs.
+
+If you find any other such chain, [get in touch](/README.md#wave-contact)!
 
 ### Roots
 
@@ -77,14 +84,27 @@ This certificate expired on 2025-05-09.
 
 ### Chains
 
-Chains that use `sha1WithRSAEncryption` as a signing algorithm do not validate. This
-signing algorithm [has been rejected by `crypto/x509` since 2020](https://github.com/golang/go/issues/41682),
-and by [Chromium since 2017](https://www.chromium.org/Home/chromium-security/education/tls/sha-1/).
+Chains that use SHA-1 based signing algorithms such as `sha1WithRSAEncryption`
+are not accepted by default. See [To take arms against a sea of troubles](#to-take-arms-against-a-sea-of-troubles)
+to allow these chains in.
 
-Specifically, this means that chains issued by these roots do not validate:
+This signing algorithm [has been rejected by `crypto/x509` since 2020](https://github.com/golang/go/issues/41682),
+major CT-enforcing user agents ([Chrome](https://www.chromium.org/Home/chromium-security/education/tls/sha-1/),
+[Apple](https://support.apple.com/en-us/103769), [Firefox](https://blog.mozilla.org/security/2017/02/23/the-end-of-sha-1-on-the-public-web/),
+[Android](https://developer.android.com/privacy-and-security/security-ssl),
+[Microsoft](https://techcommunity.microsoft.com/blog/windows-itpro-blog/microsoft-to-use-sha-2-exclusively-starting-may-9-2021/2261924))
+and [CCADB](https://cabforum.org/2014/10/16/ballot-118-sha-1-sunset-passed/)
+have been working on deprecating SHA1, for [more than 10 years](https://security.googleblog.com/2014/09/gradually-sunsetting-sha-1.html).
 
-- [Google's Merge Delay Monitor Root](https://crt.sh/?sha256=86D8219C7E2B6009E37EB14356268489B81379E076E8F372E3DDE8C162A34134):
+It should not be used. However, it is known to be used by chains issued by these
+roots:
+
+- [Chrome's Merge Delay Monitor Root](https://crt.sh/?sha256=86D8219C7E2B6009E37EB14356268489B81379E076E8F372E3DDE8C162A34134):
 this is the root used by Chrome to issue test certificate used to monitor CT
 logs.
 - [Cisco Root CA 2048](https://crt.sh?sha256=8327BC8C9D69947B3DE3C27511537267F59C21B9FA7B613FAFBCCD53B7024000)
 such as [this chain](https://crt.sh/?id=284265742).
+
+Given the importance of Chrome's Merge Delay Monitor Root for the CT ecosystem,
+we recommend [configuring TesseraCT to allow SHA-1 based signature algorithms](#to-take-arms-against-a-sea-of-troubles)
+for the time being.

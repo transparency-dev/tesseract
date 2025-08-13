@@ -249,9 +249,9 @@ validate certificate chains. It is built on top of Go's standard
 [crypto/x509](https://pkg.go.dev/crypto/x509) library, with a minimal set of CT
 specific enhancements. It **does not** use the full `crypto/x509` [fork](https://github.com/google/certificate-transparency-go/tree/master/x509)
 that the CTFE was using. This means that TesseraCT can benefit from the good care
-and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). As a
+and attention given to [crypto/x509](https://pkg.go.dev/crypto/x509). **As a
 result, a very small number of chains do not validate anymore, head over to
-`internal/lax509`'s [README](./internal/lax509/README.md) for additional details.
+`internal/lax509`'s [README](./internal/lax509/README.md) for additional details.**
 
 ## :wrench: Contributing
 
