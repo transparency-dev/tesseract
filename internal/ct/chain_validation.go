@@ -108,7 +108,7 @@ type chainValidator struct {
 	extKeyUsages []x509.ExtKeyUsage
 	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
 	rejectExtIds []asn1.ObjectIdentifier
-	// allowSHA1 specifies whether SHA-1 based signing algorigthms are allowed.
+	// allowSHA1 specifies whether SHA-1 based signing algorithms are allowed.
 	allowSHA1 bool
 }
 

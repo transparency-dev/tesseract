@@ -57,7 +57,7 @@ These additional constraints can be disabled:
    them, set `x509negativeserial=1` in the GODEBUG environment variable, either
    in your terminal at build time or with `//go:debug x509negativeserial=1` at
    the top of your main file.
-- SHA-1 based signing algorightms are not allowed by default. Set `AllowSha1` to
+- SHA-1 based signing algorithms are not allowed by default. Set `AllowSHA1` to
    `true` in the lax509 `VerifyOptions` to allow them, which can be done by
    setting the `allow_sha1_signing_algorithms` TesseraCT flag.
    This is a temporary solution to accept chains issued by Chrome's Merge Delay
