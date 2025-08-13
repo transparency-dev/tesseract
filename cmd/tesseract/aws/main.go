@@ -27,6 +27,9 @@ import (
 	"syscall"
 	"time"
 
+	aaws "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dustin/go-humanize"
 	"github.com/go-sql-driver/mysql"
 	"github.com/transparency-dev/tessera"
@@ -86,6 +89,7 @@ var (
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer")
 	signerPublicKeyFile        = flag.String("signer_public_key_file", "", "Path to public key file for checkpoints and SCTs signer (alternative to secrets manager)")
 	signerPrivateKeyFile       = flag.String("signer_private_key_file", "", "Path to private key file for checkpoints and SCTs signer (alternative to secrets manager)")
+	usePathStyle               = flag.Bool("s3_use_path_style", false, "Whether to force the AWS S3 client to use path-style bucket references, probably only useful for on-prem deployments")
 )
 
 // nolint:staticcheck
@@ -208,7 +212,11 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 	}
 
-	issuerStorage, err := aws.NewIssuerStorage(ctx, *bucket)
+	issuerStorage, err := aws.NewIssuerStorage(ctx, aws.Options{
+		Bucket:    *bucket,
+		SDKConfig: awsCfg.SDKConfig,
+		S3Options: awsCfg.S3Options,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 	}
@@ -282,11 +290,26 @@ func storageConfigFromFlags() taws.Config {
 		AllowNativePasswords:    true,
 	}
 
+	var s3Opts func(o *s3.Options)
+	var awsConfig *aaws.Config
+
+	if *usePathStyle {
+		s3Opts = func(o *s3.Options) {
+			o.UsePathStyle = true
+			o.BaseEndpoint = aaws.String(os.Getenv("AWS_ENDPOINT_URL_S3"))
+			o.Credentials = credentials.NewStaticCredentialsProvider(os.Getenv("AWS_ACCESS_KEY_ID"), os.Getenv("AWS_SECRET_ACCESS_KEY"), "")
+		}
+		awsConfig = &aaws.Config{
+			Region: os.Getenv("AWS_DEFAULT_REGION"),
+		}
+	}
 	return taws.Config{
 		Bucket:       *bucket,
 		DSN:          c.FormatDSN(),
 		MaxOpenConns: *dbMaxConns,
 		MaxIdleConns: *dbMaxIdle,
+		SDKConfig:    awsConfig,
+		S3Options:    s3Opts,
 	}
 }
 
