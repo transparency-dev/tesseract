@@ -23,13 +23,13 @@ work too, `CephFS` may work, but `NFS` will almost certainly not.
 Generate an ECDSA key like so:
 
 ```bash
-$ openssl ecparam -name prime256v1 -genkey -noout -out test-ecdsa-priv.pem 
+openssl ecparam -name prime256v1 -genkey -noout -out test-ecdsa-priv.pem 
 ```
 
 And then start a log with the following command:
 
 ```bash
-$ go run ./cmd/tesseract/posix/ \
+go run ./cmd/tesseract/posix/ \
   --private_key=./test-ecdsa-priv.pem \
   --origin=example.com/test-ecdsa \
   --storage_dir=/tmp/ecdsa_log \
