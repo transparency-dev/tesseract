@@ -76,17 +76,21 @@ Set the required environment variables:
 ```bash
 export AWS_REGION={VALUE} # e.g: us-east-1
 export AWS_PROFILE=AdministratorAccess-<REDACTED>
+export TG_WORKING_DIR=deployment/live/aws/test
 ```
 
 Deploy the Terraform config with OpenTofu:
 
 ```sh
-terragrunt apply --working-dir=deployment/live/aws/test/
+terragrunt apply
 ```
 
-If this fails to create the antispam database,
-connect the RDS instance to your VM using the instructions below, and run
-`terragrunt apply` again.
+> [!NOTE]
+> If this is the first time, it is expected to fail to create the antispam database.
+> 
+> Connect the RDS instance to your VM following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database).
+> 
+> Run `terragrunt apply` again to re-create the antispam database.
   
 Store the Aurora RDS database and S3 bucket information into the environment variables:
 
@@ -97,9 +101,6 @@ export TESSERACT_BUCKET_NAME=$(terragrunt output -raw s3_bucket_name)
 export TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID=$(terragrunt output -raw ecdsa_p256_public_key_id)
 export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa_p256_private_key_id)
 ```
-
-Connect the VM and Aurora database following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database),
-it takes a few clicks in the UI.
 
 ## Run TesseraCT
 
