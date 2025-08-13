@@ -92,3 +92,9 @@ variable "create_internal_load_balancer" {
   type        = bool
   default     = false
 }
+
+variable "public_bucket" {
+  description = "Set to true to make the log's GCS bucket publicly accessible."
+  type        = bool
+  default     = false
+}

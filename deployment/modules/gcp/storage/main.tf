@@ -41,7 +41,7 @@ resource "google_storage_bucket" "log_bucket" {
 
 resource "google_storage_bucket_iam_member" "log_bucket_object_reader" {
   count  = var.public_bucket ? 1 : 0
-  bucket = google_storage_bucket.log_bucket
+  bucket = google_storage_bucket.log_bucket.id
   role   = "roles/storage.legacyObjectReader"
   member = "allUsers"
 }
