@@ -36,17 +36,22 @@ go run ./cmd/tesseract/posix/ \
   --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem
 ```
 
-The server should now be listening on port `:6962`.
+The server should now be listening on port `:6962` to handle the _submission URLs_ from
+the static-ct API. The _monitoring URLs_ are not handled via HTTP directly, and may be
+served from the filesystem in `storage_dir`.
 
 You can try "preloading" the log with the contents of another CT log, e.g.:
 
 ```bash
 go run github.com/google/certificate-transparency-go/preload/preloader@master \
-  --target_log_uri=http://localhost:6962/example.com/test-ecdsa \
+  --target_log_uri=http://localhost:6962/ \
   --source_log_uri=https://ct.googleapis.com/logs/eu1/xenon2025h1/ \
   --num_workers=2 \
   --start_index=130000 \
   --parallel_fetch=2 \
   --parallel_submit=512
-
 ```
+
+Note that running this command a second time may show a lot of errors with
+`HTTP status 429 Too Many Requests`; this is protection against too many duplicate
+entries being sent to the log.
