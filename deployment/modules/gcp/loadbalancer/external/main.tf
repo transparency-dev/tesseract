@@ -109,7 +109,7 @@ resource "google_compute_url_map" "url_map" {
 
       path_rule {
         paths = [
-          "/ct/v1/add-prechain",
+          "/ct/v1/add-pre-chain",
           "/ct/v1/add-chain",
           "/ct/v1/get-roots",
         ]
