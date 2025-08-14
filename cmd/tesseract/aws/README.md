@@ -79,6 +79,11 @@ A quick test to check that things have started ok can be made by looking for the
 
 ```bash
 curl http://s3-server:9001/tesseract-test/checkpoint
+```
+
+Here's an example response:
+
+```bash
 example.com/testlog
 0
 47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=

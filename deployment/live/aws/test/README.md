@@ -107,6 +107,12 @@ export TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID=$(terragrunt output -raw ecdsa
 <!-- Try and keep in sync as much as possible with ../../gcp/test/README.md
 There are enough differences for now to justify to keep them distinct -->
 
+This section will help you bring a TesseraCT server up using the resources
+created above. [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
+will be served by the TesseraCT server at `http://localhost:6962/${TESSERA_BASE_NAME}`.
+[static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
+will be directly accesible via the S3 bucket, at `https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com`.
+
 Decide whether to run TesseraCT such that it accepts:
 
 - [fake test chains](#with-fake-chains)
@@ -137,6 +143,13 @@ go run ./cmd/tesseract/aws \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   --v=1
+```
+
+Confirm that TesseraCT is running properly by fetching a checkpoint from
+a different terminal:
+
+```bash
+curl https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com/checkpoint
 ```
 
 Decide whether to run generate test chains:
@@ -230,6 +243,13 @@ go run ./cmd/tesseract/aws \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   --v=1
+```
+
+Confirm that TesseraCT is running properly by fetching a checkpoint from
+a different terminal:
+
+```bash
+curl https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com/checkpoint
 ```
 
 In a different terminal, run `preloader` to submit certificates from another log
