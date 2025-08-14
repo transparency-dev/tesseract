@@ -211,7 +211,7 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --source_log_uri=${SOURCE_LOG_URI} \
   --num_workers=8 \
   --parallel_fetch=4 \
-  --parallel_submit=4
+  --parallel_submit=4 \
   --v=1
 ```
 
