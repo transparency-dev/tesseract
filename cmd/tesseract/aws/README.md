@@ -17,18 +17,19 @@ is mostly achieved through the use of
 [environment variables](https://docs.aws.amazon.com/sdk-for-go/v2/developer-guide/configure-gosdk.html#:~:text=profile%20you%20specify.-,Environment%20Variables,-By%20default%2C%20the)
 and flags.
 
-### Running locally
+### S3+MySQL codelab
 
-Below is an example of starting the TesseraCT binary, assuming the presence of:
+Below is a codelab that will guide you to start and use a TesseraCT binary. It
+assumes the presence of:
 
 - A pre-configured S3 service:
-   + listening on `http://s3-server:9000`
-   + with a provisioned access key `tesseract-s3` and secret `trustno1`,
-   + and a configured bucket named `tesseract-test` which is publicly readable, and only writable by the `tesseract-s3` user.
+  + listening on `http://s3-server:9000`
+  + with a provisioned access key `tesseract-s3` and secret `trustno1`,
+  + and a configured bucket named `tesseract-test` which is publicly readable, and only writable by the `tesseract-s3` user.
 - A pre-configured MySQL server:
-   + running on a host called `mysql-server`
-   + with a provisioned user called `tesseract-mysql` with password `tiger`.
-   + and two empty database instances (named `tesseract_test_db` and `tesseract_test_antispam_db`) for which the `tesseract-mysql` user has create, read, and write privileges for all tables.
+  + running on a host called `mysql-server`
+  + with a provisioned user called `tesseract-mysql` with password `tiger`.
+  + and two empty database instances (named `tesseract_test_db` and `tesseract_test_antispam_db`) for which the `tesseract-mysql` user has create, read, and write privileges for all tables.
 
 First, we need to have generated private keys for the log - this only needs doing once per log instance:
 
