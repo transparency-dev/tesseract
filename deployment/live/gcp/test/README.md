@@ -198,7 +198,7 @@ go run ./cmd/tesseract/gcp/ \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --otel_project_id=${GOOGLE_PROJECT}
+  --otel_project_id=${GOOGLE_PROJECT} \
   --v=1
 ```
 
