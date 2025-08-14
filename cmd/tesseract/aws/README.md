@@ -70,7 +70,8 @@ go run ./cmd/tesseract/aws \
   --signer_public_key_file=testlog-pub-key.pem \
   --signer_private_key_file=testlog-priv-key.pem \
   --s3_use_path_style=true \
-  --roots_pem_file=internal/hammer/testdata/test_root_ca_cert.pem
+  --roots_pem_file=internal/hammer/testdata/test_root_ca_cert.pem \
+  --v=1
 ```
 
 A quick test to check that things have started ok can be made by looking for the
@@ -97,5 +98,6 @@ go run ./internal/hammer \
   --max_write_ops=500 \
   --dup_chance=0.01 \
   --leaf_write_goal=100000 \
-  --origin=${ORIGIN}
+  --origin=${ORIGIN} \
+  --v=1
 ```

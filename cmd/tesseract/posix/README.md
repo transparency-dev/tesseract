@@ -37,7 +37,8 @@ go run ./cmd/tesseract/posix/ \
   --private_key=./test-ecdsa-priv.pem \
   --origin=example.com/test-ecdsa \
   --storage_dir=/tmp/ecdsa_log \
-  --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem
+  --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem \
+  --v=1
 ```
 
 The server should now be listening on port `:6962` to handle the _submission URLs_ from
@@ -53,7 +54,8 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --num_workers=2 \
   --start_index=130000 \
   --parallel_fetch=2 \
-  --parallel_submit=512
+  --parallel_submit=512 \
+  --v=1
 ```
 
 Note that running this command a second time may show a lot of errors with

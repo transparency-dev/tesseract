@@ -26,8 +26,8 @@ VM.
 At a high level, these resources consists of:
 
 - One Spanner instance with two databases:
-  - one for Tessera
-  - one for antispam
+  + one for Tessera
+  + one for antispam
 - A GCS Bucket
 - Secret Manager
 
@@ -108,7 +108,8 @@ go run ./cmd/tesseract/gcp/ \
   --path_prefix=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --otel_project_id=${GOOGLE_PROJECT}
+  --otel_project_id=${GOOGLE_PROJECT} \
+  --v=1
 ```
 
 Decide whether to run generate test chains:
@@ -197,7 +198,8 @@ go run ./cmd/tesseract/gcp/ \
   --spanner_antispam_db_path=projects/${GOOGLE_PROJECT}/instances/${TESSERA_BASE_NAME}/databases/${TESSERA_BASE_NAME}-antispam-db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --otel_project_id=${GOOGLE_PROJECT}
+  --otel_project_id=${GOOGLE_PROJECT} \
+  --v=1
 ```
 
 In a different terminal, run `preloader` to submit certificates from another log
@@ -209,7 +211,8 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --source_log_uri=${SOURCE_LOG_URI} \
   --num_workers=8 \
   --parallel_fetch=4 \
-  --parallel_submit=4
+  --parallel_submit=4 \
+  --v=1
 ```
 
 Since the source and destination log

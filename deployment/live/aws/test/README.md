@@ -87,9 +87,9 @@ terragrunt apply
 
 > [!NOTE]
 > If this is the first time, it is expected to fail to create the antispam database.
-> 
+>
 > Connect the RDS instance to your VM following [these instructions](https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/tutorial-ec2-rds-option1.html#option1-task3-connect-ec2-instance-to-rds-database).
-> 
+>
 > Run `terragrunt apply` again to re-create the antispam database.
   
 Store the Aurora RDS database and S3 bucket information into the environment variables:
@@ -135,7 +135,8 @@ go run ./cmd/tesseract/aws \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --v=1
 ```
 
 Decide whether to run generate test chains:
@@ -227,7 +228,8 @@ go run ./cmd/tesseract/aws \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
+  --v=1
 ```
 
 In a different terminal, run `preloader` to submit certificates from another log
@@ -239,7 +241,8 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --source_log_uri=${SOURCE_LOG_URI} \
   --num_workers=8 \
   --parallel_fetch=4 \
-  --parallel_submit=4
+  --parallel_submit=4 \
+  --v=1
 ```
 
 Since the source and destination log
