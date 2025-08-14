@@ -176,7 +176,7 @@ depend on them
 1. Documentation
      <!--Please, keep this in sync with ./docs/README.md -->
      + [Configuration](/cmd/tesseract/)
-       - [GCP](/cmd/tesseract/aws/)
+       - [GCP](/cmd/tesseract/gcp/)
        - [AWS and S3+MySQL](/cmd/tesseract/aws/)
        - [POSIX](/cmd/tesseract/posix/)
      + [Performance](/docs/performance.md)
