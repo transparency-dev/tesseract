@@ -5,11 +5,12 @@ terraform {
 module "storage" {
   source = "../../storage"
 
-  project_id = var.project_id
-  base_name  = var.base_name
-  location   = var.location
-  ephemeral  = var.ephemeral
-  spanner_pu = var.spanner_pu
+  project_id    = var.project_id
+  base_name     = var.base_name
+  location      = var.location
+  ephemeral     = var.ephemeral
+  spanner_pu    = var.spanner_pu
+  public_bucket = var.public_bucket
 }
 
 module "secretmanager" {

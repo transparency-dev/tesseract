@@ -7,6 +7,8 @@ uses
 [/deployment/modules/gcp/tesseract/gce/](/deployment/modules/gcp/tesseract/gce/)
 module to run TesseraCT on Managed Instance Groups backed by Tessera.
 
+## HOWTO
+
 ### Update roots
 
 Run the following command from the root of the repository.
@@ -28,13 +30,15 @@ awk \
    > deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem
 ```
 
-### Automatic Deployment
+### Deploy the log
+
+#### Automatic deployment
 
 These GCP TesseraCT logs are designed to be deployed by
 Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/tesseract/),
 [Terragrunt configuration](/deployment/live/gcp/static-ct-staging/cloudbuild/tesseract/)).
 
-### Manual Deployment
+#### Manual deployment
 
 TODO(phboneff): come back to this, MIG doesn't trigger a deployment if the
 tag does not change value.
@@ -77,3 +81,40 @@ Deploy the Terraform config with OpenTofu:
 ```sh
 terragrunt apply --working-dir=deployment/live/gcp/static-ct-staging/logs/arche2025h1/
 ```
+
+### Serve data
+
+Monitoring APIs are accessible via GCS directly.  Submission APIs served by
+TesseraCT are accessible via an internal load balancer by default, and the
+submission API URL is returned by Terraform as `tesseract_url`.
+
+To make these APIs available on public endpoints, continue reading.
+
+#### Make a log public
+
+To make a log public, you need to both:
+
+ 1. Make its bucket public with the [`public_bucket` attribute](/deployment/modules/gcp/tesseract/gce/variables.tf)
+set to `true` in the [log's Terragrunt configuration](./logs/). You may need to
+disable [Public Access Prevention](https://cloud.google.com/storage/docs/public-access-prevention)
+first.
+ 2. Configure the Global Load Balancer for this log, by adding the corresponding
+ log name in [../loadbalancer/terragrunt.hcl](./loadbalancer/terragrunt.hcl), and
+ apply the config. It may take up to an hour for TLS certs to be provisioned,
+ and for endpoints to be available over HTTPS.
+
+#### Make a log private
+
+To make a log private, you need to both:
+
+ 1. Make its bucket private with the [`public_bucket` attribute](/deployment/modules/gcp/tesseract/gce/variables.tf)
+set to `false` in the [log's Terragrunt configuration](./logs/).
+Alternatively, switch [Public Access Prevention](https://cloud.google.com/storage/docs/public-access-prevention)
+on in the Google Cloud UI.
+ 2. Configure the Global Load Balancer with this log removed, by deleting the corresponding
+log name in [../loadbalancer/terragrunt.hcl](./loadbalancer/terragrunt.hcl),
+and applying the config.  Due to a [dependency loop](https://github.com/terraform-google-modules/terraform-google-lb-http/issues/159)
+between forwarding rules and the load balancer backend groups, Terragrunt might
+not be able to apply the config. If you run into this go to the Load Balancer
+page in the Google Cloud UI, and manually delete the corresponding forwarding
+rule and backend group.
