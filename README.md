@@ -227,7 +227,7 @@ graph TD
     B -- Yes --> C[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#google-cloud-platform-gcp">Use TesseraCT for GCP</a>]
     B -- No --> D{AWS?}
     D -- Yes --> E[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#amazon-web-services-aws">Use TesseraCT for AWS</a>]
-    D -- No --> F{On-prem with S3 & MySQL?}
+    D -- No --> F{S3 & MySQL on-prem?}
     F -- Yes --> G[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#vanilla-s3mysql">Use TesseraCT for Vanilla S3+MySQL</a>]
     F -- No --> H[<a href="https://github.com/transparency-dev/tesseract/blob/main/docs/architecture.md#posix-filesystems">Use TesseraCT for POSIX</a>]
     G -- I cannot --> I
