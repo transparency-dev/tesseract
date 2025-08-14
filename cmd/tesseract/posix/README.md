@@ -50,7 +50,7 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --num_workers=2 \
   --start_index=130000 \
   --parallel_fetch=2 \
-  --parallel_submit=512
+  --parallel_submit=512 \
   --v=1
 ```
 
