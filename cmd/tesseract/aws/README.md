@@ -86,6 +86,6 @@ go run ./internal/hammer \
   --max_write_ops=500 \
   --dup_chance=0.01 \
   --leaf_write_goal=100000 \
-  --origin=${ORIGIN}
+  --origin=${ORIGIN} \
   --v=1
 ```
