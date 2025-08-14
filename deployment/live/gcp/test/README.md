@@ -108,7 +108,7 @@ go run ./cmd/tesseract/gcp/ \
   --path_prefix=${TESSERA_BASE_NAME} \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --otel_project_id=${GOOGLE_PROJECT}
+  --otel_project_id=${GOOGLE_PROJECT} \
   --v=1
 ```
 
