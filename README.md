@@ -81,11 +81,13 @@ If you're interested in additional features, [get in touch](#wave-contact).
 
 ### Getting Started
 
-The most hands-on place to start is with one of the
-[GCP](./deployment/live/gcp/test), [AWS](./deployment/live/aws/test),
-[POSIX](/cmd/tesseract/posix#codelab) or [S3+MySQL](/cmd/tesseract/aws/README.md#s3mysql-codelab)
-codelabs. These codelabs will guide you through bringing up your own test
-TesseraCT deployment.
+The most hands-on place to start is with one of the codelabs below. These
+codelabs will guide you through bringing up your own test TesseraCT deployment:
+
+- [GCP](./deployment/live/gcp/test)
+- [AWS](./deployment/live/aws/test)
+- [POSIX](/cmd/tesseract/posix#codelab)
+- [S3+MySQL](/cmd/tesseract/aws/README.md#s3mysql-codelab)
 
 We also run [public test instances](#test_tube-public-test-instances) that you
 can interact with using [static-ct-api](https://c2sp.org/static-ct-api).
@@ -173,16 +175,16 @@ depend on them
    [ctlog](./ctlog.go), [storage](./storage/), ([internal](./internal/))
 1. Documentation
      <!--Please, keep this in sync with ./docs/README.md -->
-     - [Configuration](./docs/configuration.md)
-     - [Performance](./docs/performance.md)
-     - [Architecture](./docs/architecture.md)
-     - [Deployment](./deployment/)
-     - Codelabs
+     + [Configuration](./docs/configuration.md)
+     + [Performance](./docs/performance.md)
+     + [Architecture](./docs/architecture.md)
+     + [Deployment](./deployment/)
+     + Codelabs
        - [GCP](./deployment/live/gcp/test/)
        - [AWS](./deployment/live/aws/test/)
        - [POSIX](/cmd/tesseract/posix/README.md#codelab)
        - [S3+MySQL](/cmd/tesseract/aws/README.md#s3mysql-codelab)
-     - [Chain parsing with lax509](./internal/lax509/)
+     + [Chain parsing with lax509](./internal/lax509/)
 
 ## :raising_hand: FAQ
 
