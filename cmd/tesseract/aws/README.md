@@ -59,7 +59,7 @@ go run ./cmd/tesseract/aws \
   --signer_public_key_file=testlog-pub-key.pem \
   --signer_private_key_file=testlog-priv-key.pem \
   --s3_use_path_style=true \
-  --roots_pem_file=internal/hammer/testdata/test_root_ca_cert.pem
+  --roots_pem_file=internal/hammer/testdata/test_root_ca_cert.pem \
   --v=1
 ```
 
