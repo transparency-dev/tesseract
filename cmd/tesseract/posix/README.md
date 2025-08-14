@@ -4,6 +4,11 @@ This directory contains a `static-ct` server which uses
 [Tessera's POSIX backend](https://pkg.go.dev/github.com/transparency-dev/tessera/storage/posix#section-readme)
 for storing the log.
 
+In this document, you will find information specific to this POSIX
+implementation. You can find more information about TesseraCT in general in the
+[architecture design doc](/docs/architecture.md), and in TesseraCT's
+[configuration guide](../).
+
 ## Filesystems
 
 This binary, and the Tessera library it uses, relies on POSIX filesystem semantics,
@@ -16,7 +21,6 @@ work too, `CephFS` may work, but `NFS` will almost certainly not.
 > [!WARNING]
 > Attempting to use a filesystem which does not provide POSIX filesystem
 > semantics is overwhelmingly likely to result in a broken log!
-
 
 ## Codelab
 
