@@ -33,7 +33,7 @@ go run ./cmd/tesseract/posix/ \
   --private_key=./test-ecdsa-priv.pem \
   --origin=example.com/test-ecdsa \
   --storage_dir=/tmp/ecdsa_log \
-  --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem
+  --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem \
   --v=1
 ```
 
