@@ -13,6 +13,7 @@ locals {
   spanner_pu                    = 500
   trace_fraction                = 0.1
   create_internal_load_balancer = true
+  public_bucket                 = true
 }
 
 include "root" {
