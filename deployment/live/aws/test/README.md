@@ -228,7 +228,7 @@ go run ./cmd/tesseract/aws \
   --db_password=${TESSERACT_DB_PASSWORD} \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
-  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID}
+  --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
   --v=1
 ```
 
