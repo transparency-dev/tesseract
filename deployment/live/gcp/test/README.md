@@ -87,7 +87,7 @@ There are enough differences for now to justify to keep them distinct -->
 This section will help you bring a TesseraCT server up using the resources
 created above. [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
 will be served by the TesseraCT server at `http://localhost:6962/${TESSERA_BASE_NAME}`.
-[static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
+[static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
 will be directly accesible via the GCS bucket, at `https://storage.googleapis.com/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket`.
 
 Decide whether to run TesseraCT such that it accepts:
