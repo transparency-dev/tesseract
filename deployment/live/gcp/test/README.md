@@ -121,7 +121,7 @@ Confirm that TesseraCT is running properly by fetching a checkpoint from
 a different terminal:
 
 ```bash
- curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token)" "https://storage.googleapis.com/storage/v1/b/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket/"
+ curl -X GET -H "Authorization: Bearer $(gcloud auth print-access-token)" "https://storage.googleapis.com/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket/checkpoint"
 ```
 
 Decide whether to run generate test chains:
