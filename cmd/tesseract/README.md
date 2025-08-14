@@ -12,33 +12,34 @@ This file explains how to configure TesseraCT binaries.
 
 It contains two main parts:
 
- 1. [Chain lifecyle](#chain-lifecycle): with settings impacting how submission
+ 1. [Chain lifecyle](#life-of-a-chain): with settings impacting how submission
  are processed
  2. [Setup](#setup): with instructions on how to setup TesseraCT resources
 
 You can find information about implementation-specific settings in each
 corresponding subdirectory.
 
-### Chain lifecycle
+### Life of a chain
 
 When TesseraCT receives a new chain submssion, it is first
 [filtered](#chain-filtering), and is then sent to the Tessera library where it goes
-through the [Append Lifecycle](#append-lifecycle).
+through the [process of being added to the log](#adding-to-the-log).
 The chain may be [deduplicated using TesseraCT's and Tessera's antispam features](#antispam).
 
 #### Chain filtering
 
-Chains accepted by TesseraCT can be filtered by setting the following flags:
+Which chains will be accepted by TesseraCT can be controlled by setting the
+following flags to filter submissions:
 
 - `root_pem_file`: Path to a file containing root certificates that are
-acceptable to the log. Chains MUST be signed by one of the roots included in
-this file.
+acceptable to the log. Chains not originating from one of the roots included in
+this file will be rejected.
 - `reject_expired`: If true, TesseraCT rejects expired certificates.
 - `reject_unexpired`: If true, TesseraCT rejects certificates that are either
 currently valid or not yet valid.
 - `ext_key_usage`: A list of comma separated [Extended Key Usages (EKU) from x509](https://pkg.go.dev/crypto/x509#ExtKeyUsage).
-Certificates MUST include one or more of these EKUs to be accepted. If empty, no
-filtering is applied.
+Certificates which DO NOT include one or more of these EKUs to be accepted. If
+empty, no filtering is applied.
 - `reject_extension`: A comma separated list of X.509 extension OIDs, in dotted
 string form (e.g. `2.3.4.5`). Certificates that include one or more of these extensions
 will be rejected.
@@ -51,20 +52,20 @@ means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 `2024-01-02T15:04:05Z`.
 - `accept_sha1_signing_algorithms`: If true, allow chains that use SHA-1 based
 signing algorithms. This flag is a temporary solution to allow chains submitted
-by Chrome's Merge Delay Monitor Root. It will eventually be removed and such algorithms
-will be disallowed.
+by Chrome's Merge Delay Monitor Root. It will eventually be removed and chains
+using such algorithms will be rejected.
 
-#### Append lifecycle
+#### Adding to the log
 
-Tessera stages entries submitted via `Add`, then [sequences them in a batch](#sequencing-batch)
-to assign them with a durable sequence number. Asynronously from this, entries
-are first integrated into the log (i.e durably written into the log together with
-hashes commiting to them), and then [published every checkpoint interval](#checkpoint-interval)
-(i.e a checkpoint which index covers these entries is published). TesseraCT
-can [wait for the full process to be done](#publication-awaiter) before sending
-responses to clients.
+Tessera stages entries submitted via `Add`, then [sequences them in a batch](#sequencing-and-batching),
+assigning them with a durable sequence number. Asynchronously from this, entries
+are integrated into the log (i.e durably written into the log together with
+hashes commiting to them), and then [published every checkpoint interval](#checkpoint-publication)
+(i.e a checkpoint which commits to these new entries is published). TesseraCT
+can optionally [wait for the full process to be done](#publication-awaiter)
+before sending responses to clients.
 
-##### Sequencing Batch
+##### Sequencing and Batching
 
 The `batch_max_age` and `batch_max_size` flags control the maximum age and number
 of entries in a single [sequencing batch](https://github.com/transparency-dev/tessera?tab=readme-ov-file#sequencing).
@@ -74,9 +75,9 @@ of TesseraCT servers or their steady QPS rate. Defaults values have been chosen 
 and should be fine to get started with, but we invite you to experiment with values
 tailored to your setup.
 
-##### Checkpoint Interval
+##### Checkpoint publication
 
-The `checkpoint_interval` flag controls the interval duration between two
+The `checkpoint_interval` flag controls the duration between two subsequent
 checkpoint publications. Due to constraints imposed by underlying storage
 systems, this interval has a lower limit. Tessera ensures that the configured
 interval is larger than any such lower limit during the initialization process.
@@ -87,21 +88,21 @@ interval is larger than any such lower limit during the initialization process.
 | GCP     | 1200                                       |
 
 Note that when used in conjunction with `enable_publication_awaiter`, `checkpoint_interval`
-directly impacts `add-*` requests response time.
+directly impacts `add-*` request response time.
 
-##### Publication Awaiter
+##### Publication awaiter
 
 The `enable_publication_awaiter` flag enables [Tessera's publication awaiter](https://github.com/transparency-dev/tessera?tab=readme-ov-file#synchronous-publication):
 when this flag is on, TesseraCT responds to `add-*` requests only after a
 `checkpoint` committing to that entry has been published. When this flag is off,
-TesseraCT responses to `add-*` requests as soon as Tessera has durably assigned a
-sequence number to the corresponding entry. Such entries entries would then get integrated
-and published asynchronously, which might happen before TesseraCT responses to the
-`add-*` request are sent, or after.
+TesseraCT sends responses to `add-*` requests as soon as Tessera has durably
+assigned a sequence number to the corresponding entry. Such entries entries will
+then get integrated and published asynchronously, which may or may not happen
+before TesseraCT responds to the `add-*` request are sent, or after.
 
-While this flag provides extra guarantees to clients, it will likely lead to a
-lower a log throughput, an increased number of open sockets open, and of RAM
-used. Make sure that the `http_deadline` flag leaves enough time for requests
+While this flag provides stronger guarantees to clients, it will likely lead to a
+lower a log throughput, an increased number of open sockets open, and RAM usage.
+Make sure that the `http_deadline` flag leaves enough time for requests
 to be fully processed.
 
 This flag is on by default.
@@ -113,14 +114,14 @@ The `pushback_max_antispam_lag`, `pushback_max_dedupe_in_flight` and
 works, which itself is built on top of [Tessera's Antispam](https://github.com/transparency-dev/tessera?tab=readme-ov-file#antispam)
 capabilities. It is composed of three main steps:
 
-1. A process **asynchronous** with `add-*`, populating the antispam databases
+1. A process **asynchronous** with `add-*`, populates the antispam database
 with entry indices as the log grows. This is handled by Tessera.
 2. A call **synchronous** with **all** `add-*` to the antispam database to
-identify if the entry submitted is a duplicate of a previous one. This is
-handled by Tessera.
+identifies whether the submission is a duplicate of a previously accepted entry.
+This is handled by Tessera.
 3. If this entry is a duplicate, a last call **synchronous** with this duplicate
-`add-*` call fetches the entry from the log to extract the information required
-to build its SCT. This is handled by TesseraCT.
+`add-*` call fetches the previous entry from the log to extract the information required
+to recreate the previously issued SCT. This is handled by TesseraCT.
 
 The `pushback_max_antispam_lag` flag controls the limit of how far behind the
 current size of the tree the asynchronous process in `(1)` can fall.

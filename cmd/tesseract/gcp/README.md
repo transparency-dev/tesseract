@@ -1,8 +1,11 @@
 # TesseraCT on GCP
 
-This binary can be deployed on GCP, and primarily meant to be deployed on
-[Managed Instance Groups (MIG)](./live/gcp/static-ct-staging/logs).
-It also runs on [Cloud Run](./live/gcp/static-ct/logs/ci) and directly on [GCE VMs](./live/gcp/test).
+This binary can be deployed on GCP, works well with
+[Managed Instance Groups (MIG)](./live/gcp/static-ct-staging/logs) and directly
+on [GCE VMs](./live/gcp/test).
+
+It can also be run on [Cloud Run](./live/gcp/static-ct/logs/ci), although we
+have observed slightly reduced performance in this environment.
 
 In this document, you will find information specific to this GCP implementation.
 You can find more information about TesseraCT in general in the
@@ -11,7 +14,8 @@ You can find more information about TesseraCT in general in the
 
 ## GCE VMs
 
-Customs monitoring settings need to be applied when running on GCE VMs.
+Custom monitoring settings need to be applied when running on GCE VMs, these are
+outlined below.
 
 By default, TesseraCT exports OpenTelemetry metrics and traces to GCP
 infrastructure. It is not currently possible to opt-out of this.
