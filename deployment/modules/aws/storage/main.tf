@@ -25,7 +25,7 @@ resource "aws_s3_bucket" "log_bucket" {
 resource "aws_rds_cluster" "log_rds_cluster" {
   cluster_identifier          = "${var.base_name}-cluster"
   engine                      = "aurora-mysql"
-  engine_version              = "8.0.mysql_aurora.3.05.2"
+  engine_version              = "8.0"
   database_name               = "tesseract"
   manage_master_user_password = true
   master_username             = "tesseract"
