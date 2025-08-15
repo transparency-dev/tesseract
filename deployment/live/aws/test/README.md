@@ -76,6 +76,7 @@ Set the required environment variables:
 ```bash
 export AWS_REGION={VALUE} # e.g: us-east-1
 export AWS_PROFILE=AdministratorAccess-<REDACTED>
+export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct. It will prefix the name of various resources.
 export TG_WORKING_DIR=deployment/live/aws/test
 ```
 
