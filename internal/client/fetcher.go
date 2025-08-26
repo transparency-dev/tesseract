@@ -151,23 +151,8 @@ func (h HTTPFetcher) ReadIssuer(ctx context.Context, hash []byte) ([]byte, error
 
 // FileFetcher knows how to fetch log artifacts from a filesystem rooted at Root.
 type FileFetcher struct {
-	Root                    string
-	IsEntryBundleCompressed bool
-}
-
-// decompress decompresses gzip data if needed
-func (f FileFetcher) decompress(data []byte, compressed bool) ([]byte, error) {
-	if !compressed {
-		return data, nil
-	}
-
-	reader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create gzip reader: %v", err)
-	}
-	defer reader.Close()
-
-	return io.ReadAll(reader)
+	Root              string
+	DecompressBundles bool
 }
 
 func (f FileFetcher) ReadCheckpoint(_ context.Context) ([]byte, error) {
@@ -184,9 +169,22 @@ func (f FileFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]
 	return PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) ([]byte, error) {
 		data, err := os.ReadFile(path.Join(f.Root, ctEntriesPath(i, p)))
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to read file: %v", err)
 		}
-		return f.decompress(data, f.IsEntryBundleCompressed)
+		if f.DecompressBundles {
+			reader, err := gzip.NewReader(bytes.NewReader(data))
+			if err != nil {
+				return nil, fmt.Errorf("failed to create gzip reader: %v", err)
+			}
+			defer reader.Close()
+
+			decompressed, err := io.ReadAll(reader)
+			if err != nil {
+				return nil, fmt.Errorf("failed to decompress data: %v", err)
+			}
+			return decompressed, nil
+		}
+		return data, nil
 	})
 }
 

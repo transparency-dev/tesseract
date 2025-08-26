@@ -278,8 +278,8 @@ func fetcherFromFlags() fetcher {
 
 	if logURL.Scheme == "file" {
 		return &client.FileFetcher{
-			Root:                    logURL.Path,
-			IsEntryBundleCompressed: *bundleCompressed,
+			Root:              logURL.Path,
+			DecompressBundles: *bundleCompressed,
 		}
 	}
 
