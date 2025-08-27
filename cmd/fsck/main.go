@@ -46,6 +46,7 @@ var (
 	origin        = flag.String("origin", "", "Origin of the log to check")
 	pubKey        = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
 	userAgentInfo = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
+	bundleCompressed = flag.Bool("bundle_compressed", false, "Enable decompression of entry bundles, useful for Sunlight logs")
 )
 
 const (
@@ -276,7 +277,10 @@ func fetcherFromFlags() fetcher {
 	}
 
 	if logURL.Scheme == "file" {
-		return &client.FileFetcher{Root: logURL.Path}
+		return &client.FileFetcher{
+			Root:              logURL.Path,
+			DecompressBundles: *bundleCompressed,
+		}
 	}
 
 	hc := &http.Client{
