@@ -81,8 +81,9 @@ var (
 	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
 	// Infrastructure setup flags
-	storageDir  = flag.String("storage_dir", "", "Path to root of log storage.")
-	privKeyFile = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	storageDir        = flag.String("storage_dir", "", "Path to root of log storage.")
+	privKeyFile       = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	witnessPolicyFile = flag.String("witness_policy_file", "", "Path to the file containing the witness policy.")
 )
 
 func main() {
@@ -205,6 +206,19 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		WithCheckpointInterval(*checkpointInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
+
+	if *witnessPolicyFile != "" {
+		f, err := os.Open(*witnessPolicyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open witness policy file %q: %v", *witnessPolicyFile, err)
+		}
+		defer f.Close()
+		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+		}
+		opts.WithWitnesses(wg, nil)
+	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
