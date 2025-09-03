@@ -68,6 +68,7 @@ var (
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format describe at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -83,7 +84,6 @@ var (
 	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
 	// Infrastructure setup flags
-	witnessPolicyFile = flag.String("witness_policy_file", "", "Path to the file containing the witness policy.")
 	storageDir  = flag.String("storage_dir", "", "Path to root of log storage.")
 	privKeyFile = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 )
