@@ -217,7 +217,10 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
 		}
-		opts.WithWitnesses(wg, nil)
+
+		// Don't block if witnesses are unavailable.
+		wOpts := &tessera.WitnessOptions{FailOpen: true}
+		opts.WithWitnesses(wg, wOpts)
 	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
