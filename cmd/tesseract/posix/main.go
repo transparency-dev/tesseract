@@ -47,12 +47,14 @@ import (
 func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&additionalSigners, "additional_signer", "Path to a file containing an additional note Signer formatted keys for checkpoints. May be specified multiple times.")
 }
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart timestampFlag
-	notAfterLimit timestampFlag
+	notAfterStart     timestampFlag
+	notAfterLimit     timestampFlag
+	additionalSigners multiStringFlag
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
@@ -81,9 +83,9 @@ var (
 	clientHTTPMaxIdlePerHost  = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 
 	// Infrastructure setup flags
-	storageDir        = flag.String("storage_dir", "", "Path to root of log storage.")
-	privKeyFile       = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 	witnessPolicyFile = flag.String("witness_policy_file", "", "Path to the file containing the witness policy.")
+	storageDir  = flag.String("storage_dir", "", "Path to root of log storage.")
+	privKeyFile = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 )
 
 func main() {
@@ -162,7 +164,7 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage, rErr error) {
 	if *storageDir == "" {
 		return nil, errors.New("missing storage_dir")
 	}
@@ -199,8 +201,17 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
 	}
 
+	var extraSigners []note.Signer
+	for _, as := range additionalSigners {
+		s, err := noteSignerFromFile(as)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load additional signer: %v", err)
+		}
+		extraSigners = append(extraSigners, s)
+	}
+
 	opts := tessera.NewAppendOptions().
-		WithCheckpointSigner(signer).
+		WithCheckpointSigner(signer, extraSigners...).
 		WithCTLayout().
 		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
@@ -212,7 +223,11 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		if err != nil {
 			return nil, fmt.Errorf("failed to open witness policy file %q: %v", *witnessPolicyFile, err)
 		}
-		defer f.Close()
+		defer func() {
+			if err := f.Close(); err != nil && rErr == nil {
+				rErr = err
+			}
+		}()
 		wg, err := tessera.NewWitnessGroupFromPolicy(f)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
@@ -268,6 +283,18 @@ func (t *timestampFlag) Set(w string) error {
 	return nil
 }
 
+func noteSignerFromFile(path string) (note.Signer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read signer key from %q: %v", path, err)
+	}
+	s, err := note.NewSigner(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse signer key from %q: %v", path, err)
+	}
+	return s, nil
+}
+
 func signerFromFlags() crypto.Signer {
 	kf := *privKeyFile
 	if kf == "" {
@@ -289,4 +316,17 @@ func signerFromFlags() crypto.Signer {
 		klog.Exitf("Failed to parse private key: %v", err)
 	}
 	return k
+}
+
+// multiStringFlag allows a flag to be specified multiple times on the command
+// line, and stores all of these values.
+type multiStringFlag []string
+
+func (ms *multiStringFlag) String() string {
+	return strings.Join(*ms, ",")
+}
+
+func (ms *multiStringFlag) Set(w string) error {
+	*ms = append(*ms, w)
+	return nil
 }
