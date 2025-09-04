@@ -47,12 +47,14 @@ import (
 func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&additionalSigners, "additional_signer", "Path to a file containing an additional note Signer formatted keys for checkpoints. May be specified multiple times.")
 }
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart timestampFlag
-	notAfterLimit timestampFlag
+	notAfterStart     timestampFlag
+	notAfterLimit     timestampFlag
+	additionalSigners multiStringFlag
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
@@ -66,6 +68,7 @@ var (
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format describe at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -161,7 +164,7 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage, rErr error) {
 	if *storageDir == "" {
 		return nil, errors.New("missing storage_dir")
 	}
@@ -198,13 +201,42 @@ func newStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, er
 		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
 	}
 
+	var extraSigners []note.Signer
+	for _, as := range additionalSigners {
+		s, err := noteSignerFromFile(as)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load additional signer: %v", err)
+		}
+		extraSigners = append(extraSigners, s)
+	}
+
 	opts := tessera.NewAppendOptions().
-		WithCheckpointSigner(signer).
+		WithCheckpointSigner(signer, extraSigners...).
 		WithCTLayout().
 		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
+
+	if *witnessPolicyFile != "" {
+		f, err := os.Open(*witnessPolicyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to open witness policy file %q: %v", *witnessPolicyFile, err)
+		}
+		defer func() {
+			if err := f.Close(); err != nil && rErr == nil {
+				rErr = err
+			}
+		}()
+		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+		}
+
+		// Don't block if witnesses are unavailable.
+		wOpts := &tessera.WitnessOptions{FailOpen: true}
+		opts.WithWitnesses(wg, wOpts)
+	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
@@ -251,6 +283,18 @@ func (t *timestampFlag) Set(w string) error {
 	return nil
 }
 
+func noteSignerFromFile(path string) (note.Signer, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read signer key from %q: %v", path, err)
+	}
+	s, err := note.NewSigner(string(data))
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse signer key from %q: %v", path, err)
+	}
+	return s, nil
+}
+
 func signerFromFlags() crypto.Signer {
 	kf := *privKeyFile
 	if kf == "" {
@@ -272,4 +316,17 @@ func signerFromFlags() crypto.Signer {
 		klog.Exitf("Failed to parse private key: %v", err)
 	}
 	return k
+}
+
+// multiStringFlag allows a flag to be specified multiple times on the command
+// line, and stores all of these values.
+type multiStringFlag []string
+
+func (ms *multiStringFlag) String() string {
+	return strings.Join(*ms, ",")
+}
+
+func (ms *multiStringFlag) Set(w string) error {
+	*ms = append(*ms, w)
+	return nil
 }

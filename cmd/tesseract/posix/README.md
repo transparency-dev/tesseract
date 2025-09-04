@@ -22,6 +22,25 @@ work too, `CephFS` may work, but `NFS` will almost certainly not.
 > Attempting to use a filesystem which does not provide POSIX filesystem
 > semantics is overwhelmingly likely to result in a broken log!
 
+
+## Witnessing
+
+> [!WARNING]
+> Witnessing support is experimental at the moment - there is work actively underway
+> in this space by the transparency community.
+> Correspondingly, the interaction with the configured witnesses is currently hard-coded
+> to fail-open in the event that insufficient witness cosignatures were acquired - i.e. 
+> checkpoints will continue to be published with or without witness cosignatures.
+
+This binary has support for interacting with [tlog-witness](https://c2sp.org/tlog-witness)
+compliant witnesses. To enable this, pass the path of a file containing a witness policy
+to the `--witness_policy_file` flag, and ensure that at least one file containing a
+note-compatible `Ed25519` signer known to the configured witness(es) is provided via the
+`--additional_signer` flag.
+
+The witness policy file is expected to contain a text-based description of the policy in
+the format described by https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md
+
 ## Codelab
 
 Generate an ECDSA key like so:
