@@ -219,15 +219,10 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 		WithPushback(*pushbackMaxOutstanding)
 
 	if *witnessPolicyFile != "" {
-		f, err := os.Open(*witnessPolicyFile)
+		f, err := os.ReadFile(*witnessPolicyFile)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open witness policy file %q: %v", *witnessPolicyFile, err)
+			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
 		}
-		defer func() {
-			if err := f.Close(); err != nil && rErr == nil {
-				rErr = err
-			}
-		}()
 		wg, err := tessera.NewWitnessGroupFromPolicy(f)
 		if err != nil {
 			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
