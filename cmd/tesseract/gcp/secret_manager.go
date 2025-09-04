@@ -24,9 +24,11 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"strings"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"golang.org/x/mod/sumdb/note"
 	"k8s.io/klog/v2"
 )
 
@@ -120,7 +122,7 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}, nil
 }
 
-func secretPEM(ctx context.Context, client *secretmanager.Client, secretName string) (*pem.Block, error) {
+func secret(ctx context.Context, client *secretmanager.Client, secretName string) ([]byte, error) {
 	resp, err := client.AccessSecretVersion(ctx, &secretmanagerpb.AccessSecretVersionRequest{
 		Name: secretName,
 	})
@@ -137,7 +139,16 @@ func secretPEM(ctx context.Context, client *secretmanager.Client, secretName str
 		return nil, errors.New("data corruption detected")
 	}
 
-	pemBlock, rest := pem.Decode([]byte(resp.Payload.Data))
+	return resp.Payload.Data, nil
+}
+
+func secretPEM(ctx context.Context, client *secretmanager.Client, secretName string) (*pem.Block, error) {
+	payload, err := secret(ctx, client, secretName)
+	if err != nil {
+		return nil, err
+	}
+
+	pemBlock, rest := pem.Decode(payload)
 	if pemBlock == nil {
 		return nil, errors.New("failed to decode PEM")
 	}
@@ -146,4 +157,38 @@ func secretPEM(ctx context.Context, client *secretmanager.Client, secretName str
 	}
 
 	return pemBlock, nil
+}
+
+// NewSecretManagerNoteSigner creates a new note.Signer that uses a note-formated Ed25519 key stored in
+// Google Cloud Secret Manager.
+func NewSecretManagerNoteSigner(ctx context.Context, privateKeySecretName string) (note.Signer, error) {
+	client, err := secretmanager.NewClient(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create secret manager client: %w", err)
+	}
+	defer func() {
+		if err := client.Close(); err != nil {
+			klog.Warningf("Failed to close secret manager client: %v", err)
+		}
+	}()
+
+	secK, err := secret(ctx, client, privateKeySecretName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to access %q: %v", privateKeySecretName, err)
+	}
+
+	return note.NewSigner(string(secK))
+}
+
+// multiStringFlag allows a flag to be specified multiple times on the command
+// line, and stores all of these values.
+type multiStringFlag []string
+
+func (ms *multiStringFlag) String() string {
+	return strings.Join(*ms, ",")
+}
+
+func (ms *multiStringFlag) Set(w string) error {
+	*ms = append(*ms, w)
+	return nil
 }
