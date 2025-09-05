@@ -44,12 +44,14 @@ import (
 func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset or empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset or empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&additionalSigners, "additional_signer_private_key_secret_name", "Private key secret name for additional Ed25519 checkpoint signatures, may be supplied multiple times. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 }
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart timestampFlag
-	notAfterLimit timestampFlag
+	notAfterStart     timestampFlag
+	notAfterLimit     timestampFlag
+	additionalSigners multiStringFlag
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
@@ -63,6 +65,7 @@ var (
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -219,13 +222,37 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
 	}
 
+	var extraSigners []note.Signer
+	for _, as := range additionalSigners {
+		s, err := NewSecretManagerNoteSigner(ctx, as)
+		if err != nil {
+			return nil, fmt.Errorf("failed to instantiate additional signer: %v", err)
+		}
+		extraSigners = append(extraSigners, s)
+	}
+
 	opts := tessera.NewAppendOptions().
-		WithCheckpointSigner(signer).
+		WithCheckpointSigner(signer, extraSigners...).
 		WithCTLayout().
 		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
+
+	if *witnessPolicyFile != "" {
+		f, err := os.ReadFile(*witnessPolicyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+		}
+		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+		}
+
+		// Don't block if witnesses are unavailable.
+		wOpts := &tessera.WitnessOptions{FailOpen: true}
+		opts.WithWitnesses(wg, wOpts)
+	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
 	// when it's time to exit.
