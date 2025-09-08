@@ -25,6 +25,9 @@ import (
 
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+
+	"golang.org/x/crypto/cryptobyte"
+	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
 var (
@@ -139,16 +142,8 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 			}
 		}
 
-		// The x509 package does not parse CT EKU, so look for it in
-		// extensions directly.
-		seenCTEKU := false
-		for _, ext := range preIssuer.Extensions {
-			if ext.Id.Equal(oidExtensionKeyUsageCertificateTransparency) {
-				seenCTEKU = true
-				break
-			}
-		}
-		if !seenCTEKU {
+		// TODO(phbnf): is this check really necessary?
+		if !isPreIssuer(preIssuer) {
 			return nil, fmt.Errorf("issuer does not have CertificateTransparency extended key usage")
 		}
 
@@ -198,7 +193,6 @@ func RemoveCTPoison(tbsData []byte) ([]byte, error) {
 
 // EntryFromChain generates an Entry from a chain and timestamp.
 // copied from certificate-transparency-go/serialization.go
-// TODO(phboneff): add tests
 func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
 	leaf := ctonly.Entry{
 		IsPrecert: isPrecert,
@@ -259,11 +253,27 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 // isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
 func isPreIssuer(cert *x509.Certificate) bool {
-	// Look for the extension in the Extensions field and not ExtKeyUsage
-	// since crypto/x509 does not recognize this extension as an ExtKeyUsage.
+	// Look for the extension in the Extensions field and not in ExtKeyUsage
+	// since crypto/x509 does not recognize this extension as such.
+	// We cannot reliably check in UnknownExtKeyUsage either, since it might
+	// one day disappear from UnknownExtKeyUsage and make it to ExtKeyUsage.
+	// Given that ExtKeyUsage does not contain OIDs, we would not be able to
+	// detect such a move.
 	for _, ext := range cert.Extensions {
-		if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(ext.Id) {
-			return true
+		if rfc6962.OIDExtKeyUsage.Equal(ext.Id) {
+			der := cryptobyte.String(ext.Value)
+			if !der.ReadASN1(&der, cryptobyte_asn1.SEQUENCE) {
+				continue
+			}
+			for !der.Empty() {
+				var eku asn1.ObjectIdentifier
+				if !der.ReadASN1ObjectIdentifier(&eku) {
+					continue
+				}
+				if rfc6962.OIDExtKeyUsageCertificateTransparency.Equal(eku) {
+					return true
+				}
+			}
 		}
 	}
 	return false

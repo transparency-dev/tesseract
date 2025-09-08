@@ -43,8 +43,9 @@ const (
 	TreeNodePrefix = byte(0x01)
 )
 
-// Defined in RFC 6962 s3.1.
+// Defined or referenced in RFC 6962 s3.1.
 var (
+	OIDExtKeyUsage                        = asn1.ObjectIdentifier{2, 5, 29, 37}
 	OIDExtensionCTPoison                  = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
 	OIDExtKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
 )

@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
@@ -27,6 +28,11 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"golang.org/x/crypto/cryptobyte"
+	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
 var pemPrivateKey = testingKey(`
@@ -46,6 +52,15 @@ AAA7eoZ9AEHflUeuLn9QJI/r0hyQQLEtrpwv6rDT1GCWaLII5HJ6NUFVf4TTcqxo
 wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
+
+var preIssuerExt = func() pkix.Extension {
+	bb := []byte{}
+	b := cryptobyte.NewBuilder(bb)
+	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
+		b.AddASN1ObjectIdentifier(rfc6962.OIDExtKeyUsageCertificateTransparency)
+	})
+	return pkix.Extension{Id: rfc6962.OIDExtKeyUsage, Value: b.BytesOrPanic()}
+}()
 
 var testPrivateKey *rsa.PrivateKey
 
@@ -76,7 +91,6 @@ func makeCert(t *testing.T, template, issuer *x509.Certificate) *x509.Certificat
 func TestBuildPrecertTBS(t *testing.T) {
 	poisonExt := pkix.Extension{Id: oidExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
 	// TODO(phboneff): check Critical and value are ok.
-	ctExt := pkix.Extension{Id: oidExtensionKeyUsageCertificateTransparency}
 	preIssuerKeyID := []byte{0x19, 0x09, 0x19, 0x70}
 	issuerKeyID := []byte{0x07, 0x07, 0x20, 0x07}
 	preCertTemplate := x509.Certificate{
@@ -96,7 +110,7 @@ func TestBuildPrecertTBS(t *testing.T) {
 		Subject:         pkix.Name{CommonName: "precert Issuer"},
 		NotBefore:       time.Now(),
 		NotAfter:        time.Now().Add(3 * time.Hour),
-		ExtraExtensions: []pkix.Extension{ctExt},
+		ExtraExtensions: []pkix.Extension{preIssuerExt},
 		AuthorityKeyId:  issuerKeyID,
 		SubjectKeyId:    preIssuerKeyID,
 	}
@@ -207,6 +221,181 @@ func TestBuildPrecertTBS(t *testing.T) {
 		} else if test.wantAKI != nil {
 			t.Errorf("BuildPrecertTBS(%s).Extensions[AKI]=nil, want %+v", test.name, test.wantAKI)
 		}
+	}
+}
+
+func TestEntryFromChain(t *testing.T) {
+	// Setup certs
+	// Issuers
+	rootTemplate := x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(1),
+		Issuer:       pkix.Name{CommonName: "root"},
+		Subject:      pkix.Name{CommonName: "root"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(3 * time.Hour),
+		IsCA:         true,
+	}
+	rootCert := makeCert(t, &rootTemplate, &rootTemplate)
+
+	intermediateTemplate := x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(2),
+		Issuer:       rootCert.Subject,
+		Subject:      pkix.Name{CommonName: "intermediate"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(3 * time.Hour),
+		IsCA:         true,
+	}
+	intermediateCert := makeCert(t, &intermediateTemplate, rootCert)
+
+	poisonExt := pkix.Extension{Id: rfc6962.OIDExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
+	preIssuerTemplate := x509.Certificate{
+		Version:         3,
+		SerialNumber:    big.NewInt(1234),
+		Issuer:          intermediateCert.Subject,
+		Subject:         pkix.Name{CommonName: "precert signing certificate"},
+		NotBefore:       time.Now(),
+		NotAfter:        time.Now().Add(3 * time.Hour),
+		IsCA:            true,
+		ExtraExtensions: []pkix.Extension{preIssuerExt},
+	}
+	preIssuerCert := makeCert(t, &preIssuerTemplate, intermediateCert)
+	preIssuerKeyHash := sha256.Sum256(preIssuerCert.RawSubjectPublicKeyInfo)
+
+	// Regular chain
+	certTemplate := x509.Certificate{
+		Version:      3,
+		SerialNumber: big.NewInt(3),
+		Issuer:       intermediateCert.Subject,
+		Subject:      pkix.Name{CommonName: "cert subjet"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(3 * time.Hour),
+	}
+	cert := makeCert(t, &certTemplate, intermediateCert)
+
+	// Precert chain with pre-issuer
+	preCertPreIssuerTemplate := x509.Certificate{
+		Version:         3,
+		SerialNumber:    big.NewInt(123),
+		Issuer:          preIssuerCert.Subject,
+		Subject:         pkix.Name{CommonName: "precert subject with pre-issuer"},
+		NotBefore:       time.Now(),
+		NotAfter:        time.Now().Add(3 * time.Hour),
+		ExtraExtensions: []pkix.Extension{poisonExt},
+	}
+	preCertPreIssuer := makeCert(t, &preCertPreIssuerTemplate, preIssuerCert)
+
+	// Precert without pre-issuer
+	preCertNoPreIssuerTemplate := x509.Certificate{
+		Version:         3,
+		SerialNumber:    big.NewInt(456),
+		Issuer:          intermediateCert.Subject,
+		Subject:         pkix.Name{CommonName: "precert subject no pre-issuer"},
+		NotBefore:       time.Now(),
+		NotAfter:        time.Now().Add(3 * time.Hour),
+		ExtraExtensions: []pkix.Extension{poisonExt},
+	}
+	preCertNoPreIssuer := makeCert(t, &preCertNoPreIssuerTemplate, intermediateCert)
+
+	timestamp := uint64(time.Now().UnixMilli())
+
+	defangedTBS, err := BuildPrecertTBS(preCertNoPreIssuer.RawTBSCertificate, nil)
+	if err != nil {
+		t.Fatalf("BuildPrecertTBS(no-pre-issuer): %v", err)
+	}
+	issuerKeyHash := sha256.Sum256(intermediateCert.RawSubjectPublicKeyInfo)
+
+	defangedTBSWithPreIssuer, err := BuildPrecertTBS(preCertPreIssuer.RawTBSCertificate, preIssuerCert)
+	if err != nil {
+		t.Fatalf("BuildPrecertTBS(with-pre-issuer): %v", err)
+	}
+
+	tests := []struct {
+		name      string
+		chain     []*x509.Certificate
+		isPrecert bool
+		wantErr   bool
+		wantEntry *ctonly.Entry
+	}{
+		{
+			name:      "regular-cert",
+			chain:     []*x509.Certificate{cert, intermediateCert, rootCert},
+			isPrecert: false,
+			wantEntry: &ctonly.Entry{
+				IsPrecert:   false,
+				Timestamp:   timestamp,
+				Certificate: cert.Raw,
+				FingerprintsChain: [][32]byte{
+					sha256.Sum256(intermediateCert.Raw),
+					sha256.Sum256(rootCert.Raw),
+				},
+			},
+		},
+		{
+			name:      "precert-no-pre-issuer",
+			chain:     []*x509.Certificate{preCertNoPreIssuer, intermediateCert, rootCert},
+			isPrecert: true,
+			wantEntry: &ctonly.Entry{
+				IsPrecert:      true,
+				Timestamp:      timestamp,
+				Precertificate: preCertNoPreIssuer.Raw,
+				Certificate:    defangedTBS,
+				IssuerKeyHash:  issuerKeyHash[:],
+				FingerprintsChain: [][32]byte{
+					sha256.Sum256(intermediateCert.Raw),
+					sha256.Sum256(rootCert.Raw),
+				},
+			},
+		},
+		{
+			name:      "precert-with-pre-issuer",
+			chain:     []*x509.Certificate{preCertPreIssuer, preIssuerCert, intermediateCert, rootCert},
+			isPrecert: true,
+			wantEntry: &ctonly.Entry{
+				IsPrecert:      true,
+				Timestamp:      timestamp,
+				Precertificate: preCertPreIssuer.Raw,
+				Certificate:    defangedTBSWithPreIssuer,
+				IssuerKeyHash:  preIssuerKeyHash[:],
+				FingerprintsChain: [][32]byte{
+					sha256.Sum256(preIssuerCert.Raw),
+					sha256.Sum256(intermediateCert.Raw),
+					sha256.Sum256(rootCert.Raw),
+				},
+			},
+		},
+		{
+			name:      "precert-no-issuer",
+			chain:     []*x509.Certificate{preCertPreIssuer},
+			isPrecert: true,
+			wantErr:   true,
+		},
+		{
+			name:      "precert-pre-issuer-no-final-issuer",
+			chain:     []*x509.Certificate{preCertPreIssuer, preIssuerCert},
+			isPrecert: true,
+			wantErr:   true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := EntryFromChain(test.chain, test.isPrecert, timestamp)
+			if err != nil {
+				if !test.wantErr {
+					t.Errorf("EntryFromChain() got error %v, want nil", err)
+				}
+				return
+			}
+			if test.wantErr {
+				t.Error("EntryFromChain() got no error, want error")
+			}
+
+			if !reflect.DeepEqual(got, test.wantEntry) {
+				t.Errorf("EntryFromChain() got %+v, want %+v", got, test.wantEntry)
+			}
+		})
 	}
 }
 
