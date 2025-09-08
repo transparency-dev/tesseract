@@ -30,13 +30,6 @@ import (
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
 )
 
-var (
-	oidExtensionAuthorityKeyId = asn1.ObjectIdentifier{2, 5, 29, 35}
-	// These extensions are defined in RFC 6962 s3.1.
-	oidExtensionCTPoison                        = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 3}
-	oidExtensionKeyUsageCertificateTransparency = asn1.ObjectIdentifier{1, 3, 6, 1, 4, 1, 11129, 2, 4, 4}
-)
-
 type tbsCertificate struct {
 	Raw                asn1.RawContent
 	Version            int `asn1:"optional,explicit,default:0,tag:0"`
@@ -113,7 +106,7 @@ func removeExtension(tbsData []byte, oid asn1.ObjectIdentifier) ([]byte, error) 
 //   - The precert's AuthorityKeyId is changed to the AuthorityKeyId of the
 //     intermediate.
 func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error) {
-	data, err := removeExtension(tbsData, oidExtensionCTPoison)
+	data, err := removeExtension(tbsData, rfc6962.OIDExtensionCTPoison)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +129,7 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 		// to that of the preIssuer.
 		var issuerKeyID []byte
 		for _, ext := range preIssuer.Extensions {
-			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
+			if ext.Id.Equal(rfc6962.OIDExtAuthorityKeyId) {
 				issuerKeyID = ext.Value
 				break
 			}
@@ -149,7 +142,7 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 
 		keyAt := -1
 		for i, ext := range tbs.Extensions {
-			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
+			if ext.Id.Equal(rfc6962.OIDExtAuthorityKeyId) {
 				keyAt = i
 				break
 			}
@@ -164,7 +157,7 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error
 		} else if issuerKeyID != nil {
 			// PreCert did not have an auth-key-id, but the preIssuer does, so add it at the end.
 			authKeyIDExt := pkix.Extension{
-				Id:       oidExtensionAuthorityKeyId,
+				Id:       rfc6962.OIDExtAuthorityKeyId,
 				Critical: false,
 				Value:    issuerKeyID,
 			}

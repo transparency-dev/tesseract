@@ -89,7 +89,7 @@ func makeCert(t *testing.T, template, issuer *x509.Certificate) *x509.Certificat
 }
 
 func TestBuildPrecertTBS(t *testing.T) {
-	poisonExt := pkix.Extension{Id: oidExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
+	poisonExt := pkix.Extension{Id: rfc6962.OIDExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
 	// TODO(phboneff): check Critical and value are ok.
 	preIssuerKeyID := []byte{0x19, 0x09, 0x19, 0x70}
 	issuerKeyID := []byte{0x07, 0x07, 0x20, 0x07}
@@ -205,7 +205,7 @@ func TestBuildPrecertTBS(t *testing.T) {
 		}
 		var gotAKI []byte
 		for _, ext := range tbs.Extensions {
-			if ext.Id.Equal(oidExtensionAuthorityKeyId) {
+			if ext.Id.Equal(rfc6962.OIDExtAuthorityKeyId) {
 				gotAKI = ext.Value
 				break
 			}
