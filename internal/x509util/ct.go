@@ -243,9 +243,14 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	return &leaf, nil
 }
 
-// isPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
-// certificate transparency extended key usage.
+// isPreIssuer indicates if a certificate is a precertificate signing cert.
+//
+// From RFC6962 s3.1, these certs should contain:
+// (CA:true, Extended Key Usage: Certificate Transparency, OID 1.3.6.1.4.1.11129.2.4.4)
 func isPreIssuer(cert *x509.Certificate) bool {
+	if !cert.IsCA {
+		return false
+	}
 	// Look for the extension in the Extensions field and not in ExtKeyUsage
 	// since crypto/x509 does not recognize this extension as such.
 	// We cannot reliably check in UnknownExtKeyUsage either, since it might

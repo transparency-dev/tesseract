@@ -53,14 +53,18 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
-var preIssuerExt = func() pkix.Extension {
+func EKUOIDToExt(ekus []asn1.ObjectIdentifier) pkix.Extension {
 	bb := []byte{}
 	b := cryptobyte.NewBuilder(bb)
 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
-		b.AddASN1ObjectIdentifier(rfc6962.OIDExtKeyUsageCertificateTransparency)
+		for _, oid := range ekus {
+			b.AddASN1ObjectIdentifier(oid)
+		}
 	})
 	return pkix.Extension{Id: rfc6962.OIDExtKeyUsage, Value: b.BytesOrPanic()}
-}()
+}
+
+var preIssuerExt = EKUOIDToExt([]asn1.ObjectIdentifier{rfc6962.OIDExtKeyUsageCertificateTransparency})
 
 var testPrivateKey *rsa.PrivateKey
 
@@ -104,24 +108,28 @@ func TestBuildPrecertTBS(t *testing.T) {
 		AuthorityKeyId:  preIssuerKeyID,
 	}
 	preIssuerTemplate := x509.Certificate{
-		Version:         3,
-		SerialNumber:    big.NewInt(1234),
-		Issuer:          pkix.Name{CommonName: "real Issuer"},
-		Subject:         pkix.Name{CommonName: "precert Issuer"},
-		NotBefore:       time.Now(),
-		NotAfter:        time.Now().Add(3 * time.Hour),
-		ExtraExtensions: []pkix.Extension{preIssuerExt},
-		AuthorityKeyId:  issuerKeyID,
-		SubjectKeyId:    preIssuerKeyID,
+		Version:               3,
+		SerialNumber:          big.NewInt(1234),
+		Issuer:                pkix.Name{CommonName: "real Issuer"},
+		Subject:               pkix.Name{CommonName: "precert Issuer"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(3 * time.Hour),
+		ExtraExtensions:       []pkix.Extension{preIssuerExt},
+		AuthorityKeyId:        issuerKeyID,
+		SubjectKeyId:          preIssuerKeyID,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
 	}
 	actualIssuerTemplate := x509.Certificate{
-		Version:      3,
-		SerialNumber: big.NewInt(12345),
-		Issuer:       pkix.Name{CommonName: "real Issuer"},
-		Subject:      pkix.Name{CommonName: "real Issuer"},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(3 * time.Hour),
-		SubjectKeyId: issuerKeyID,
+		Version:               3,
+		SerialNumber:          big.NewInt(12345),
+		Issuer:                pkix.Name{CommonName: "real Issuer"},
+		Subject:               pkix.Name{CommonName: "real Issuer"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(3 * time.Hour),
+		SubjectKeyId:          issuerKeyID,
+		IsCA:                  true,
+		BasicConstraintsValid: true,
 	}
 	preCertWithAKI := makeCert(t, &preCertTemplate, &preIssuerTemplate)
 	preIssuerWithAKI := makeCert(t, &preIssuerTemplate, &actualIssuerTemplate)
@@ -228,37 +236,40 @@ func TestEntryFromChain(t *testing.T) {
 	// Setup certs
 	// Issuers
 	rootTemplate := x509.Certificate{
-		Version:      3,
-		SerialNumber: big.NewInt(1),
-		Issuer:       pkix.Name{CommonName: "root"},
-		Subject:      pkix.Name{CommonName: "root"},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(3 * time.Hour),
-		IsCA:         true,
+		Version:               3,
+		SerialNumber:          big.NewInt(1),
+		Issuer:                pkix.Name{CommonName: "root"},
+		Subject:               pkix.Name{CommonName: "root"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(3 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
 	}
 	rootCert := makeCert(t, &rootTemplate, &rootTemplate)
 
 	intermediateTemplate := x509.Certificate{
-		Version:      3,
-		SerialNumber: big.NewInt(2),
-		Issuer:       rootCert.Subject,
-		Subject:      pkix.Name{CommonName: "intermediate"},
-		NotBefore:    time.Now(),
-		NotAfter:     time.Now().Add(3 * time.Hour),
-		IsCA:         true,
+		Version:               3,
+		SerialNumber:          big.NewInt(2),
+		Issuer:                rootCert.Subject,
+		Subject:               pkix.Name{CommonName: "intermediate"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(3 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
 	}
 	intermediateCert := makeCert(t, &intermediateTemplate, rootCert)
 
 	poisonExt := pkix.Extension{Id: rfc6962.OIDExtensionCTPoison, Critical: true, Value: asn1.NullBytes}
 	preIssuerTemplate := x509.Certificate{
-		Version:         3,
-		SerialNumber:    big.NewInt(1234),
-		Issuer:          intermediateCert.Subject,
-		Subject:         pkix.Name{CommonName: "precert signing certificate"},
-		NotBefore:       time.Now(),
-		NotAfter:        time.Now().Add(3 * time.Hour),
-		IsCA:            true,
-		ExtraExtensions: []pkix.Extension{preIssuerExt},
+		Version:               3,
+		SerialNumber:          big.NewInt(1234),
+		Issuer:                intermediateCert.Subject,
+		Subject:               pkix.Name{CommonName: "precert signing certificate"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(3 * time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+		ExtraExtensions:       []pkix.Extension{preIssuerExt},
 	}
 	preIssuerCert := makeCert(t, &preIssuerTemplate, intermediateCert)
 	preIssuerKeyHash := sha256.Sum256(preIssuerCert.RawSubjectPublicKeyInfo)
@@ -394,6 +405,133 @@ func TestEntryFromChain(t *testing.T) {
 
 			if !reflect.DeepEqual(got, test.wantEntry) {
 				t.Errorf("EntryFromChain() got %+v, want %+v", got, test.wantEntry)
+			}
+		})
+	}
+}
+
+func TestIsPreIssuer(t *testing.T) {
+	// Create a self-signed issuer for our test certs
+	issuerTemplate := x509.Certificate{
+		Version:               3,
+		SerialNumber:          big.NewInt(1),
+		Issuer:                pkix.Name{CommonName: "issuer"},
+		Subject:               pkix.Name{CommonName: "issuer"},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(time.Hour),
+		IsCA:                  true,
+		BasicConstraintsValid: true,
+	}
+	issuerCert := makeCert(t, &issuerTemplate, &issuerTemplate)
+
+	otherEKUsExt := EKUOIDToExt([]asn1.ObjectIdentifier{
+		asn1.ObjectIdentifier{2, 5, 29, 37, 0}, // anyExtendedKeyUsage
+	})
+
+	preIssuerExtEKUWithOthersEKUs := EKUOIDToExt([]asn1.ObjectIdentifier{
+		asn1.ObjectIdentifier{2, 5, 29, 37, 0}, // anyExtendedKeyUsage
+		rfc6962.OIDExtKeyUsageCertificateTransparency,
+	})
+
+	tests := []struct {
+		name string
+		cert *x509.Certificate
+		want bool
+	}{
+		{
+			name: "valid",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(2),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "valid pre-issuer"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				IsCA:                  true,
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+			}, issuerCert),
+			want: true,
+		},
+		{
+			name: "not-ca",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(3),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "not a ca"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				IsCA:                  false,
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+			}, issuerCert),
+			want: false,
+		},
+		{
+			name: "no-eku",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(4),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "no eku"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				IsCA:                  true,
+				BasicConstraintsValid: true,
+			}, issuerCert),
+			want: false,
+		},
+		{
+			name: "invalid-eku",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(5),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "malformed eku"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				IsCA:                  true,
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{otherEKUsExt},
+			}, issuerCert),
+			want: false,
+		},
+		{
+			name: "valid-with-others",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(6),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "valid pre-issuer with other ekus"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				IsCA:                  true,
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{preIssuerExtEKUWithOthersEKUs},
+			}, issuerCert),
+			want: true,
+		},
+		{
+			name: "no-is-ca",
+			cert: makeCert(t, &x509.Certificate{
+				Version:               3,
+				SerialNumber:          big.NewInt(7),
+				Issuer:                issuerCert.Subject,
+				Subject:               pkix.Name{CommonName: "regular cert"},
+				NotBefore:             time.Now(),
+				NotAfter:              time.Now().Add(time.Hour),
+				BasicConstraintsValid: true,
+				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+			}, issuerCert),
+			want: false,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := isPreIssuer(test.cert); got != test.want {
+				t.Errorf("isPreIssuer() = %v, want %v", got, test.want)
 			}
 		})
 	}
