@@ -53,6 +53,11 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
+// Use this method to marshal EKUs as Extensions and include them
+// in certificate templates.
+// Do not use templates ExtKeyUsage or UnknownExtKeyUsage to avoid
+// breakages if crypto/x509 ever considers the CT EKU as a ExtKeyUsage
+// rather than an UnknownExtKeyUsage.
 func ekuExtWithOIDs(ekus []asn1.ObjectIdentifier) pkix.Extension {
 	bb := []byte{}
 	b := cryptobyte.NewBuilder(bb)
