@@ -53,7 +53,7 @@ wg/HcAJWY60xZTJDFN+Qfx8ZQvBEin6c2/h+zZi5IVY=
 -----END RSA TESTING KEY-----
 `)
 
-func EKUOIDToExt(ekus []asn1.ObjectIdentifier) pkix.Extension {
+func ekuExtWithOIDs(ekus []asn1.ObjectIdentifier) pkix.Extension {
 	bb := []byte{}
 	b := cryptobyte.NewBuilder(bb)
 	b.AddASN1(cryptobyte_asn1.SEQUENCE, func(b *cryptobyte.Builder) {
@@ -64,7 +64,7 @@ func EKUOIDToExt(ekus []asn1.ObjectIdentifier) pkix.Extension {
 	return pkix.Extension{Id: rfc6962.OIDExtKeyUsage, Value: b.BytesOrPanic()}
 }
 
-var preIssuerExt = EKUOIDToExt([]asn1.ObjectIdentifier{rfc6962.OIDExtKeyUsageCertificateTransparency})
+var preIssuerEKUExt = ekuExtWithOIDs([]asn1.ObjectIdentifier{rfc6962.OIDExtKeyUsageCertificateTransparency})
 
 var testPrivateKey *rsa.PrivateKey
 
@@ -114,7 +114,7 @@ func TestBuildPrecertTBS(t *testing.T) {
 		Subject:               pkix.Name{CommonName: "precert Issuer"},
 		NotBefore:             time.Now(),
 		NotAfter:              time.Now().Add(3 * time.Hour),
-		ExtraExtensions:       []pkix.Extension{preIssuerExt},
+		ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 		AuthorityKeyId:        issuerKeyID,
 		SubjectKeyId:          preIssuerKeyID,
 		IsCA:                  true,
@@ -269,7 +269,7 @@ func TestEntryFromChain(t *testing.T) {
 		NotAfter:              time.Now().Add(3 * time.Hour),
 		IsCA:                  true,
 		BasicConstraintsValid: true,
-		ExtraExtensions:       []pkix.Extension{preIssuerExt},
+		ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 	}
 	preIssuerCert := makeCert(t, &preIssuerTemplate, intermediateCert)
 	preIssuerKeyHash := sha256.Sum256(preIssuerCert.RawSubjectPublicKeyInfo)
@@ -424,11 +424,11 @@ func TestIsPreIssuer(t *testing.T) {
 	}
 	issuerCert := makeCert(t, &issuerTemplate, &issuerTemplate)
 
-	otherEKUsExt := EKUOIDToExt([]asn1.ObjectIdentifier{
+	otherEKUsExt := ekuExtWithOIDs([]asn1.ObjectIdentifier{
 		asn1.ObjectIdentifier{2, 5, 29, 37, 0}, // anyExtendedKeyUsage
 	})
 
-	preIssuerExtEKUWithOthersEKUs := EKUOIDToExt([]asn1.ObjectIdentifier{
+	preIssuerExtEKUWithOthersEKUs := ekuExtWithOIDs([]asn1.ObjectIdentifier{
 		asn1.ObjectIdentifier{2, 5, 29, 37, 0}, // anyExtendedKeyUsage
 		rfc6962.OIDExtKeyUsageCertificateTransparency,
 	})
@@ -449,7 +449,7 @@ func TestIsPreIssuer(t *testing.T) {
 				NotAfter:              time.Now().Add(time.Hour),
 				IsCA:                  true,
 				BasicConstraintsValid: true,
-				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+				ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 			}, issuerCert),
 			want: true,
 		},
@@ -464,7 +464,7 @@ func TestIsPreIssuer(t *testing.T) {
 				NotAfter:              time.Now().Add(time.Hour),
 				IsCA:                  false,
 				BasicConstraintsValid: true,
-				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+				ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 			}, issuerCert),
 			want: false,
 		},
@@ -522,7 +522,7 @@ func TestIsPreIssuer(t *testing.T) {
 				NotBefore:             time.Now(),
 				NotAfter:              time.Now().Add(time.Hour),
 				BasicConstraintsValid: true,
-				ExtraExtensions:       []pkix.Extension{preIssuerExt},
+				ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 			}, issuerCert),
 			want: false,
 		},
