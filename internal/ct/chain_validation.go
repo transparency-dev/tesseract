@@ -342,7 +342,7 @@ func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certifi
 }
 
 // removeExtension removes a given extension from a list.
-func removeExtension(oid asn1.ObjectIdentifier, extensions []pkix.Extension) {
+func removeExtension(extensions []pkix.Extension, oid asn1.ObjectIdentifier) []pkix.Extension {
 	i := 0
 	for _, e := range extensions {
 		if !e.Id.Equal(oid) {
@@ -350,7 +350,7 @@ func removeExtension(oid asn1.ObjectIdentifier, extensions []pkix.Extension) {
 			i++
 		}
 	}
-	extensions = extensions[:i]
+	return extensions[:i]
 }
 
 // relaxCert modifies parsed certificates fields to relax verification constraints.
@@ -360,7 +360,7 @@ func relaxCert(cert *x509.Certificate) {
 	cert.UnknownExtKeyUsage = nil
 
 	// Name constraints
-	removeExtension(oidExtensionNameConstraints, cert.Extensions)
+	cert.Extensions = removeExtension(cert.Extensions, oidExtensionNameConstraints)
 	cert.PermittedDNSDomainsCritical = false
 	cert.PermittedDNSDomains = nil
 	cert.ExcludedDNSDomains = nil
@@ -378,7 +378,7 @@ func relaxCert(cert *x509.Certificate) {
 	cert.MaxPathLenZero = false
 
 	// Policies
-	removeExtension(oidExtensionCertificatePolicies, cert.Extensions)
+	cert.Extensions = removeExtension(cert.Extensions, oidExtensionCertificatePolicies)
 	cert.Policies = []x509.OID{mustNewOIDFromInts(oidAnyPolicyExtension)}
 	cert.PolicyIdentifiers = nil
 	cert.PolicyMappings = nil
