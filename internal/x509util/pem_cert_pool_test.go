@@ -30,7 +30,7 @@ func TestLoadSingleCertFromPEMs(t *testing.T) {
 		if !ok {
 			t.Fatal("Expected to append a certificate ok")
 		}
-		if got, want := len(pool.Subjects()), 1; got != want {
+		if got, want := len(pool.RawCertificates()), 1; got != want {
 			t.Fatalf("Got %d cert(s) in the pool, expected %d", got, want)
 		}
 	}
@@ -44,7 +44,7 @@ func TestBadOrEmptyCertificateRejected(t *testing.T) {
 		if ok {
 			t.Fatal("Expected appending no certs")
 		}
-		if got, want := len(pool.Subjects()), 0; got != want {
+		if got, want := len(pool.RawCertificates()), 0; got != want {
 			t.Fatalf("Got %d cert(s) in pool, expected %d", got, want)
 		}
 	}
@@ -57,7 +57,7 @@ func TestLoadMultipleCertsFromPEM(t *testing.T) {
 	if !ok {
 		t.Fatal("Rejected valid multiple certs")
 	}
-	if got, want := len(pool.Subjects()), 2; got != want {
+	if got, want := len(pool.RawCertificates()), 2; got != want {
 		t.Fatalf("Got %d certs in pool, expected %d", got, want)
 	}
 }
