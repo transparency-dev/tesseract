@@ -32,6 +32,7 @@ import (
 	"github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/fsck"
+	"github.com/transparency-dev/tesseract/cmd/fsck/internal/tui"
 	"github.com/transparency-dev/tesseract/internal/client"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/mod/sumdb/note"
@@ -40,13 +41,14 @@ import (
 )
 
 var (
-	monitoringURL = flag.String("monitoring_url", "", "Base tlog-tiles URL")
-	bearerToken   = flag.String("bearer_token", "", "The bearer token for authorizing HTTP requests to the storage URL, if needed")
-	N             = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
-	origin        = flag.String("origin", "", "Origin of the log to check")
-	pubKey        = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
-	userAgentInfo = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
+	monitoringURL    = flag.String("monitoring_url", "", "Base tlog-tiles URL")
+	bearerToken      = flag.String("bearer_token", "", "The bearer token for authorizing HTTP requests to the storage URL, if needed")
+	N                = flag.Uint("N", 1, "The number of workers to use when fetching/comparing resources")
+	origin           = flag.String("origin", "", "Origin of the log to check")
+	pubKey           = flag.String("public_key", "", "The log's public key in base64 encoded DER format")
+	userAgentInfo    = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
 	bundleCompressed = flag.Bool("bundle_compressed", false, "Enable decompression of entry bundles, useful for Sunlight logs")
+	ui               = flag.Bool("ui", true, "Set to true to use a TUI to display progress, or false for logging")
 )
 
 const (
@@ -61,19 +63,38 @@ type fetcher interface {
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
-	ctx := context.Background()
+	ctx, cancel := context.WithCancel(context.Background())
 	src := fetcherFromFlags()
 	v := verifierFromFlags()
 	lsc := newLogStateCollector(*N)
+	f := fsck.New(*origin, v, src, lsc.merkleLeafHasher(), fsck.Opts{N: *N})
 	eg := errgroup.Group{}
 	eg.Go(func() error {
 		defer lsc.Close()
-		return fsck.Check(ctx, *origin, v, src, *N, lsc.merkleLeafHasher())
+		defer cancel()
+		return f.Check(ctx)
 
 	})
 	eg.Go(func() error {
 		return lsc.checkIssuersTask(ctx, src.ReadIssuer, *N)
 	})
+
+	if *ui {
+		if err := tui.RunApp(ctx, f); err != nil {
+			klog.Errorf("App exited: %v", err)
+		}
+		// User may have exited the UI, cancel the context to signal to everything else.
+		cancel()
+	} else {
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-time.After(time.Second):
+				klog.V(1).Infof("Ranges:\n%s", f.Status())
+			}
+		}
+	}
 
 	if err := eg.Wait(); err != nil {
 		klog.Exitf("FAILED:\n%v", err)
