@@ -124,7 +124,11 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	http.Handle("/", logHandler)
 
 	// Bring up the HTTP server and serve until we get a signal not to.
-	srv := http.Server{Addr: *httpEndpoint}
+	srv := http.Server{
+		Addr: *httpEndpoint,
+		// Set timeout for reading headers to avoid a slowloris attack.
+		ReadHeaderTimeout: 5 * time.Second,
+	}
 	shutdownWG := new(sync.WaitGroup)
 	shutdownWG.Add(1)
 	go awaitSignal(func() {
