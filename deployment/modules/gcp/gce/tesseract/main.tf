@@ -9,7 +9,7 @@ terraform {
 
 locals {
   # TODO(phbnf): use a different service account
-  cloudrun_service_account_id = var.env == "" ? "cloudrun-sa" : "cloudrun-${var.env}-sa"
+  tesseract_service_account_id = var.env == "" ? "tesseract-sa" : "tesseract-${var.env}-sa"
   spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
   spanner_antispam_db_path    = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
 }
@@ -91,7 +91,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
-    email  = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com" # change this
+    email  = "${local.tesseract_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
     scopes = ["cloud-platform"]                                                               # Allows using service accounts and OAuth.
   }
 }
