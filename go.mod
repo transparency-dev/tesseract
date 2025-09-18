@@ -25,6 +25,8 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20250916175020-ebf3e50324d3
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.42.0
+	github.com/tink-crypto/tink-go-gcpkms/v2 v2.2.0
+	github.com/tink-crypto/tink-go/v2 v2.4.0
 	github.com/transparency-dev/formats v0.0.0-20251017110053-404c0d5b696c
 	github.com/transparency-dev/merkle v0.0.2
 	github.com/transparency-dev/tessera v1.0.1-0.20251028124643-ff15e941ea8c
