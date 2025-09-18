@@ -17,6 +17,7 @@ package ct
 import (
 	"bytes"
 	"crypto/x509"
+	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
@@ -24,7 +25,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/transparency-dev/tesseract/internal/lax509"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"k8s.io/klog/v2"
@@ -44,6 +44,12 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
 	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
 }
+
+var (
+	oidExtensionNameConstraints     = []int{2, 5, 29, 30}
+	oidExtensionCertificatePolicies = []int{2, 5, 29, 32}
+	oidAnyPolicyExtension           = []uint64{2, 5, 29, 32, 0}
+)
 
 // ParseExtKeyUsages parses strings into x509ExtKeyUsage.
 // Throws an error if the string does not match with a known key usage.
@@ -158,7 +164,7 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
-	intermediatePool := x509util.NewPEMCertPool()
+	intermediatePool := x509.NewCertPool()
 
 	for i, certBytes := range rawChain {
 		cert, err := x509.ParseCertificate(certBytes)
@@ -170,6 +176,8 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 
 		// All but the first cert form part of the intermediate pool
 		if i > 0 {
+			// We'll relax the leaf cert later, after the time validity checks
+			relaxCert(cert)
 			intermediatePool.AddCert(cert)
 		}
 	}
@@ -238,14 +246,23 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
 	// See /internal/lax509/README.md for further information.
-	verifyOpts := lax509.VerifyOptions{
-		Roots:         cv.trustedRoots.CertPool(),
-		Intermediates: intermediatePool.CertPool(),
-		KeyUsages:     cv.extKeyUsages,
-		AcceptSHA1:    cv.acceptSHA1,
+	roots := x509.NewCertPool()
+	for _, root := range cv.trustedRoots.RawCertificates() {
+		relaxCert(root)
+		roots.AddCert(root)
 	}
 
-	verifiedChains, err := lax509.Verify(cert, verifyOpts)
+	verifyOpts := x509.VerifyOptions{
+		Roots:               roots,
+		Intermediates:       intermediatePool,
+		KeyUsages:           cv.extKeyUsages,
+		CurrentTime:         time.UnixMilli(2),
+		CertificatePolicies: nil,
+	}
+
+	relaxCert(cert)
+
+	verifiedChains, err := cert.Verify(verifyOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -316,4 +333,60 @@ func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certifi
 		}
 	}
 	return true
+}
+
+// removeExtension removes a given extension from a list.
+func removeExtension(extensions []pkix.Extension, oid asn1.ObjectIdentifier) []pkix.Extension {
+	i := 0
+	for _, e := range extensions {
+		if !e.Id.Equal(oid) {
+			extensions[i] = e
+			i++
+		}
+	}
+	return extensions[:i]
+}
+
+// relaxCert modifies parsed certificates fields to relax verification constraints.
+// This DOES NOT modify the Raw certificate.
+func relaxCert(cert *x509.Certificate) {
+	cert.UnhandledCriticalExtensions = nil
+	cert.UnknownExtKeyUsage = nil
+
+	// Name constraints
+	cert.Extensions = removeExtension(cert.Extensions, oidExtensionNameConstraints)
+	cert.PermittedDNSDomainsCritical = false
+	cert.PermittedDNSDomains = nil
+	cert.ExcludedDNSDomains = nil
+	cert.PermittedIPRanges = nil
+	cert.ExcludedIPRanges = nil
+	cert.PermittedEmailAddresses = nil
+	cert.ExcludedEmailAddresses = nil
+	cert.PermittedURIDomains = nil
+	cert.ExcludedURIDomains = nil
+
+	cert.NotBefore = time.UnixMilli(1)
+	cert.NotAfter = time.UnixMilli(3)
+
+	cert.MaxPathLen = -1
+	cert.MaxPathLenZero = false
+
+	// Policies
+	cert.Extensions = removeExtension(cert.Extensions, oidExtensionCertificatePolicies)
+	cert.Policies = []x509.OID{mustNewOIDFromInts(oidAnyPolicyExtension)}
+	cert.PolicyIdentifiers = nil
+	cert.PolicyMappings = nil
+	cert.InhibitAnyPolicy = -1
+	cert.InhibitAnyPolicyZero = false
+	cert.InhibitPolicyMapping = -1
+	cert.InhibitPolicyMappingZero = false
+	cert.RequireExplicitPolicy = -1
+	cert.RequireExplicitPolicyZero = false
+}
+func mustNewOIDFromInts(ints []uint64) x509.OID {
+	oid, err := x509.OIDFromInts(ints)
+	if err != nil {
+		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
+	}
+	return oid
 }

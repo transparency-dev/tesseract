@@ -5,7 +5,6 @@
 package lax509
 
 import (
-	"bytes"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
@@ -78,12 +77,6 @@ func (s *CertPool) len() int {
 	return len(s.lazyCerts)
 }
 
-// cert returns cert index n in s.
-func (s *CertPool) cert(n int) (*x509.Certificate, func([]*x509.Certificate) error, error) {
-	cert, err := s.lazyCerts[n].getCert()
-	return cert, s.lazyCerts[n].constraint, err
-}
-
 // Clone returns a copy of s.
 func (s *CertPool) Clone() *CertPool {
 	p := &CertPool{
@@ -102,60 +95,6 @@ func (s *CertPool) Clone() *CertPool {
 	}
 	copy(p.lazyCerts, s.lazyCerts)
 	return p
-}
-
-type potentialParent struct {
-	cert       *x509.Certificate
-	constraint func([]*x509.Certificate) error
-}
-
-// findPotentialParents returns the certificates in s which might have signed
-// cert.
-func (s *CertPool) findPotentialParents(cert *x509.Certificate) []potentialParent {
-	if s == nil {
-		return nil
-	}
-
-	// consider all candidates where cert.Issuer matches cert.Subject.
-	// when picking possible candidates the list is built in the order
-	// of match plausibility as to save cycles in buildChains:
-	//   AKID and SKID match
-	//   AKID present, SKID missing / AKID missing, SKID present
-	//   AKID and SKID don't match
-	var matchingKeyID, oneKeyID, mismatchKeyID []potentialParent
-	for _, c := range s.byName[string(cert.RawIssuer)] {
-		candidate, constraint, err := s.cert(c)
-		if err != nil {
-			continue
-		}
-		kidMatch := bytes.Equal(candidate.SubjectKeyId, cert.AuthorityKeyId)
-		switch {
-		case kidMatch:
-			matchingKeyID = append(matchingKeyID, potentialParent{candidate, constraint})
-		case (len(candidate.SubjectKeyId) == 0 && len(cert.AuthorityKeyId) > 0) ||
-			(len(candidate.SubjectKeyId) > 0 && len(cert.AuthorityKeyId) == 0):
-			oneKeyID = append(oneKeyID, potentialParent{candidate, constraint})
-		default:
-			mismatchKeyID = append(mismatchKeyID, potentialParent{candidate, constraint})
-		}
-	}
-
-	found := len(matchingKeyID) + len(oneKeyID) + len(mismatchKeyID)
-	if found == 0 {
-		return nil
-	}
-	candidates := make([]potentialParent, 0, found)
-	candidates = append(candidates, matchingKeyID...)
-	candidates = append(candidates, oneKeyID...)
-	candidates = append(candidates, mismatchKeyID...)
-	return candidates
-}
-
-func (s *CertPool) contains(cert *x509.Certificate) bool {
-	if s == nil {
-		return false
-	}
-	return s.haveSum[sha256.Sum224(cert.Raw)]
 }
 
 // AddCert adds a certificate to a pool.
