@@ -190,7 +190,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			Reader:            reader,
 			IssuerStorage:     issuerStorage,
 			EnableAwaiter:     false,
-			MaxDedupeInFlight: 10,
+			MaxDedupInFlight: 10,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
