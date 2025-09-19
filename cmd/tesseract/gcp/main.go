@@ -45,13 +45,17 @@ func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset or empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset or empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&additionalSigners, "additional_signer_private_key_secret_name", "Private key secret name for additional Ed25519 checkpoint signatures, may be supplied multiple times. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
+	flag.UintVar(&pushbackMaxDedupInFlight, "pushback_max_dedup_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
+	// DEPRECATED: will be removed shortly
+	flag.UintVar(&pushbackMaxDedupInFlight, "pushback_max_dedupe_in_flight", 100, "DEPRECATED: use pushback_max_dedup_in_flight. Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
 }
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart     timestampFlag
-	notAfterLimit     timestampFlag
-	additionalSigners multiStringFlag
+	notAfterStart            timestampFlag
+	notAfterLimit            timestampFlag
+	additionalSigners        multiStringFlag
+	pushbackMaxDedupInFlight uint
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
@@ -74,7 +78,6 @@ var (
 	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
 	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
 	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
-	pushbackMaxDedupInFlight = flag.Uint("pushback_max_dedup_in_flight", 100, "Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
 	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", gcp_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
 	clientHTTPTimeout         = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
 	clientHTTPMaxIdle         = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
@@ -271,11 +274,11 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	}
 
 	sopts := storage.CTStorageOptions{
-		Appender:          appender,
-		Reader:            reader,
-		IssuerStorage:     issuerStorage,
-		EnableAwaiter:     *enablePublicationAwaiter,
-		MaxDedupInFlight: *pushbackMaxDedupInFlight,
+		Appender:         appender,
+		Reader:           reader,
+		IssuerStorage:    issuerStorage,
+		EnableAwaiter:    *enablePublicationAwaiter,
+		MaxDedupInFlight: pushbackMaxDedupInFlight,
 	}
 
 	return storage.NewCTStorage(ctx, &sopts)
