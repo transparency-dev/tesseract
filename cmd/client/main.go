@@ -163,16 +163,16 @@ func readCheckpoint(ctx context.Context, fetcher *client.HTTPFetcher) (*log.Chec
 	// Read Checkpoint
 	cpRaw, err := fetcher.ReadCheckpoint(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to fetch checkpoint: %v", err)
+		return nil, fmt.Errorf("failed to fetch checkpoint: %v", err)
 	}
 	if *verify {
 		logSigV, err := logSigVerifier(*origin, *logPubKey)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to create verifier: %v", err)
+			return nil, fmt.Errorf("failed to create verifier: %v", err)
 		}
 		cp, _, _, err := log.ParseCheckpoint(cpRaw, *origin, logSigV)
 		if err != nil {
-			return nil, fmt.Errorf("Failed to parse checkpoint: %v", err)
+			return nil, fmt.Errorf("failed to parse checkpoint: %v", err)
 		}
 		return cp, nil
 	}
@@ -208,24 +208,24 @@ func verifyLeafEntry(ctx context.Context, entry *staticct.Entry, cp *log.Checkpo
 	if e.IsPrecert {
 		cert, err := x509.ParseCertificate(e.Precertificate)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to parse precertificate: %v", err))
+			errs = append(errs, fmt.Errorf("failed to parse precertificate: %v", err))
 		}
 		chain = append(chain, cert)
 	} else {
 		cert, err := x509.ParseCertificate(e.Certificate)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to parse precertificate: %v", err))
+			errs = append(errs, fmt.Errorf("failed to parse precertificate: %v", err))
 		}
 		chain = append(chain, cert)
 	}
 	for i, hash := range entry.FingerprintsChain {
 		iss, err := fetcher.ReadIssuer(ctx, hash[:])
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to fetch issuer number %d: %v", i, err))
+			errs = append(errs, fmt.Errorf("failed to fetch issuer number %d: %v", i, err))
 		}
 		cert, err := x509.ParseCertificate(iss)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("Failed to parse issuer number %d: %v", i, err))
+			errs = append(errs, fmt.Errorf("failed to parse issuer number %d: %v", i, err))
 		}
 		chain = append(chain, cert)
 	}
@@ -236,7 +236,7 @@ func verifyLeafEntry(ctx context.Context, entry *staticct.Entry, cp *log.Checkpo
 
 	ee, err := x509util.EntryFromChain(chain, entry.IsPrecert, entry.Timestamp)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("Failed to reconstruct entry from the leaf and issuers: %v", err))
+		errs = append(errs, fmt.Errorf("failed to reconstruct entry from the leaf and issuers: %v", err))
 	}
 	eee := ctonly.Entry{
 		Timestamp:         ee.Timestamp,
@@ -247,7 +247,7 @@ func verifyLeafEntry(ctx context.Context, entry *staticct.Entry, cp *log.Checkpo
 		FingerprintsChain: ee.FingerprintsChain,
 	}
 	if diff := cmp.Diff(e, eee); len(diff) != 0 {
-		errs = append(errs, fmt.Errorf("Leaf entry not built properly (- fetched leaf data, + expected value): \n%s", diff))
+		errs = append(errs, fmt.Errorf("leaf entry not built properly (- fetched leaf data, + expected value): \n%s", diff))
 	}
 
 	// TODO(phboneff): if this is an end cert and it has an SCT from this very log, check that SCT
@@ -258,15 +258,15 @@ func verifyLeafEntry(ctx context.Context, entry *staticct.Entry, cp *log.Checkpo
 		Size:   cp.Size,
 		Hash:   cp.Hash}, fetcher.ReadTile)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("Failed to create proofBuilder: %v", err))
+		errs = append(errs, fmt.Errorf("failed to create proofBuilder: %v", err))
 	}
 	mlh := e.MerkleLeafHash(entry.LeafIndex)
 	ip, err := proofBuilder.InclusionProof(ctx, li)
 	if err != nil {
-		errs = append(errs, fmt.Errorf("Failed to build InclusionProof %v", err))
+		errs = append(errs, fmt.Errorf("failed to build InclusionProof %v", err))
 	}
 	if err := proof.VerifyInclusion(hasher, li, cp.Size, mlh, ip, cp.Hash); err != nil {
-		errs = append(errs, fmt.Errorf("Failed to verify inclusion of leaf %d in tree of size %d: %v", li, cp.Size, err))
+		errs = append(errs, fmt.Errorf("failed to verify inclusion of leaf %d in tree of size %d: %v", li, cp.Size, err))
 	}
 
 	return errs
