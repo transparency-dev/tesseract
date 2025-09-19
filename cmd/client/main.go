@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
-	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"flag"
@@ -16,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/formats/log"
 	tdnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/merkle/proof"
@@ -73,19 +72,7 @@ func main() {
 	}
 	ctx := context.Background()
 
-	// Read Checkpoint
-	cpRaw, err := fetcher.ReadCheckpoint(ctx)
-	if err != nil {
-		klog.Exitf("Failed to fetch checkpoint: %v", err)
-	}
-	logSigV, err := logSigVerifier(*origin, *logPubKey)
-	if err != nil {
-		klog.Exitf("Failed to create verifier: %v", err)
-	}
-	cp, _, _, err := log.ParseCheckpoint(cpRaw, *origin, logSigV)
-	if err != nil {
-		klog.Exitf("Failed to parse checkpoint: %v", err)
-	}
+	cp, nil := readCheckpoint(ctx, fetcher)
 	if li >= cp.Size {
 		klog.Exitf("Leaf index %d is out of range for log size %d", li, cp.Size)
 	}
@@ -109,96 +96,8 @@ func main() {
 		klog.Exitf("Failed to unmarshal entry: %v", err)
 	}
 
-	// Check that the entry has been built properly
-	e := ctonly.Entry{
-		Timestamp:         entry.Timestamp,
-		IsPrecert:         entry.IsPrecert,
-		Certificate:       entry.Certificate,
-		Precertificate:    entry.Precertificate,
-		IssuerKeyHash:     entry.IssuerKeyHash,
-		FingerprintsChain: entry.FingerprintsChain,
-	}
-	var chain []*x509.Certificate
-	if e.IsPrecert {
-		cert, err := x509.ParseCertificate(e.Precertificate)
-		if err != nil {
-			klog.Exitf("Failed to parse precertificate: %v", err)
-		}
-		chain = append(chain, cert)
-	} else {
-		cert, err := x509.ParseCertificate(e.Certificate)
-		if err != nil {
-			klog.Exitf("Failed to parse precertificate: %v", err)
-		}
-		chain = append(chain, cert)
-	}
-	for i, hash := range entry.FingerprintsChain {
-		iss, err := fetcher.ReadIssuer(ctx, hash[:])
-		if err != nil {
-			klog.Exitf("Failed to fetch issuer number %d: %v", i, err)
-		}
-		cert, err := x509.ParseCertificate(iss)
-		if err != nil {
-			klog.Exitf("Failed ot parse issuer number %d: %v", i, err)
-		}
-		chain = append(chain, cert)
-	}
-	ee, err := x509util.EntryFromChain(chain, entry.IsPrecert, entry.Timestamp)
-	if err != nil {
-		klog.Exitf("Failed to reconstruct entry from the leaf and issuers: %v", err)
-	}
-
-	var errs []error
-	if e.Timestamp != ee.Timestamp {
-		errs = append(errs, fmt.Errorf("timestamp don't match: %d, %d", e.Timestamp, ee.Timestamp))
-	}
-	if e.IsPrecert != ee.IsPrecert {
-		errs = append(errs, fmt.Errorf("IsPrecert don't match: %t, %t", e.IsPrecert, ee.IsPrecert))
-	}
-	if !bytes.Equal(e.Certificate, ee.Certificate) {
-		if e.IsPrecert {
-			errs = append(errs, fmt.Errorf("TBSCertificates don't match"))
-		} else {
-			errs = append(errs, fmt.Errorf("certificates don't match"))
-		}
-	}
-	if !bytes.Equal(e.Precertificate, ee.Precertificate) {
-		errs = append(errs, fmt.Errorf("precertificates don't match"))
-	}
-	if !bytes.Equal(e.IssuerKeyHash, ee.IssuerKeyHash) {
-		errs = append(errs, fmt.Errorf("IssuerKeyHashes don't match, got %q, want %q", hex.EncodeToString(e.IssuerKeyHash), hex.EncodeToString(ee.IssuerKeyHash)))
-	}
-	if len(e.FingerprintsChain) != len(ee.FingerprintsChain) {
-		errs = append(errs, fmt.Errorf("lengths of fingerprints chains don't match: got %d, want %d", len(e.FingerprintsChain), len(ee.FingerprintsChain)))
-	} else {
-		for i := range e.FingerprintsChain {
-			if !bytes.Equal(e.FingerprintsChain[i][:], ee.FingerprintsChain[i][:]) {
-				errs = append(errs, fmt.Errorf("fingerprints %d don't match, got %q, want %q", i, hex.EncodeToString(e.FingerprintsChain[i][:]), hex.EncodeToString(ee.FingerprintsChain[i][:])))
-			}
-		}
-	}
-	if len(errs) > 0 {
-		klog.Exitf("Leaf entry not built properly: %v", errors.Join(errs...))
-	}
-
-	// TODO(phboneff): check that the chain is valid
-	// TODO(phboneff): if this is an end cert and it has an SCT from this very log, check that SCT
-
-	// Build inclusion proof
-	proofBuilder, err := client.NewProofBuilder(ctx, log.Checkpoint{
-		Origin: *origin,
-		Size:   cp.Size,
-		Hash:   cp.Hash}, fetcher.ReadTile)
-	if err != nil {
-		klog.Exitf("Failed to create proofBuilder: %v", err)
-	}
-	mlh := e.MerkleLeafHash(entry.LeafIndex)
-	ip, err := proofBuilder.InclusionProof(ctx, li)
-	if err != nil {
-		klog.Exitf("Failed to build InclusionProof %v", err)
-	}
-	if err := proof.VerifyInclusion(hasher, li, cp.Size, mlh, ip, cp.Hash); err != nil {
-		klog.Exitf("Failed to verify inclusion of leaf %d in tree of size %d: %v", li, cp.Size, err)
+	if errs := verify(ctx, &entry, cp, li, fetcher); len(errs) != 0 {
+		klog.Exitf("Failed to verify leaf entry: %s", errors.Join(errs...))
 	}
 
 	pemBlock := &pem.Block{
@@ -245,4 +144,105 @@ func logSigVerifier(origin, b64PubKey string) (note.Verifier, error) {
 	}
 
 	return logSigV, nil
+}
+
+func readCheckpoint(ctx context.Context, fetcher *client.HTTPFetcher) (*log.Checkpoint, error) {
+	// Read Checkpoint
+	cpRaw, err := fetcher.ReadCheckpoint(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to fetch checkpoint: %v", err)
+	}
+	logSigV, err := logSigVerifier(*origin, *logPubKey)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to create verifier: %v", err)
+	}
+	cp, _, _, err := log.ParseCheckpoint(cpRaw, *origin, logSigV)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to parse checkpoint: %v", err)
+	}
+	return cp, nil
+}
+
+func verify(ctx context.Context, entry *staticct.Entry, cp *log.Checkpoint, li uint64, fetcher *client.HTTPFetcher) []error {
+	// Check that the entry has been built properly
+	var errs []error
+	e := ctonly.Entry{
+		Timestamp:         entry.Timestamp,
+		IsPrecert:         entry.IsPrecert,
+		Certificate:       entry.Certificate,
+		Precertificate:    entry.Precertificate,
+		IssuerKeyHash:     entry.IssuerKeyHash,
+		FingerprintsChain: entry.FingerprintsChain,
+	}
+
+	if li != entry.LeafIndex {
+		errs = append(errs, fmt.Errorf("leaf_index in leaf's %d SCT: got %d, want %d", li, li, entry.LeafIndex))
+	}
+
+	var chain []*x509.Certificate
+	if e.IsPrecert {
+		cert, err := x509.ParseCertificate(e.Precertificate)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed to parse precertificate: %v", err))
+		}
+		chain = append(chain, cert)
+	} else {
+		cert, err := x509.ParseCertificate(e.Certificate)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed to parse precertificate: %v", err))
+		}
+		chain = append(chain, cert)
+	}
+	for i, hash := range entry.FingerprintsChain {
+		iss, err := fetcher.ReadIssuer(ctx, hash[:])
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed to fetch issuer number %d: %v", i, err))
+		}
+		cert, err := x509.ParseCertificate(iss)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("Failed to parse issuer number %d: %v", i, err))
+		}
+		chain = append(chain, cert)
+	}
+
+	// TODO(phboneff): check that the chain is valid
+	// TODO(phboneff): check that the last element of the chain is a root
+	// TODO(phboneff): check that the chain validates with the log's rootset
+
+	ee, err := x509util.EntryFromChain(chain, entry.IsPrecert, entry.Timestamp)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("Failed to reconstruct entry from the leaf and issuers: %v", err))
+	}
+	eee := ctonly.Entry{
+		Timestamp:         ee.Timestamp,
+		IsPrecert:         ee.IsPrecert,
+		Certificate:       ee.Certificate,
+		Precertificate:    ee.Precertificate,
+		IssuerKeyHash:     ee.IssuerKeyHash,
+		FingerprintsChain: ee.FingerprintsChain,
+	}
+	if diff := cmp.Diff(e, eee); len(diff) != 0 {
+		errs = append(errs, fmt.Errorf("Leaf entry not built properly (- fetched leaf data, + expected value): \n%s", diff))
+	}
+
+	// TODO(phboneff): if this is an end cert and it has an SCT from this very log, check that SCT
+
+	// Inclusion proof
+	proofBuilder, err := client.NewProofBuilder(ctx, log.Checkpoint{
+		Origin: *origin,
+		Size:   cp.Size,
+		Hash:   cp.Hash}, fetcher.ReadTile)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("Failed to create proofBuilder: %v", err))
+	}
+	mlh := e.MerkleLeafHash(entry.LeafIndex)
+	ip, err := proofBuilder.InclusionProof(ctx, li)
+	if err != nil {
+		errs = append(errs, fmt.Errorf("Failed to build InclusionProof %v", err))
+	}
+	if err := proof.VerifyInclusion(hasher, li, cp.Size, mlh, ip, cp.Hash); err != nil {
+		errs = append(errs, fmt.Errorf("Failed to verify inclusion of leaf %d in tree of size %d: %v", li, cp.Size, err))
+	}
+
+	return errs
 }
