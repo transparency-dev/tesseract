@@ -294,7 +294,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-	index, dedupedTimeMillis, err := log.storage.Add(ctx, entry)
+	index, dedupTimeMillis, err := log.storage.Add(ctx, entry)
 	if err != nil {
 		if errors.Is(err, tessera.ErrPushback) {
 			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
@@ -302,9 +302,9 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		}
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
-	isDup := dedupedTimeMillis != timeMillis
-	dedupedAttribute := duplicateKey.Bool(isDup)
-	entry.Timestamp = dedupedTimeMillis
+	isDup := dedupTimeMillis != timeMillis
+	dedupAttribute := duplicateKey.Bool(isDup)
+	entry.Timestamp = dedupTimeMillis
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
@@ -338,7 +338,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
-	return http.StatusOK, []attribute.KeyValue{dedupedAttribute}, nil
+	return http.StatusOK, []attribute.KeyValue{dedupAttribute}, nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
