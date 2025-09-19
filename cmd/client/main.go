@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
@@ -31,8 +32,9 @@ import (
 var (
 	monitoringURL = flag.String("monitoring_url", "", "Log monitoring URL.")
 	leafIndex     = flag.String("leaf_index", "", "The index of the leaf to fetch.")
-	origin        = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix.")
-	logPubKey     = flag.String("log_public_key", "", "Public key for the log, base64 encoded.")
+	origin        = flag.String("origin", "", "Origin of the log, for checkpoints and the monitoring prefix. MUST be provided if verify=true.")
+	logPubKey     = flag.String("log_public_key", "", "Public key for the log, base64 encoded. MUST be provided if verify=true.")
+	verify        = flag.Bool("verify", true, "Whether or not to verify the leaf entry.")
 )
 
 var (
@@ -60,6 +62,15 @@ func main() {
 	logURL, err := url.Parse(*monitoringURL)
 	if err != nil {
 		klog.Exitf("Invalid --monitoring_url %q: %v", *monitoringURL, err)
+	}
+
+	if *verify {
+		if *logPubKey == "" {
+			klog.Exitf("log_public_key MUST be provided when verify=true")
+		}
+		if *origin == "" {
+			klog.Exitf("origin MUST be provided when verify=true")
+		}
 	}
 
 	// Create client
@@ -96,8 +107,10 @@ func main() {
 		klog.Exitf("Failed to unmarshal entry: %v", err)
 	}
 
-	if errs := verify(ctx, &entry, cp, li, fetcher); len(errs) != 0 {
-		klog.Exitf("Failed to verify leaf entry: %s", errors.Join(errs...))
+	if *verify {
+		if errs := verifyLeafEntry(ctx, &entry, cp, li, fetcher); len(errs) != 0 {
+			klog.Exitf("Failed to verify leaf entry: %s", errors.Join(errs...))
+		}
 	}
 
 	pemBlock := &pem.Block{
@@ -152,18 +165,30 @@ func readCheckpoint(ctx context.Context, fetcher *client.HTTPFetcher) (*log.Chec
 	if err != nil {
 		return nil, fmt.Errorf("Failed to fetch checkpoint: %v", err)
 	}
-	logSigV, err := logSigVerifier(*origin, *logPubKey)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to create verifier: %v", err)
+	if *verify {
+		logSigV, err := logSigVerifier(*origin, *logPubKey)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to create verifier: %v", err)
+		}
+		cp, _, _, err := log.ParseCheckpoint(cpRaw, *origin, logSigV)
+		if err != nil {
+			return nil, fmt.Errorf("Failed to parse checkpoint: %v", err)
+		}
+		return cp, nil
 	}
-	cp, _, _, err := log.ParseCheckpoint(cpRaw, *origin, logSigV)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to parse checkpoint: %v", err)
+	// A https://c2sp.org/static-ct-api logsize is on the second line
+	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
+	if len(l) < 2 {
+		return nil, errors.New("invalid checkpoint - no size")
 	}
-	return cp, nil
+	size, err := strconv.ParseUint(string(l[1]), 10, 64)
+	if err != nil {
+		return nil, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+	}
+	return &log.Checkpoint{Size: size}, nil
 }
 
-func verify(ctx context.Context, entry *staticct.Entry, cp *log.Checkpoint, li uint64, fetcher *client.HTTPFetcher) []error {
+func verifyLeafEntry(ctx context.Context, entry *staticct.Entry, cp *log.Checkpoint, li uint64, fetcher *client.HTTPFetcher) []error {
 	// Check that the entry has been built properly
 	var errs []error
 	e := ctonly.Entry{
