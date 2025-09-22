@@ -16,6 +16,7 @@ package ct
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
@@ -245,13 +246,18 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		AcceptSHA1:    cv.acceptSHA1,
 	}
 
+	crtsh := make([]string, len(chain))
+	for i, c := range chain {
+		crtsh[i] = fmt.Sprintf("https://crt.sh/?sha256=%x", sha256.Sum256(c.Raw))
+	}
+
 	verifiedChains, err := lax509.Verify(cert, verifyOpts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to verify chain: %v: %s", err, strings.Join(crtsh, ", "))
 	}
 
 	if len(verifiedChains) == 0 {
-		return nil, errors.New("no path to root found when trying to validate chains")
+		return nil, fmt.Errorf("no path to root found when trying to validate chains: %s", strings.Join(crtsh, ", "))
 	}
 
 	// Verify might have found multiple paths to roots. Now we check that we have a path that
@@ -263,7 +269,7 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		}
 	}
 
-	return nil, errors.New("no RFC compliant path to root found when trying to validate chain")
+	return nil, fmt.Errorf("cert chains to an accepted root, but no RFC compliant path found when trying to validate chains: %s", strings.Join(crtsh, ", "))
 }
 
 // Validate is used by add-chain and add-pre-chain. It checks that the supplied
