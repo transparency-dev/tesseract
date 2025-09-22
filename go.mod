@@ -25,7 +25,7 @@ require (
 	github.com/rivo/tview v0.42.0
 	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/tessera v1.0.0-rc3.0.20250917133736-8b261cbd41ef
+	github.com/transparency-dev/tessera v1.0.0
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
 	go.opentelemetry.io/otel v1.38.0
