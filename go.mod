@@ -15,7 +15,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.39.4
 	github.com/aws/smithy-go v1.23.0
 	github.com/cenkalti/backoff/v5 v5.0.3
-	github.com/charmbracelet/bubbletea v1.3.9
+	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/x/ansi v0.10.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/gdamore/tcell/v2 v2.9.0
