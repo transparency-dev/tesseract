@@ -261,7 +261,7 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 	verifyOpts := x509.VerifyOptions{
 		Roots:               roots,
 		Intermediates:       intermediatePool,
-		KeyUsages:           cv.extKeyUsages,
+		KeyUsages:           []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
 		CurrentTime:         time.UnixMilli(2),
 		CertificatePolicies: nil,
 	}
@@ -342,7 +342,7 @@ func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certifi
 }
 
 // removeExtension removes a given extension from a list.
-func removeExtension(extensions []pkix.Extension, oid asn1.ObjectIdentifier) []pkix.Extension {
+func removeExtension(oid asn1.ObjectIdentifier, extensions []pkix.Extension) {
 	i := 0
 	for _, e := range extensions {
 		if !e.Id.Equal(oid) {
@@ -350,7 +350,7 @@ func removeExtension(extensions []pkix.Extension, oid asn1.ObjectIdentifier) []p
 			i++
 		}
 	}
-	return extensions[:i]
+	extensions = extensions[:i]
 }
 
 // relaxCert modifies parsed certificates fields to relax verification constraints.
@@ -360,7 +360,7 @@ func relaxCert(cert *x509.Certificate) {
 	cert.UnknownExtKeyUsage = nil
 
 	// Name constraints
-	cert.Extensions = removeExtension(cert.Extensions, oidExtensionNameConstraints)
+	removeExtension(oidExtensionNameConstraints, cert.Extensions)
 	cert.PermittedDNSDomainsCritical = false
 	cert.PermittedDNSDomains = nil
 	cert.ExcludedDNSDomains = nil
@@ -378,7 +378,7 @@ func relaxCert(cert *x509.Certificate) {
 	cert.MaxPathLenZero = false
 
 	// Policies
-	cert.Extensions = removeExtension(cert.Extensions, oidExtensionCertificatePolicies)
+	removeExtension(oidExtensionCertificatePolicies, cert.Extensions)
 	cert.Policies = []x509.OID{mustNewOIDFromInts(oidAnyPolicyExtension)}
 	cert.PolicyIdentifiers = nil
 	cert.PolicyMappings = nil
