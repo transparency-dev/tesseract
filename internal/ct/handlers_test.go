@@ -186,10 +186,10 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 		}
 
 		sopts := storage.CTStorageOptions{
-			Appender:          appender,
-			Reader:            reader,
-			IssuerStorage:     issuerStorage,
-			EnableAwaiter:     false,
+			Appender:         appender,
+			Reader:           reader,
+			IssuerStorage:    issuerStorage,
+			EnableAwaiter:    false,
 			MaxDedupInFlight: 10,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
@@ -758,6 +758,47 @@ func TestAddPreChain(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRateLimiter(t *testing.T) {
+	certAge := time.Minute
+	cert := &x509.Certificate{
+		NotBefore: time.Now().Add(-certAge),
+	}
+	chain := []*x509.Certificate{cert}
+
+	for _, test := range []struct {
+		name       string
+		age        time.Duration
+		rate       float64
+		wantAccept bool
+	}{
+		{
+			name:       "submission is newer than age",
+			age:        certAge + time.Second,
+			rate:       0,
+			wantAccept: true,
+		},
+		{
+			name: "age == submission",
+			age:  certAge,
+			rate: 0,
+		},
+		{
+			name: "submission is older than age ",
+			age:  certAge - time.Second,
+			rate: 0,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			r := RateLimits{}
+			r.OldSubmission(test.age, test.rate)
+			if got := r.Accept(t.Context(), chain); got != test.wantAccept {
+				t.Fatalf("Got %t want %t", got, test.wantAccept)
+			}
+		})
+	}
+
 }
 
 func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {

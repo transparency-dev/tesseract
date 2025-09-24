@@ -28,10 +28,11 @@ var (
 )
 
 var (
-	codeKey      = attribute.Key("http.response.status_code")
-	operationKey = attribute.Key("tesseract.operation")
-	originKey    = attribute.Key("tesseract.origin")
-	duplicateKey = attribute.Key("tesseract.duplicate")
+	codeKey            = attribute.Key("http.response.status_code")
+	operationKey       = attribute.Key("tesseract.operation")
+	originKey          = attribute.Key("tesseract.origin")
+	duplicateKey       = attribute.Key("tesseract.duplicate")
+	rateLimitReasonKey = attribute.Key("tesseract.rate_limit")
 )
 
 func mustCreate[T any](t T, err error) T {

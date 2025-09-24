@@ -123,6 +123,16 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 	return &cv, nil
 }
 
+// OldSubmissionOpts
+type OldSubmissionLimit struct {
+	AgeThreshold time.Duration
+	RateLimit    float64
+}
+
+type LogHandlerOpts struct {
+	OldSubmissionLimit *OldSubmissionLimit
+}
+
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
 //
 // HTTP server handlers implement static-ct-api submission APIs:
@@ -132,7 +142,7 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 // be served independently, either through the storage's system serving
 // infrastructure directly (GCS over HTTPS for instance), or with an
 // independent serving stack of your choice.
-func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string) (http.Handler, error) {
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (http.Handler, error) {
 	cv, err := newChainValidator(cfg)
 	if err != nil {
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
@@ -142,15 +152,18 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
 
-	opts := &ct.HandlerOptions{
+	ctOpts := &ct.HandlerOptions{
 		Deadline:           httpDeadline,
 		RequestLog:         &ct.DefaultRequestLog{},
 		MaskInternalErrors: maskInternalErrors,
 		TimeSource:         sysTimeSource,
 		PathPrefix:         pathPrefix,
 	}
+	if opts.OldSubmissionLimit != nil {
+		ctOpts.RateLimits.OldSubmission(opts.OldSubmissionLimit.AgeThreshold, opts.OldSubmissionLimit.RateLimit)
+	}
 
-	handlers := ct.NewPathHandlers(ctx, opts, log)
+	handlers := ct.NewPathHandlers(ctx, ctOpts, log)
 	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {

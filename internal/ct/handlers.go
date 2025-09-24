@@ -16,11 +16,13 @@ package ct
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/rand/v2"
 	"net/http"
 	"strconv"
@@ -36,6 +38,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
 
@@ -61,13 +64,14 @@ const (
 var (
 	// Metrics are all per-log (label "origin"), but may also be
 	// per-entrypoint (label "ep") or per-return-code (label "rc").
-	once             sync.Once
-	knownLogs        metric.Int64Gauge       // origin => value (always 1.0)
-	lastSCTIndex     metric.Int64Gauge       // origin => value
-	lastSCTTimestamp metric.Int64Gauge       // origin => value
-	reqCounter       metric.Int64Counter     // origin, op => value
-	rspCounter       metric.Int64Counter     // origin, op, code => value
-	reqDuration      metric.Float64Histogram // origin, op, code => value
+	once                sync.Once
+	knownLogs           metric.Int64Gauge       // origin => value (always 1.0)
+	lastSCTIndex        metric.Int64Gauge       // origin => value
+	lastSCTTimestamp    metric.Int64Gauge       // origin => value
+	reqCounter          metric.Int64Counter     // origin, op => value
+	rspCounter          metric.Int64Counter     // origin, op, code => value
+	reqDuration         metric.Float64Histogram // origin, op, code => value
+	rateLimitedRequests metric.Int64Counter     // origin, reason
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -97,6 +101,10 @@ func setupMetrics() {
 		metric.WithDescription("CT HTTP response duration"),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(otel.SubSecondLatencyHistogramBuckets...)))
+
+	rateLimitedRequests = mustCreate(meter.Int64Counter("tesseract.http.request.ratelimited.count",
+		metric.WithDescription("CT HTTP rate-limited requests"),
+		metric.WithUnit("{request}")))
 }
 
 // entrypoints is a list of entrypoint names as exposed in statistics/logging.
@@ -182,6 +190,38 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// RateLimits knows how to apply configurable rate limits to submissions.
+type RateLimits struct {
+	oldAge     time.Duration
+	oldLimiter *rate.Limiter
+}
+
+// OldSubmission configures a rate limit on old certs.
+//
+// Submissions whose notBefore date is at least as old as age will be subject to the specified number of entries per second.
+func (r *RateLimits) OldSubmission(age time.Duration, limit float64) {
+	r.oldAge = age
+	r.oldLimiter = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
+	klog.Infof("Configured OldSubmission limiter with %0.2f qps for certs aged >= %s", limit, age)
+}
+
+// Accept returns true if the provided chain should be accepted, and false otherwise.
+func (r *RateLimits) Accept(ctx context.Context, chain []*x509.Certificate) bool {
+	if len(chain) == 0 {
+		return false
+	}
+	if r.oldLimiter != nil {
+		if age := time.Since(chain[0].NotBefore); age >= r.oldAge {
+			if r.oldLimiter.Allow() {
+				return true
+			}
+			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("too many old certs")))
+			return false
+		}
+	}
+	return true
+}
+
 // HandlerOptions describes log handlers options.
 type HandlerOptions struct {
 	// Deadline is a timeout for HTTP requests.
@@ -196,6 +236,8 @@ type HandlerOptions struct {
 	TimeSource TimeSource
 	// PathPrefix prefixes static-ct-api endpoint paths.
 	PathPrefix string
+	// RateLimits describes optional rate limits to enforce.
+	RateLimits RateLimits
 }
 
 func NewPathHandlers(ctx context.Context, opts *HandlerOptions, log *log) pathHandlers {
@@ -279,6 +321,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	for _, cert := range chain {
 		opts.RequestLog.addCertToChain(ctx, cert)
 	}
+	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
+		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+		return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
+	}
+
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
 	// epoch, and use this throughout.
 	nanosPerMilli := int64(time.Millisecond / time.Nanosecond)
