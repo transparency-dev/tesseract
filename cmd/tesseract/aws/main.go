@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -69,6 +70,7 @@ var (
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	limitOldCerts            = flag.String("limit_old_submissions", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -137,7 +139,10 @@ submitted by Chrome's Merge Delay Monitor Root for the time being, but will
 eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors, *pathPrefix)
+	hOpts := tesseract.LogHandlerOpts{
+		OldSubmissionLimit: rateLimitFromFlags(),
+	}
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
@@ -355,4 +360,23 @@ func antispamMySQLConfig() *mysql.Config {
 		AllowCleartextPasswords: true,
 		AllowNativePasswords:    true,
 	}
+}
+
+func rateLimitFromFlags() *tesseract.OldSubmissionLimit {
+	if *limitOldCerts == "" {
+		return nil
+	}
+	bits := strings.Split(*limitOldCerts, ":")
+	if len(bits) != 2 {
+		klog.Exitf("Invalid format for --limit_old_submissions flag")
+	}
+	a, err := time.ParseDuration(bits[0])
+	if err != nil {
+		klog.Exitf("Invalid age passed to --limit_old_submissions flag %q: %v", bits[0], err)
+	}
+	l, err := strconv.ParseFloat(bits[1], 64)
+	if err != nil {
+		klog.Exitf("Invalid rate limit passed to --limit_old_submissions %q: %v", bits[1], err)
+	}
+	return &tesseract.OldSubmissionLimit{AgeThreshold: a, RateLimit: l}
 }
