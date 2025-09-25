@@ -98,3 +98,9 @@ variable "public_bucket" {
   type        = bool
   default     = false
 }
+
+variable "limit_old_submissions" {
+  description = "Set to configure rate limiting for old submissions. See --limit_old_submissions flag for format."
+  type        = string
+  default     = ""
+}
