@@ -131,6 +131,7 @@ type OldSubmissionLimit struct {
 
 type LogHandlerOpts struct {
 	OldSubmissionLimit *OldSubmissionLimit
+	DedupInFlightLimit float64
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.

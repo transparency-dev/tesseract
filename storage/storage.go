@@ -22,10 +22,10 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/transparency-dev/tessera"
@@ -33,6 +33,7 @@ import (
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
+	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
 
@@ -57,53 +58,36 @@ type IssuerStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender          *tessera.Appender
-	Reader            tessera.LogReader
-	IssuerStorage     IssuerStorage
-	EnableAwaiter     bool
-	MaxDedupInFlight uint
+	Appender         *tessera.Appender
+	Reader           tessera.LogReader
+	IssuerStorage    IssuerStorage
+	EnableAwaiter    bool
+	MaxDedupInFlight float64
 }
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData               func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers            func(context.Context, []KV) error
-	reader                  tessera.LogReader
-	awaiter                 *tessera.PublicationAwaiter
-	enableAwaiter           bool
-	dedupFutureInFlight    atomic.Int64
-	maxDedupFutureInFlight uint
+	storeData          func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers       func(context.Context, []KV) error
+	reader             tessera.LogReader
+	awaiter            *tessera.PublicationAwaiter
+	enableAwaiter      bool
+	dedupFutureLimiter *rate.Limiter
 }
 
 // NewCTStorage instantiates a CTStorage object.
 func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:               tessera.NewCertificateTransparencyAppender(opts.Appender),
-		storeIssuers:            cachedStoreIssuers(opts.IssuerStorage),
-		reader:                  opts.Reader,
-		awaiter:                 awaiter,
-		enableAwaiter:           opts.EnableAwaiter,
-		maxDedupFutureInFlight: opts.MaxDedupInFlight,
+		storeData:          tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:       cachedStoreIssuers(opts.IssuerStorage),
+		reader:             opts.Reader,
+		awaiter:            awaiter,
+		enableAwaiter:      opts.EnableAwaiter,
+		dedupFutureLimiter: rate.NewLimiter(rate.Limit(opts.MaxDedupInFlight), int(math.Ceil(opts.MaxDedupInFlight))),
 	}
-
-	// Reset the number of dedupFutureInFlight every second allow new duplicate requests in.
-	go ctStorage.resetDedupFutureInFlightJob(ctx, 1*time.Second)
 
 	return ctStorage, nil
-}
-
-// resetDedupFutureInFlightJob resets the number of dedupFutureInFlight to 0 every interval.
-func (cts *CTStorage) resetDedupFutureInFlightJob(ctx context.Context, interval time.Duration) {
-	t := time.NewTicker(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			cts.dedupFutureInFlight.Store(0)
-		}
-	}
 }
 
 // dedupFuture returns the index and timestamp matching a future.
@@ -118,10 +102,9 @@ func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (i
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
 
-	if cts.dedupFutureInFlight.Load() > int64(cts.maxDedupFutureInFlight) {
+	if !cts.dedupFutureLimiter.Allow() {
 		return 0, 0, fmt.Errorf("too many duplicate submissions %w", tessera.ErrPushback)
 	}
-	cts.dedupFutureInFlight.Add(1)
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
