@@ -314,7 +314,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	for _, der := range addChainReq.Chain {
 		opts.RequestLog.addDERToChain(ctx, der)
 	}
-	chain, err := log.chainValidator.Validate(addChainReq, isPrecert)
+	chain, err := parseChain(addChainReq.Chain)
+	if err != nil {
+		return http.StatusBadRequest, nil, fmt.Errorf("failed to parse add-chain contents: %s", err)
+	}
+	chain, err = log.chainValidator.Validate(chain, isPrecert)
 	if err != nil {
 		return http.StatusBadRequest, nil, fmt.Errorf("failed to verify add-chain contents: %s", err)
 	}

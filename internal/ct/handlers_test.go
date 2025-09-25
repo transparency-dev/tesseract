@@ -338,7 +338,7 @@ func TestNewPathHandlers(t *testing.T) {
 	})
 }
 
-func parseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate, timestamp time.Time) (*ctonly.Entry, []*x509.Certificate) {
+func mustParseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.Certificate, timestamp time.Time) (*ctonly.Entry, []*x509.Certificate) {
 	t.Helper()
 	pool := loadCertsIntoPoolOrDie(t, pemChain)
 	leafChain := pool.RawCertificates()
@@ -540,7 +540,7 @@ func TestAddChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, false, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
+				unseqEntry, wantIssChain := mustParseChain(t, false, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
@@ -687,7 +687,7 @@ func TestAddPreChain(t *testing.T) {
 				t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddPreChainPath, got, want)
 			}
 			if test.want == http.StatusOK {
-				unseqEntry, wantIssChain := parseChain(t, true, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
+				unseqEntry, wantIssChain := mustParseChain(t, true, test.chain, log.chainValidator.Roots()[0], test.wantTimestamp)
 
 				var gotRsp rfc6962.AddChainResponse
 				if err := json.NewDecoder(resp.Body).Decode(&gotRsp); err != nil {
