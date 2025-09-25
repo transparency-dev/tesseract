@@ -54,6 +54,16 @@ means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 signing algorithms. This flag is a temporary solution to allow chains submitted
 by Chrome's Merge Delay Monitor Root. It will eventually be removed and chains
 using such algorithms will be rejected.
+- `limit_old_submissions`: This optional flag can be set define a limit on how
+many "old" certificates and precertificates will be accepted per second.
+The flag value should be of the form `<age>:<limit>`, where `<limit>` is a
+per-second rate limit, and `<age>` defines how old a given submission's
+`notBefore` date must be for that submission to be subject to the rate limit.
+`<age>` must be formatted per Go's [time.ParseDuration](https://pkg.go.dev/time#ParseDuration),
+and `<limit>` is a positive real number.
+E.g. `28h=500` means that a rate-limit of 500 submissions/s will be applied to any
+certificate, or precertificate, whose `notBefore` date is at least 28 hours old
+at the time of submission.
 
 #### Adding to the log
 

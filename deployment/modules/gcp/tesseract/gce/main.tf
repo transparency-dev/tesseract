@@ -41,6 +41,7 @@ module "gce" {
   batch_max_age                  = var.batch_max_age
   batch_max_size                 = var.batch_max_size
   enable_publication_awaiter     = var.enable_publication_awaiter
+  limit_old_submissions          = var.limit_old_submissions
 
   depends_on = [
     module.secretmanager,
