@@ -41,7 +41,7 @@ type Storage interface {
 
 // ChainValidator provides functions to validate incoming chains.
 type ChainValidator interface {
-	Validate(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error)
+	Validate(chain []*x509.Certificate, expectingPrecert bool) ([]*x509.Certificate, error)
 	Roots() []*x509.Certificate
 }
 

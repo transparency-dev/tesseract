@@ -407,7 +407,11 @@ func TestValidateChain(t *testing.T) {
 			if test.modifyOpts != nil {
 				test.modifyOpts(&opts)
 			}
-			gotPath, err := opts.validate(test.chain)
+			chain, err := parseChain(test.chain)
+			if err != nil {
+				t.Fatalf("parseChain()=%v", err)
+			}
+			gotPath, err := opts.validate(chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -478,7 +482,11 @@ func TestNotAfterRange(t *testing.T) {
 			if !test.notAfterLimit.IsZero() {
 				opts.notAfterLimit = &test.notAfterLimit
 			}
-			gotPath, err := opts.validate(test.chain)
+			chain, err := parseChain(test.chain)
+			if err != nil {
+				t.Fatalf("parseChain()=%v", err)
+			}
+			gotPath, err := opts.validate(chain)
 			if err != nil {
 				if !test.wantErr {
 					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
@@ -499,7 +507,11 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 		t.Fatal("failed to load fake root")
 	}
 	// Validity period: May 13, 2016 - Jul 12, 2019.
-	chain := pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM})
+	derChain := pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM})
+	chain, err := parseChain(derChain)
+	if err != nil {
+		t.Fatalf("parseChain()=%v", err)
+	}
 	opts := chainValidator{
 		trustedRoots: fakeCARoots,
 		extKeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
@@ -606,7 +618,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 
 // Builds a chain of DER-encoded certs.
 // Note: ordering is important
-func pemsToDERChain(t *testing.T, pemCerts []string) [][]byte {
+func pemsToDERChain(t testing.TB, pemCerts []string) [][]byte {
 	t.Helper()
 	chain := make([][]byte, 0, len(pemCerts))
 	for _, pemCert := range pemCerts {
@@ -616,7 +628,7 @@ func pemsToDERChain(t *testing.T, pemCerts []string) [][]byte {
 	return chain
 }
 
-func pemToCert(t *testing.T, pemData string) *x509.Certificate {
+func pemToCert(t testing.TB, pemData string) *x509.Certificate {
 	t.Helper()
 	bytes, rest := pem.Decode([]byte(pemData))
 	if len(rest) > 0 {
@@ -703,7 +715,11 @@ func TestPreIssuedCert(t *testing.T) {
 				trustedRoots: roots,
 				extKeyUsages: tc.eku,
 			}
-			chain, err := opts.validate(tc.chain)
+			chain, err := parseChain(tc.chain)
+			if err != nil {
+				t.Fatalf("parseChain()=%v", err)
+			}
+			chain, err = opts.validate(chain)
 			if err != nil {
 				t.Fatalf("failed to ValidateChain: %v", err)
 			}

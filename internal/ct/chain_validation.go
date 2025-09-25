@@ -147,32 +147,29 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	return false, nil
 }
 
-// validate takes the certificate chain as it was parsed from a JSON request. Ensures all
-// elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
-// end entity certificate in the chain to a trusted root cert, possibly using the intermediates
-// supplied in the chain. Then applies the RFC requirement that the path must involve all
-// the submitted chain in the order of submission.
-func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error) {
-	if len(rawChain) == 0 {
-		return nil, errors.New("empty certificate chain")
-	}
-
+// parseChain parses the provided slice of DER certificates into a slice of Certificate structs.
+func parseChain(rawChain [][]byte) ([]*x509.Certificate, error) {
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
-	intermediatePool := x509util.NewPEMCertPool()
 
-	for i, certBytes := range rawChain {
+	for _, certBytes := range rawChain {
 		cert, err := x509.ParseCertificate(certBytes)
 		if err != nil {
 			return nil, fmt.Errorf("x509.ParseCertificate(): %v", err)
 		}
 
 		chain = append(chain, cert)
+	}
+	return chain, nil
+}
 
-		// All but the first cert form part of the intermediate pool
-		if i > 0 {
-			intermediatePool.AddCert(cert)
-		}
+// validate ensures that there is a valid path from the end entity certificate in the chain to
+// a trusted root cert, possibly using the intermediates supplied in the chain. Then applies the
+// RFC requirement that the path must involve all the submitted chain in the order of
+// submission.
+func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificate, error) {
+	if len(chain) == 0 {
+		return nil, errors.New("empty certificate chain")
 	}
 
 	naStart := cv.notAfterStart
@@ -234,6 +231,14 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		}
 	}
 
+	intermediatePool := x509util.NewPEMCertPool()
+	for i, cert := range chain {
+		// All but the first cert form part of the intermediate pool
+		if i > 0 {
+			intermediatePool.AddCert(cert)
+		}
+	}
+
 	// We can now do the verification. Use lax509 with looser verification
 	// constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
@@ -277,9 +282,11 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 // constraints.
 // TODO(phbnf): add tests
 // TODO(phbnf): merge with validate
-func (cv chainValidator) Validate(req rfc6962.AddChainRequest, expectingPrecert bool) ([]*x509.Certificate, error) {
-	// We already checked that the chain is not empty so can move on to validation.
-	validPath, err := cv.validate(req.Chain)
+func (cv chainValidator) Validate(unverifiedChain []*x509.Certificate, expectingPrecert bool) ([]*x509.Certificate, error) {
+	if len(unverifiedChain) == 0 {
+		return nil, errors.New("empty chain")
+	}
+	validPath, err := cv.validate(unverifiedChain)
 	if err != nil {
 		// We rejected it because the cert failed checks or we could not find a path to a root etc.
 		// Lots of possible causes for errors
@@ -294,9 +301,9 @@ func (cv chainValidator) Validate(req rfc6962.AddChainRequest, expectingPrecert 
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			klog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %q", req.Chain)
+			klog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %v", unverifiedChain)
 		} else {
-			klog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %q", req.Chain)
+			klog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", unverifiedChain)
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
 	}
