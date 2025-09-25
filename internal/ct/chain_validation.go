@@ -147,6 +147,22 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 	return false, nil
 }
 
+// ParseChain parses the provided slice of DER certificates into a slice of Certificate structs.
+func ParseChain(rawChain [][]byte) ([]*x509.Certificate, error) {
+	// First make sure the certs parse as X.509
+	chain := make([]*x509.Certificate, 0, len(rawChain))
+
+	for _, certBytes := range rawChain {
+		cert, err := x509.ParseCertificate(certBytes)
+		if err != nil {
+			return nil, fmt.Errorf("x509.ParseCertificate(): %v", err)
+		}
+
+		chain = append(chain, cert)
+	}
+	return chain, nil
+}
+
 // validate takes the certificate chain as it was parsed from a JSON request. Ensures all
 // elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
 // end entity certificate in the chain to a trusted root cert, possibly using the intermediates
@@ -157,26 +173,13 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		return nil, errors.New("empty certificate chain")
 	}
 
-	// First make sure the certs parse as X.509
-	chain := make([]*x509.Certificate, 0, len(rawChain))
-	intermediatePool := x509util.NewPEMCertPool()
-
-	for i, certBytes := range rawChain {
-		cert, err := x509.ParseCertificate(certBytes)
-		if err != nil {
-			return nil, fmt.Errorf("x509.ParseCertificate(): %v", err)
-		}
-
-		chain = append(chain, cert)
-
-		// All but the first cert form part of the intermediate pool
-		if i > 0 {
-			intermediatePool.AddCert(cert)
-		}
-	}
-
 	naStart := cv.notAfterStart
 	naLimit := cv.notAfterLimit
+
+	chain, err := ParseChain(rawChain)
+	if err != nil {
+		return nil, err
+	}
 	cert := chain[0]
 
 	// Check whether the expiry date of the cert is within the acceptable range.
@@ -231,6 +234,14 @@ func (cv chainValidator) validate(rawChain [][]byte) ([]*x509.Certificate, error
 		}
 		if !good {
 			return nil, fmt.Errorf("rejecting certificate without EKU in %v", cv.extKeyUsages)
+		}
+	}
+
+	intermediatePool := x509util.NewPEMCertPool()
+	for i, cert := range chain {
+		// All but the first cert form part of the intermediate pool
+		if i > 0 {
+			intermediatePool.AddCert(cert)
 		}
 	}
 
