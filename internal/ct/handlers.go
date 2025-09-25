@@ -320,6 +320,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
+		opts.RequestLog.addCertToChain(ctx, chain[0])
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 		return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
 	}

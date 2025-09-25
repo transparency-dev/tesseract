@@ -163,11 +163,10 @@ func parseChain(rawChain [][]byte) ([]*x509.Certificate, error) {
 	return chain, nil
 }
 
-// validate takes the certificate chain as it was parsed from a JSON request. Ensures all
-// elements in the chain decode as X.509 certificates. Ensures that there is a valid path from the
-// end entity certificate in the chain to a trusted root cert, possibly using the intermediates
-// supplied in the chain. Then applies the RFC requirement that the path must involve all
-// the submitted chain in the order of submission.
+// validate ensures that there is a valid path from the end entity certificate in the chain to
+// a trusted root cert, possibly using the intermediates supplied in the chain. Then applies the
+// RFC requirement that the path must involve all the submitted chain in the order of
+// submission.
 func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificate, error) {
 	if len(chain) == 0 {
 		return nil, errors.New("empty certificate chain")
