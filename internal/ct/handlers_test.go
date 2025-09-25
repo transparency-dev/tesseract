@@ -72,6 +72,7 @@ var (
 		TimeSource:         timeSource,
 		PathPrefix:         prefix,
 	}
+	defaultMaxDedupInFlight = 10.0
 
 	// POSIX subdirectory
 	logDir = "log"
@@ -104,7 +105,7 @@ func (f *fixedTimeSource) Add1m() {
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
 //
 // It returns the log and the path to the storage directory.
-func setupTestLog(t *testing.T) (*log, string) {
+func setupTestLog(t *testing.T, maxDedupInFlight float64) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
 
@@ -124,12 +125,20 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), timeSource)
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir, maxDedupInFlight), timeSource)
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
 
 	return log, storageDir
+}
+
+// setupDefaultTestLog creates a test TesseraCT log using a POSIX backend and default parameters.
+//
+// It returns the log and the path to the storage directory.
+func setupDefaultTestLog(t *testing.T) (*log, string) {
+	t.Helper()
+	return setupTestLog(t, defaultMaxDedupInFlight)
 }
 
 // setupTestServer creates a test TesseraCT server with a single endpoint at path.
@@ -151,7 +160,7 @@ func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 //   - a POSIX issuer storage system
 //
 // It also prepares directories to host the log and the deduplication database.
-func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
+func newPOSIXStorageFunc(t *testing.T, root string, maxDedupInFlight float64) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
@@ -190,7 +199,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			Reader:           reader,
 			IssuerStorage:    issuerStorage,
 			EnableAwaiter:    false,
-			MaxDedupInFlight: 10,
+			MaxDedupInFlight: maxDedupInFlight,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
@@ -231,7 +240,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	// Anything in the post handler list should reject GET
@@ -252,7 +261,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	// Anything in the get handler list should reject POST.
@@ -285,7 +294,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	handlers := NewPathHandlers(t.Context(), &hOpts, log)
 
 	for path, handler := range postHandlers(t, handlers) {
@@ -307,7 +316,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(t.Context(), &HandlerOptions{PathPrefix: prefix}, log)
 		// Check each entrypoint has a handler
@@ -358,7 +367,7 @@ func mustParseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.
 }
 
 func TestGetRoots(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
 	defer server.Close()
 
@@ -448,7 +457,7 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupDefaultTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 
@@ -473,7 +482,6 @@ func TestAddChain(t *testing.T) {
 		wantIdx       uint64
 		wantLogSize   uint64
 		wantTimestamp time.Time
-		err           error
 	}{
 		{
 			descr: "leaf-only",
@@ -519,7 +527,7 @@ func TestAddChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupDefaultTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
 	defer server.Close()
 	defer timeSource.Reset()
@@ -621,7 +629,6 @@ func TestAddPreChain(t *testing.T) {
 		wantIdx       uint64
 		wantLogSize   uint64
 		wantTimestamp time.Time
-		err           error
 	}{
 		{
 			descr: "leaf-signed-by-different",
@@ -667,7 +674,7 @@ func TestAddPreChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupDefaultTestLog(t)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
 	defer server.Close()
 	defer timeSource.Reset()
@@ -755,6 +762,69 @@ func TestAddPreChain(t *testing.T) {
 
 				// TODO(phbnf): check inclusion proof
 				// TODO(phboneff): add a test with a backend write failure
+			}
+		})
+	}
+}
+
+func TestMaxDedupInFlight(t *testing.T) {
+	var tests = []struct {
+		descr   string
+		chains  [][]string
+		wants   []int
+		maxRate float64
+	}{
+		{
+			descr: "success",
+			chains: [][]string{
+				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			},
+			maxRate: 100,
+			wants:   []int{http.StatusOK, http.StatusOK},
+		},
+		{
+			descr: "dup-not-allowed",
+			chains: [][]string{
+				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			},
+			maxRate: 0,
+			wants:   []int{http.StatusOK, http.StatusTooManyRequests},
+		},
+		{
+			descr: "not-a-dup",
+			chains: [][]string{
+				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				[]string{testdata.TestCertPEM, testdata.CACertPEM},
+			},
+			maxRate: 0,
+			wants:   []int{http.StatusOK, http.StatusOK},
+		},
+	}
+
+	defer timeSource.Reset()
+
+	for _, test := range tests {
+		log, _ := setupTestLog(t, test.maxRate)
+		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+		defer server.Close()
+
+		// Increment time to make it unique for each test case.
+		t.Run(test.descr, func(t *testing.T) {
+			for i, chain := range test.chains {
+				timeSource.Add1m()
+				pool := loadCertsIntoPoolOrDie(t, chain)
+				chain := createJSONChain(t, *pool)
+
+				resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
+
+				if err != nil {
+					t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddChainPath, err)
+				}
+				if got, want := resp.StatusCode, test.wants[i]; got != want {
+					t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
+				}
 			}
 		})
 	}
