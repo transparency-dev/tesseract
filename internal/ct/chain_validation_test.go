@@ -618,7 +618,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 
 // Builds a chain of DER-encoded certs.
 // Note: ordering is important
-func pemsToDERChain(t *testing.T, pemCerts []string) [][]byte {
+func pemsToDERChain(t testing.TB, pemCerts []string) [][]byte {
 	t.Helper()
 	chain := make([][]byte, 0, len(pemCerts))
 	for _, pemCert := range pemCerts {
@@ -628,7 +628,7 @@ func pemsToDERChain(t *testing.T, pemCerts []string) [][]byte {
 	return chain
 }
 
-func pemToCert(t *testing.T, pemData string) *x509.Certificate {
+func pemToCert(t testing.TB, pemData string) *x509.Certificate {
 	t.Helper()
 	bytes, rest := pem.Decode([]byte(pemData))
 	if len(rest) > 0 {

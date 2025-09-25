@@ -833,3 +833,51 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool 
 	}
 	return pool
 }
+
+// BenchmarkParseChain to see how expensive cert parsing is.
+//
+// go test --bench=BenchmarkParseChain -run='^$' ./internal/ct -v=1 --benchtime=10s
+// goos: linux
+// goarch: amd64
+// pkg: github.com/transparency-dev/tesseract/internal/ct
+// cpu: AMD Ryzen Threadripper PRO 3975WX 32-Cores
+// BenchmarkParseChain
+// BenchmarkParseChain-30            528866             22199 ns/op
+func BenchmarkParseChain(b *testing.B) {
+	chain := pemsToDERChain(b, []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM})
+	for b.Loop() {
+		_, err := parseChain(chain)
+		if err != nil {
+			b.Fatalf("parseChain: %v", err)
+		}
+	}
+}
+
+// BenchmarkValidateChain to see how expensive cert validating is.
+//
+// go test --bench=BenchmarkValidateChain -run='^$' ./internal/ct -v=1 --benchtime=10s
+// goos: linux
+// goarch: amd64
+// pkg: github.com/transparency-dev/tesseract/internal/ct
+// cpu: AMD Ryzen Threadripper PRO 3975WX 32-Cores
+// BenchmarkValidateChain
+// BenchmarkValidateChain-30           5774           2074281 ns/op
+func BenchmarkValidateChain(b *testing.B) {
+	rawChain := pemsToDERChain(b, []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM})
+	chain, err := parseChain(rawChain)
+	if err != nil {
+		b.Fatalf("parseChain: %v", err)
+	}
+	r := x509util.NewPEMCertPool()
+	r.AddCert(chain[2])
+	cv := chainValidator{
+		trustedRoots: r,
+	}
+
+	for b.Loop() {
+		_, err := cv.Validate(chain, true)
+		if err != nil {
+			b.Fatalf("Validate: %v", err)
+		}
+	}
+}
