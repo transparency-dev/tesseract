@@ -221,7 +221,7 @@ func (r *RateLimits) Accept(ctx context.Context, chain []*x509.Certificate) bool
 			if r.oldLimiter.Allow() {
 				return true
 			}
-			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("too many old certs")))
+			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("old_cert")))
 			return false
 		}
 	}
@@ -330,7 +330,9 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
 		opts.RequestLog.addCertToChain(ctx, chain[0])
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
-		return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
+		return http.StatusTooManyRequests,
+			[]attribute.KeyValue{tooManyRequestsReasonKey.String("rate_limit_old_cert")},
+			errors.New(http.StatusText(http.StatusTooManyRequests))
 	}
 
 	chain, err = log.chainValidator.Validate(chain, isPrecert)
@@ -357,15 +359,26 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
 	index, dedupTimeMillis, err := log.storage.Add(ctx, entry)
+	// helper function to return a 429
+	tooManyRequests := func(reason string) (int, []attribute.KeyValue, error) {
+		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+		return http.StatusTooManyRequests, []attribute.KeyValue{tooManyRequestsReasonKey.String(reason)}, errors.New(http.StatusText(http.StatusTooManyRequests))
+	}
 	if err != nil {
-		if errors.Is(err, tessera.ErrPushback) {
-			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
-			return http.StatusTooManyRequests, nil, errors.New(http.StatusText(http.StatusTooManyRequests))
+		switch {
+		// Record the fact there was pushback, if any.
+		case errors.Is(err, tessera.ErrPushbackAntispam):
+			return tooManyRequests("tessera_pushback_antispam")
+		case errors.Is(err, tessera.ErrPushbackIntegration):
+			return tooManyRequests("tessera_pushback_integration")
+		case errors.Is(err, tessera.ErrPushback):
+			return tooManyRequests("tessera_pushback_other")
 		}
+		// If it's not a pushback, just flag that it's an errored request to avoid high cardinality of attribute values.
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
+
 	isDup := dedupTimeMillis != timeMillis
-	dedupAttribute := duplicateKey.Bool(isDup)
 	entry.Timestamp = dedupTimeMillis
 
 	// Always use the returned leaf as the basis for an SCT.
@@ -400,7 +413,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
-	return http.StatusOK, []attribute.KeyValue{dedupAttribute}, nil
+	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(isDup)}, nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
