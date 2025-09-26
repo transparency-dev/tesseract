@@ -74,7 +74,7 @@ var (
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format describe at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
-	limitOldCerts            = flag.String("limit_old_submissions", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
+	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -120,8 +120,8 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 
 	hOpts := tesseract.LogHandlerOpts{
-		OldSubmissionLimit: rateLimitFromFlags(),
-		DedupRL:            dedupRL,
+		NotBeforeRL: notBeforeRLFromFlags(),
+		DedupRL:     dedupRL,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
@@ -338,21 +338,21 @@ func (ms *multiStringFlag) Set(w string) error {
 	return nil
 }
 
-func rateLimitFromFlags() *tesseract.OldSubmissionLimit {
-	if *limitOldCerts == "" {
+func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
+	if *notBeforeRL == "" {
 		return nil
 	}
-	bits := strings.Split(*limitOldCerts, ":")
+	bits := strings.Split(*notBeforeRL, ":")
 	if len(bits) != 2 {
-		klog.Exitf("Invalid format for --limit_old_submissions flag")
+		klog.Exitf("Invalid format for --rate_limit_old_not_before flag")
 	}
 	a, err := time.ParseDuration(bits[0])
 	if err != nil {
-		klog.Exitf("Invalid age passed to --limit_old_submissions flag %q: %v", bits[0], err)
+		klog.Exitf("Invalid age passed to --rate_limit_old_not_before flag %q: %v", bits[0], err)
 	}
 	l, err := strconv.ParseFloat(bits[1], 64)
 	if err != nil {
-		klog.Exitf("Invalid rate limit passed to --limit_old_submissions %q: %v", bits[1], err)
+		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
 	}
-	return &tesseract.OldSubmissionLimit{AgeThreshold: a, RateLimit: l}
+	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }

@@ -198,17 +198,17 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RateLimits knows how to apply configurable rate limits to submissions.
 type RateLimits struct {
-	oldAge     time.Duration
-	oldLimiter *rate.Limiter
-	dedup      *rate.Limiter
+	notBeforeLimit time.Duration
+	notBefore      *rate.Limiter
+	dedup          *rate.Limiter
 }
 
 // OldSubmission configures a rate limit on old certs.
 //
 // Submissions whose notBefore date is at least as old as age will be subject to the specified number of entries per second.
-func (r *RateLimits) OldSubmission(age time.Duration, limit float64) {
-	r.oldAge = age
-	r.oldLimiter = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
+func (r *RateLimits) NotBefore(age time.Duration, limit float64) {
+	r.notBeforeLimit = age
+	r.notBefore = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
 	klog.Infof("Configured OldSubmission limiter with %0.2f qps for certs aged >= %s", limit, age)
 }
 
@@ -220,14 +220,14 @@ func (r *RateLimits) Dedup(limit float64) {
 	klog.Infof("Configured DedupInFlight limiter with %0.2f qps", limit)
 }
 
-// Accept returns true if the provided chain should be accepted, and false otherwise.
-func (r *RateLimits) Accept(ctx context.Context, chain []*x509.Certificate) bool {
+// AcceptNotBefore returns true if the provided chain should be accepted, and false otherwise.
+func (r *RateLimits) AcceptNotBefore(ctx context.Context, chain []*x509.Certificate) bool {
 	if len(chain) == 0 {
 		return false
 	}
-	if r.oldLimiter != nil {
-		if age := time.Since(chain[0].NotBefore); age >= r.oldAge {
-			if r.oldLimiter.Allow() {
+	if r.notBefore != nil {
+		if age := time.Since(chain[0].NotBefore); age >= r.notBeforeLimit {
+			if r.notBefore.Allow() {
 				return true
 			}
 			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("old_cert")))
@@ -347,8 +347,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	notBeforeAgeUnverified.Record(ctx, time.Since(chain[0].NotBefore).Seconds())
-
-	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
+	if ok := opts.RateLimits.AcceptNotBefore(ctx, chain); !ok {
 		opts.RequestLog.addCertToChain(ctx, chain[0])
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 		return http.StatusTooManyRequests,
