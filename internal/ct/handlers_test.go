@@ -800,7 +800,7 @@ func TestMaxDedupInFlight(t *testing.T) {
 	for _, test := range tests {
 		log, _ := setupTestLog(t)
 		hhOpts := hOpts()
-		hhOpts.RateLimits.DedupInFlight(test.maxRate)
+		hhOpts.RateLimits.Dedup(test.maxRate)
 		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
 		defer server.Close()
 

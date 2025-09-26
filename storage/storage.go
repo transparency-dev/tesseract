@@ -88,7 +88,7 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 // DedupFuture returns the timestamp matching a future.
 //
 // It waits for the entry matching the future to be integrated, fetches it and
-// extracts the timstamp from it.
+// extracts the timestamp from it.
 //
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
 func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
