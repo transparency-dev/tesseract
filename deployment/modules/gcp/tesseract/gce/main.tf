@@ -42,6 +42,7 @@ module "gce" {
   batch_max_size                 = var.batch_max_size
   enable_publication_awaiter     = var.enable_publication_awaiter
   rate_limit_old_not_before      = var.rate_limit_old_not_before
+  rate_limit_per_issuer          = var.rate_limit_per_issuer
   rate_limit_dedup               = var.rate_limit_dedup
 
   depends_on = [

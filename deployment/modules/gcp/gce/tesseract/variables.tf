@@ -106,6 +106,12 @@ variable "rate_limit_old_not_before" {
   default     = ""
 }
 
+variable "rate_limit_per_issuer" {
+  description = "Set to rate limit submissions per issuer per second."
+  type        = number
+  default     = -1 
+}
+
 variable "rate_limit_dedup" {
   description = "Set to rate limit duplicate submissions per second."
   type        = number

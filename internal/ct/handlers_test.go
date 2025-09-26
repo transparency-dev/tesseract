@@ -823,6 +823,71 @@ func TestMaxDedupInFlight(t *testing.T) {
 	}
 }
 
+func TestLimitIssuer(t *testing.T) {
+	var tests = []struct {
+		descr   string
+		chains  [][]string
+		wants   []int
+		maxRate float64
+	}{
+		{
+			descr: "no-limit",
+			chains: [][]string{
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			},
+			wants:   []int{http.StatusOK, http.StatusOK},
+			maxRate: -1,
+		},
+		{
+			descr: "success",
+			chains: [][]string{
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			},
+			maxRate: 100,
+			wants:   []int{http.StatusOK, http.StatusOK},
+		},
+		{
+			descr: "issuer-limited",
+			chains: [][]string{
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			},
+			maxRate: 1,
+			wants:   []int{http.StatusOK, http.StatusTooManyRequests},
+		},
+	}
+
+	for _, test := range tests {
+		log, _ := setupTestLog(t)
+		hhOpts := hOpts()
+		if test.maxRate > 0 {
+			hhOpts.RateLimits.Issuer(test.maxRate)
+		}
+		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
+		defer server.Close()
+		defer timeSource.Reset()
+
+		// Increment time to make it unique for each test case.
+		t.Run(test.descr, func(t *testing.T) {
+			for i, chain := range test.chains {
+				pool := loadCertsIntoPoolOrDie(t, chain)
+				chain := createJSONChain(t, *pool)
+
+				resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
+
+				if err != nil {
+					t.Fatalf("http.Post(%s)=(_,%q); want (_,nil)", rfc6962.AddChainPath, err)
+				}
+				if got, want := resp.StatusCode, test.wants[i]; got != want {
+					t.Errorf("http.Post(%s)=(%d,nil); want (%d,nil)", rfc6962.AddChainPath, got, want)
+				}
+			}
+		})
+	}
+}
+
 func TestRateLimiter(t *testing.T) {
 	certAge := time.Minute
 	cert := &x509.Certificate{

@@ -16,6 +16,7 @@ package ct
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -201,6 +202,8 @@ type RateLimits struct {
 	notBeforeLimit time.Duration
 	notBefore      *rate.Limiter
 	dedup          *rate.Limiter
+	issuerLimit    float64
+	issuer         *sync.Map
 }
 
 // OldSubmission configures a rate limit on old certs.
@@ -210,6 +213,15 @@ func (r *RateLimits) NotBefore(age time.Duration, limit float64) {
 	r.notBeforeLimit = age
 	r.notBefore = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
 	klog.Infof("Configured OldSubmission limiter with %0.2f qps for certs aged >= %s", limit, age)
+}
+
+// Issuer configures a rate limit on the first issuer of each chain.
+//
+// Submissions will be subject to the specified number of entries per second.
+func (r *RateLimits) Issuer(limit float64) {
+	r.issuerLimit = limit
+	r.issuer = &sync.Map{}
+	klog.Infof("Configured Issuer limiter with %0.2f qps per issuer", limit)
 }
 
 // Dedup configures a rate limit on entries being deduplicated.
@@ -233,6 +245,24 @@ func (r *RateLimits) AcceptNotBefore(ctx context.Context, chain []*x509.Certific
 			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("old_cert")))
 			return false
 		}
+	}
+	return true
+}
+
+// AcceptIssuer returns true if a chain should be accepted based on its first issuer, and false othwerwise.
+func (r *RateLimits) AcceptIssuer(ctx context.Context, chain []*x509.Certificate) bool {
+	if len(chain) == 0 {
+		return false
+	}
+	if r.issuer != nil && r.issuerLimit >= 0 {
+		issuer := sha256.Sum256(chain[0].RawIssuer)
+		v, _ := r.issuer.LoadOrStore(issuer, rate.NewLimiter(rate.Limit(r.issuerLimit), int(math.Ceil(r.issuerLimit))))
+		rl := v.(*rate.Limiter)
+		if rl.Allow() {
+			return true
+		}
+		rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("issuer")))
+		return false
 	}
 	return true
 }
@@ -361,6 +391,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	for _, cert := range chain {
 		opts.RequestLog.addCertToChain(ctx, cert)
+	}
+
+	if ok := opts.RateLimits.AcceptIssuer(ctx, chain); !ok {
+		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+		return http.StatusTooManyRequests, []attribute.KeyValue{tooManyRequestsReasonKey.String("rate_limit_issuer")}, errors.New(http.StatusText(http.StatusTooManyRequests))
 	}
 
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix

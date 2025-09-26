@@ -75,6 +75,7 @@ var (
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format describe at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
+	issuerRL                 = flag.Float64("rate_limit_per_issuer", -1, "Optionally rate limits submissions per issuer per second. Disabled when null or negative.")
 
 	// Performance flags
 	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -121,6 +122,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 
 	hOpts := tesseract.LogHandlerOpts{
 		NotBeforeRL: notBeforeRLFromFlags(),
+		IssuerRL:    *issuerRL,
 		DedupRL:     dedupRL,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)

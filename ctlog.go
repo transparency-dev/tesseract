@@ -131,6 +131,7 @@ type NotBeforeRL struct {
 
 type LogHandlerOpts struct {
 	NotBeforeRL *NotBeforeRL
+	IssuerRL    float64
 	DedupRL     float64
 }
 
@@ -162,6 +163,9 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 	}
 	if opts.NotBeforeRL != nil {
 		ctOpts.RateLimits.NotBefore(opts.NotBeforeRL.AgeThreshold, opts.NotBeforeRL.RateLimit)
+	}
+	if opts.IssuerRL > 0 {
+		ctOpts.RateLimits.Issuer(opts.IssuerRL)
 	}
 	if opts.DedupRL >= 0 {
 		ctOpts.RateLimits.Dedup(opts.DedupRL)

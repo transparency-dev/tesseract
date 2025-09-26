@@ -41,6 +41,7 @@ module "gce_container_tesseract" {
       "--enable_publication_awaiter=${var.enable_publication_awaiter}",
       "--accept_sha1_signing_algorithms=true",
       "--rate_limit_old_not_before=${var.rate_limit_old_not_before}",
+      "--rate_limit_per_issuer=${var.rate_limit_per_issuer}",
       "--rate_limit_dedup=${var.rate_limit_dedup}"
     ]
     tty : true # maybe remove this
