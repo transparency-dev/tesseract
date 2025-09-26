@@ -358,7 +358,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-	index, dedupTimeMillis, err := log.storage.Add(ctx, entry)
+	future, err := log.storage.Add(ctx, entry)
 	// helper function to return a 429
 	tooManyRequests := func(reason string) (int, []attribute.KeyValue, error) {
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
@@ -378,12 +378,26 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
 
-	isDup := dedupTimeMillis != timeMillis
-	entry.Timestamp = dedupTimeMillis
+	index, err := future()
+	if err != nil {
+		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't resolve tessera future: %v", err)
+	}
+
+	if index.IsDup {
+		entry.Timestamp, err = log.storage.DedupFuture(ctx, future)
+		if err != nil {
+			if errors.Is(err, tessera.ErrPushback) {
+				rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("dedup")))
+				w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+				return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
+			}
+			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve dulicate: %v", err)
+		}
+	}
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(index)
+	leafValue := entry.MerkleTreeLeaf(index.Index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
@@ -408,12 +422,12 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to write response: %s", err)
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
-	if !isDup {
+	if !index.IsDup {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
-		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
-	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(isDup)}, nil
+	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
