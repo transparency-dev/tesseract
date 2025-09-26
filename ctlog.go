@@ -160,6 +160,7 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		TimeSource:         sysTimeSource,
 		PathPrefix:         pathPrefix,
 	}
+	ctOpts.RateLimits.DedupInFlight(opts.DedupInFlightLimit)
 	if opts.OldSubmissionLimit != nil {
 		ctOpts.RateLimits.OldSubmission(opts.OldSubmissionLimit.AgeThreshold, opts.OldSubmissionLimit.RateLimit)
 	}

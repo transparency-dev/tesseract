@@ -64,19 +64,20 @@ var (
 	origin = "example.com"
 	prefix = "/" + origin
 
-	// Default handler options for tests
-	hOpts = HandlerOptions{
+	// POSIX subdirectory
+	logDir = "log"
+)
+
+func hOpts() *HandlerOptions {
+	return &HandlerOptions{
 		Deadline:           time.Millisecond * 2000,
 		RequestLog:         &DefaultRequestLog{},
 		MaskInternalErrors: false,
 		TimeSource:         timeSource,
 		PathPrefix:         prefix,
 	}
-	defaultMaxDedupInFlight = 10.0
 
-	// POSIX subdirectory
-	logDir = "log"
-)
+}
 
 type fixedTimeSource struct {
 	fakeTime time.Time
@@ -105,7 +106,7 @@ func (f *fixedTimeSource) Add1m() {
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
 //
 // It returns the log and the path to the storage directory.
-func setupTestLog(t *testing.T, maxDedupInFlight float64) (*log, string) {
+func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
 
@@ -125,7 +126,7 @@ func setupTestLog(t *testing.T, maxDedupInFlight float64) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir, maxDedupInFlight), timeSource)
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), timeSource)
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -133,19 +134,11 @@ func setupTestLog(t *testing.T, maxDedupInFlight float64) (*log, string) {
 	return log, storageDir
 }
 
-// setupDefaultTestLog creates a test TesseraCT log using a POSIX backend and default parameters.
-//
-// It returns the log and the path to the storage directory.
-func setupDefaultTestLog(t *testing.T) (*log, string) {
-	t.Helper()
-	return setupTestLog(t, defaultMaxDedupInFlight)
-}
-
 // setupTestServer creates a test TesseraCT server with a single endpoint at path.
-func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
+func setupTestServer(t *testing.T, log *log, path string, hOpts *HandlerOptions) *httptest.Server {
 	t.Helper()
 
-	handlers := NewPathHandlers(t.Context(), &hOpts, log)
+	handlers := NewPathHandlers(t.Context(), hOpts, log)
 	handler, ok := handlers[path]
 	if !ok {
 		t.Fatalf("Handler not found: %s", path)
@@ -160,7 +153,7 @@ func setupTestServer(t *testing.T, log *log, path string) *httptest.Server {
 //   - a POSIX issuer storage system
 //
 // It also prepares directories to host the log and the deduplication database.
-func newPOSIXStorageFunc(t *testing.T, root string, maxDedupInFlight float64) storage.CreateStorage {
+func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
@@ -195,11 +188,10 @@ func newPOSIXStorageFunc(t *testing.T, root string, maxDedupInFlight float64) st
 		}
 
 		sopts := storage.CTStorageOptions{
-			Appender:         appender,
-			Reader:           reader,
-			IssuerStorage:    issuerStorage,
-			EnableAwaiter:    false,
-			MaxDedupInFlight: maxDedupInFlight,
+			Appender:      appender,
+			Reader:        reader,
+			IssuerStorage: issuerStorage,
+			EnableAwaiter: false,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
@@ -240,8 +232,8 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log, _ := setupDefaultTestLog(t)
-	handlers := NewPathHandlers(t.Context(), &hOpts, log)
+	log, _ := setupTestLog(t)
+	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the post handler list should reject GET
 	for path, handler := range postHandlers(t, handlers) {
@@ -261,8 +253,8 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log, _ := setupDefaultTestLog(t)
-	handlers := NewPathHandlers(t.Context(), &hOpts, log)
+	log, _ := setupTestLog(t)
+	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the get handler list should reject POST.
 	for path, handler := range getHandlers(t, handlers) {
@@ -294,8 +286,8 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
 	}
 
-	log, _ := setupDefaultTestLog(t)
-	handlers := NewPathHandlers(t.Context(), &hOpts, log)
+	log, _ := setupTestLog(t)
+	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	for path, handler := range postHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
@@ -316,7 +308,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log, _ := setupDefaultTestLog(t)
+	log, _ := setupTestLog(t)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(t.Context(), &HandlerOptions{PathPrefix: prefix}, log)
 		// Check each entrypoint has a handler
@@ -367,8 +359,8 @@ func mustParseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.
 }
 
 func TestGetRoots(t *testing.T) {
-	log, _ := setupDefaultTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath))
+	log, _ := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath), hOpts())
 	defer server.Close()
 
 	resp, err := http.Get(server.URL + path.Join(prefix, rfc6962.GetRootsPath))
@@ -457,8 +449,8 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log, _ := setupDefaultTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+	log, _ := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 
 	for _, test := range tests {
@@ -527,8 +519,8 @@ func TestAddChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupDefaultTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+	log, dir := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
 
@@ -674,8 +666,8 @@ func TestAddPreChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupDefaultTestLog(t)
-	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath))
+	log, dir := setupTestLog(t)
+	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
 
@@ -804,8 +796,10 @@ func TestMaxDedupInFlight(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		log, _ := setupTestLog(t, test.maxRate)
-		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath))
+		log, _ := setupTestLog(t)
+		hhOpts := hOpts()
+		hhOpts.RateLimits.DedupInFlight(test.maxRate)
+		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
 		defer server.Close()
 		defer timeSource.Reset()
 

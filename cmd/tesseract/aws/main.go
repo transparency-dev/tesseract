@@ -141,6 +141,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 
 	hOpts := tesseract.LogHandlerOpts{
 		OldSubmissionLimit: rateLimitFromFlags(),
+		DedupInFlightLimit: pushbackMaxDedupInFlight,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
@@ -242,11 +243,10 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	}
 
 	sopts := storage.CTStorageOptions{
-		Appender:         appender,
-		Reader:           reader,
-		IssuerStorage:    issuerStorage,
-		EnableAwaiter:    *enablePublicationAwaiter,
-		MaxDedupInFlight: pushbackMaxDedupInFlight,
+		Appender:      appender,
+		Reader:        reader,
+		IssuerStorage: issuerStorage,
+		EnableAwaiter: *enablePublicationAwaiter,
 	}
 
 	return storage.NewCTStorage(ctx, &sopts)
