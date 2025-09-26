@@ -46,17 +46,17 @@ func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset or empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset or empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&additionalSigners, "additional_signer_private_key_secret_name", "Private key secret name for additional Ed25519 checkpoint signatures, may be supplied multiple times. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
-	flag.Float64Var(&limitDedupInFlight, "limit_dedup_in_flight", 100, "Optionally rate limits the number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always rate limited. When negative, no rate limits apply.")
+	flag.Float64Var(&dedupRL, "rate_limit_dedup", 100, "Rate limit for resolving duplicate submissions, in requests per second - i.e. duplicate requests for already integrated entries, which need to be fetched from the log storage by TesseraCT to extract their timestamp. When 0, all duplicate submissions are rejected. When negative, no rate limit is applied.")
 	// DEPRECATED: will be removed shortly
-	flag.Float64Var(&limitDedupInFlight, "pushback_max_dedupe_in_flight", 100, "DEPRECATED: use limit_dedup_in_flight. Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
+	flag.Float64Var(&dedupRL, "pushback_max_dedupe_in_flight", 100, "DEPRECATED: use rate_limit_dedup. Maximum number of number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
 }
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart      timestampFlag
-	notAfterLimit      timestampFlag
-	additionalSigners  multiStringFlag
-	limitDedupInFlight float64
+	notAfterStart     timestampFlag
+	notAfterLimit     timestampFlag
+	additionalSigners multiStringFlag
+	dedupRL           float64
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
@@ -128,7 +128,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 
 	hOpts := tesseract.LogHandlerOpts{
 		OldSubmissionLimit: rateLimitFromFlags(),
-		DedupInFlightLimit: limitDedupInFlight,
+		DedupRL:            dedupRL,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {

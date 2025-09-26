@@ -42,6 +42,7 @@ module "gce" {
   batch_max_size                 = var.batch_max_size
   enable_publication_awaiter     = var.enable_publication_awaiter
   limit_old_submissions          = var.limit_old_submissions
+  rate_limit_dedup               = var.rate_limit_dedup
 
   depends_on = [
     module.secretmanager,
