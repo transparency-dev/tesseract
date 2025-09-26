@@ -121,7 +121,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 
 	hOpts := tesseract.LogHandlerOpts{
 		OldSubmissionLimit: rateLimitFromFlags(),
-		DedupInFlightLimit: pushbackMaxDedupInFlight,
+		DedupRL:            dedupRL,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
