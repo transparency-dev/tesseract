@@ -90,9 +90,6 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 // It waits for the entry matching the future to be integrated, fetches it and
 // extracts the timstamp from it.
 //
-// DedupFuture returns tessera.ErrPushback if too many concurent calls are in flight.
-// Use resetDedupsInFlightJob to periodically reset the number of calls in flight.
-//
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
 func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
