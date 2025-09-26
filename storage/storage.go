@@ -22,7 +22,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"math"
 	"os"
 	"strconv"
 	"sync"
@@ -33,7 +32,6 @@ import (
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
-	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
 
@@ -58,39 +56,36 @@ type IssuerStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender         *tessera.Appender
-	Reader           tessera.LogReader
-	IssuerStorage    IssuerStorage
-	EnableAwaiter    bool
-	MaxDedupInFlight float64
+	Appender      *tessera.Appender
+	Reader        tessera.LogReader
+	IssuerStorage IssuerStorage
+	EnableAwaiter bool
 }
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData          func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers       func(context.Context, []KV) error
-	reader             tessera.LogReader
-	awaiter            *tessera.PublicationAwaiter
-	enableAwaiter      bool
-	dedupFutureLimiter *rate.Limiter
+	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers  func(context.Context, []KV) error
+	reader        tessera.LogReader
+	awaiter       *tessera.PublicationAwaiter
+	enableAwaiter bool
 }
 
 // NewCTStorage instantiates a CTStorage object.
 func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:          tessera.NewCertificateTransparencyAppender(opts.Appender),
-		storeIssuers:       cachedStoreIssuers(opts.IssuerStorage),
-		reader:             opts.Reader,
-		awaiter:            awaiter,
-		enableAwaiter:      opts.EnableAwaiter,
-		dedupFutureLimiter: rate.NewLimiter(rate.Limit(opts.MaxDedupInFlight), int(math.Ceil(opts.MaxDedupInFlight))),
+		storeData:     tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:  cachedStoreIssuers(opts.IssuerStorage),
+		reader:        opts.Reader,
+		awaiter:       awaiter,
+		enableAwaiter: opts.EnableAwaiter,
 	}
 
 	return ctStorage, nil
 }
 
-// DedupFuture returns the index and timestamp matching a future.
+// DedupFuture returns the timestamp matching a future.
 //
 // It waits for the entry matching the future to be integrated, fetches it and
 // extracts the timstamp from it.
@@ -102,10 +97,6 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
-
-	if !cts.dedupFutureLimiter.Allow() {
-		return 0, fmt.Errorf("too many duplicate submissions %w", tessera.ErrPushback)
-	}
 
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {

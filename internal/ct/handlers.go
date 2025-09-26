@@ -198,8 +198,9 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RateLimits knows how to apply configurable rate limits to submissions.
 type RateLimits struct {
-	oldAge     time.Duration
-	oldLimiter *rate.Limiter
+	oldAge       time.Duration
+	oldLimiter   *rate.Limiter
+	dedupLimiter *rate.Limiter
 }
 
 // OldSubmission configures a rate limit on old certs.
@@ -209,6 +210,14 @@ func (r *RateLimits) OldSubmission(age time.Duration, limit float64) {
 	r.oldAge = age
 	r.oldLimiter = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
 	klog.Infof("Configured OldSubmission limiter with %0.2f qps for certs aged >= %s", limit, age)
+}
+
+// DedupInFlight configures a rate limit on entries being deduplicated.
+//
+// Submissions will be subject to the specified number of entries per second.
+func (r *RateLimits) DedupInFlight(limit float64) {
+	r.dedupLimiter = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
+	klog.Infof("Configured DedupInFlight limiter with %0.2f qps", limit)
 }
 
 // Accept returns true if the provided chain should be accepted, and false otherwise.
@@ -224,6 +233,18 @@ func (r *RateLimits) Accept(ctx context.Context, chain []*x509.Certificate) bool
 			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("old_cert")))
 			return false
 		}
+	}
+	return true
+}
+
+// AcceptDedup returns true if a duplicate entry is permitted to be resolved.
+func (r *RateLimits) AcceptDedup(ctx context.Context) bool {
+	if r.dedupLimiter != nil {
+		if r.dedupLimiter.Allow() {
+			return true
+		}
+		rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("dedup")))
+		return false
 	}
 	return true
 }
@@ -384,13 +405,12 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	if index.IsDup {
+		if ok := opts.RateLimits.AcceptDedup(ctx); !ok {
+			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+			return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
+		}
 		entry.Timestamp, err = log.storage.DedupFuture(ctx, future)
 		if err != nil {
-			if errors.Is(err, tessera.ErrPushback) {
-				rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("dedup")))
-				w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
-				return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
-			}
 			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve dulicate: %v", err)
 		}
 	}
