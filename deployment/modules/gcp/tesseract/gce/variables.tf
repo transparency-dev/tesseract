@@ -99,8 +99,8 @@ variable "public_bucket" {
   default     = false
 }
 
-variable "limit_old_submissions" {
-  description = "Set to configure rate limiting for old submissions. See --limit_old_submissions flag for format."
+variable "rate_limit_old_not_before" {
+  description = "Set to configure rate limiting for old submissions. See --rate_limit_old_not_before flag for format."
   type        = string
   default     = ""
 }

@@ -54,7 +54,7 @@ means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 signing algorithms. This flag is a temporary solution to allow chains submitted
 by Chrome's Merge Delay Monitor Root. It will eventually be removed and chains
 using such algorithms will be rejected.
-- `limit_old_submissions`: This optional flag can be set define a limit on how
+- `rate_limit_old_not_before`: This optional flag can be set define a limit on how
 many "old" certificates and precertificates will be accepted per second.
 The flag value should be of the form `<age>:<limit>`, where `<limit>` is a
 per-second rate limit, and `<age>` defines how old a given submission's

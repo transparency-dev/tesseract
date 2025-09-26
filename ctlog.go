@@ -123,15 +123,15 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 	return &cv, nil
 }
 
-// OldSubmissionOpts
-type OldSubmissionLimit struct {
+// NotBeforeRL configures rate limits based on certificate not_before's age.
+type NotBeforeRL struct {
 	AgeThreshold time.Duration
 	RateLimit    float64
 }
 
 type LogHandlerOpts struct {
-	OldSubmissionLimit *OldSubmissionLimit
-	DedupRL            float64
+	NotBeforeRL *NotBeforeRL
+	DedupRL     float64
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
@@ -160,8 +160,8 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		TimeSource:         sysTimeSource,
 		PathPrefix:         pathPrefix,
 	}
-	if opts.OldSubmissionLimit != nil {
-		ctOpts.RateLimits.OldSubmission(opts.OldSubmissionLimit.AgeThreshold, opts.OldSubmissionLimit.RateLimit)
+	if opts.NotBeforeRL != nil {
+		ctOpts.RateLimits.NotBefore(opts.NotBeforeRL.AgeThreshold, opts.NotBeforeRL.RateLimit)
 	}
 	if opts.DedupRL >= 0 {
 		ctOpts.RateLimits.Dedup(opts.DedupRL)
