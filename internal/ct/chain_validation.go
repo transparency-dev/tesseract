@@ -149,6 +149,10 @@ func isPrecertificate(cert *x509.Certificate) (bool, error) {
 
 // parseChain parses the provided slice of DER certificates into a slice of Certificate structs.
 func parseChain(rawChain [][]byte) ([]*x509.Certificate, error) {
+	if len(rawChain) == 0 {
+		return nil, errors.New("empty chain")
+	}
+
 	// First make sure the certs parse as X.509
 	chain := make([]*x509.Certificate, 0, len(rawChain))
 
