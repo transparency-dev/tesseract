@@ -14,13 +14,37 @@
 
 package otel
 
-import "math"
+import (
+	"math"
+	"time"
+)
 
 var (
 	// SubSecondLatencyHistogramBuckets is a range of millisecond scale bucket boundaries which remain useful at around 1-2 seconds timescale in addition to smaller latencies.
 	// We use seconds as units, Open Telemetry's default unit for time.
-	SubSecondLatencyHistogramBuckets = []float64{0, 10e-3, 50e-3, 100e-3, 200e-3, 300e-3, 400e-3, 500e-3, 600e-3, 700e-3, 800e-3, 900e-3, 1000e-3, 1200e-3, 1400e-3, 1600e-3, 1800e-3, 2000e-3, 2500e-3, 3000e-3, 4000e-3, 5000e-3, 6000e-3, 8000e-3, 10000e-3}
+	SubSecondLatencyHistogramBuckets = createBuckets(
+		[]float64{0, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000},
+		time.Millisecond,
+		time.Millisecond)
+
+	// SubmissionAgeHistogramBuckets is an exponential range of buckets defined in seconds and intended to cover some reasonable ages of submissions.
+	// This range is based on the default OTel buckets, but ranges from ~5s at the low end up to ~70days.
+	SubmissionAgeHistogramBuckets = createBuckets(
+		[]float64{0, 0.1, 0.25, 0.5, 0.75, 1, 2, 5, 7.5, 10, 25, 50, 75, 100, 250, 500, 750, 1000, 2500, 5000, 7500, 10000, 25000, 50000, 75000, 100000},
+		time.Minute,
+		time.Second)
 )
+
+// createBuckets is a helper for creating histogram buckets in a readable fashion by taking a list of values and the duration unit they represent, and returns
+// a slice of floats representing these durations scaled to the output duration.
+func createBuckets(n []float64, d time.Duration, output time.Duration) []float64 {
+	scale := float64(d) / float64(output)
+	r := make([]float64, 0, len(n))
+	for _, f := range n {
+		r = append(r, f*scale)
+	}
+	return r
+}
 
 // Clamp64 casts a uint64 to an int64, clamping it at MaxInt64 if the value is above.
 //

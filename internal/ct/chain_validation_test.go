@@ -390,16 +390,6 @@ func TestValidateChain(t *testing.T) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
-		{
-			desc:    "empty-chain",
-			chain:   [][]byte{},
-			wantErr: true,
-		},
-		{
-			desc:    "nil-chain",
-			chain:   nil,
-			wantErr: true,
-		},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
@@ -427,6 +417,34 @@ func TestValidateChain(t *testing.T) {
 				for _, c := range gotPath {
 					t.Logf("Subject: %s Issuer: %s", c.Subject, c.Issuer)
 				}
+			}
+		})
+	}
+}
+
+func TestParseChain(t *testing.T) {
+	for _, test := range []struct {
+		desc        string
+		chain       [][]byte
+		wantErr     bool
+		wantPathLen int
+		modifyOpts  func(v *chainValidator)
+	}{
+		{
+			desc:    "empty-chain",
+			chain:   [][]byte{},
+			wantErr: true,
+		},
+		{
+			desc:    "nil-chain",
+			chain:   nil,
+			wantErr: true,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			_, err := parseChain(test.chain)
+			if gotErr := err != nil; gotErr != test.wantErr {
+				t.Fatalf("parseChain()=%v; want err %t", err, test.wantErr)
 			}
 		})
 	}
