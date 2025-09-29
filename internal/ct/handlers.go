@@ -72,6 +72,7 @@ var (
 	rspCounter          metric.Int64Counter     // origin, op, code => value
 	reqDuration         metric.Float64Histogram // origin, op, code => value
 	rateLimitedRequests metric.Int64Counter     // origin, reason
+	notBeforeAge        metric.Float64Histogram // origin ==> value
 )
 
 // setupMetrics initializes all the exported metrics.
@@ -101,6 +102,11 @@ func setupMetrics() {
 		metric.WithDescription("CT HTTP response duration"),
 		metric.WithUnit("ms"),
 		metric.WithExplicitBucketBoundaries(otel.SubSecondLatencyHistogramBuckets...)))
+
+	notBeforeAge = mustCreate(meter.Float64Histogram("tesseract.notbefore.age",
+		metric.WithDescription("Submission notBefore age"),
+		metric.WithUnit("s"),
+		metric.WithExplicitBucketBoundaries(otel.SubmissionAgeHistogramBuckets...)))
 
 	rateLimitedRequests = mustCreate(meter.Int64Counter("tesseract.http.request.ratelimited.count",
 		metric.WithDescription("CT HTTP rate-limited requests"),
@@ -318,6 +324,8 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	if err != nil {
 		return http.StatusBadRequest, nil, fmt.Errorf("failed to parse add-chain contents: %s", err)
 	}
+
+	notBeforeAge.Record(ctx, time.Since(chain[0].NotBefore).Seconds())
 
 	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
 		opts.RequestLog.addCertToChain(ctx, chain[0])
