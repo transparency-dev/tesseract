@@ -25,7 +25,7 @@ var (
 	SubSecondLatencyHistogramBuckets = createBuckets(
 		[]float64{0, 10, 50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1200, 1400, 1600, 1800, 2000, 2500, 3000, 4000, 5000, 6000, 8000, 10000},
 		time.Millisecond,
-		time.Millisecond)
+		time.Second)
 
 	// SubmissionAgeHistogramBuckets is an exponential range of buckets defined in seconds and intended to cover some reasonable ages of submissions.
 	// This range is based on the default OTel buckets, but ranges from ~5s at the low end up to ~70days.
