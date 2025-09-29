@@ -4,15 +4,15 @@ go 1.24.0
 
 require (
 	cloud.google.com/go/secretmanager v1.15.0
-	cloud.google.com/go/storage v1.56.2
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.53.0
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.29.0
+	cloud.google.com/go/storage v1.57.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.54.0
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.30.0
 	github.com/RobinUS2/golang-moving-average v1.0.0
-	github.com/aws/aws-sdk-go-v2 v1.39.0
-	github.com/aws/aws-sdk-go-v2/config v1.31.8
-	github.com/aws/aws-sdk-go-v2/credentials v1.18.12
-	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.1
-	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.39.4
+	github.com/aws/aws-sdk-go-v2 v1.39.2
+	github.com/aws/aws-sdk-go-v2/config v1.31.11
+	github.com/aws/aws-sdk-go-v2/credentials v1.18.15
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.88.3
+	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.39.6
 	github.com/aws/smithy-go v1.23.0
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/charmbracelet/bubbletea v1.3.10
@@ -37,7 +37,8 @@ require (
 	golang.org/x/mod v0.28.0
 	golang.org/x/net v0.44.0
 	golang.org/x/sync v0.17.0
-	google.golang.org/api v0.249.0
+	golang.org/x/time v0.13.0
+	google.golang.org/api v0.250.0
 	google.golang.org/grpc v1.75.1
 	k8s.io/klog/v2 v2.130.1
 )
@@ -47,7 +48,7 @@ require (
 	cloud.google.com/go v0.121.6 // indirect
 	cloud.google.com/go/auth v0.16.5 // indirect
 	cloud.google.com/go/auth/oauth2adapt v0.2.8 // indirect
-	cloud.google.com/go/compute/metadata v0.8.0 // indirect
+	cloud.google.com/go/compute/metadata v0.9.0 // indirect
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
@@ -56,20 +57,20 @@ require (
 	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.5.3 // indirect
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/detectors/gcp v1.29.0 // indirect
-	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.53.0 // indirect
+	github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.54.0 // indirect
 	github.com/aws/aws-sdk-go-v2/aws/protocol/eventstream v1.7.1 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.7 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.7 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.7 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.18.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.4.9 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.7.9 // indirect
 	github.com/aws/aws-sdk-go-v2/internal/ini v1.8.3 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.7 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.4.9 // indirect
 	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.1 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.8.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.29.3 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.34.4 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sts v1.38.4 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/checksum v1.8.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.13.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/s3shared v1.19.9 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.29.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.35.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sts v1.38.6 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/colorprofile v0.2.3-0.20250311203215-f60798e515dc // indirect
@@ -109,18 +110,17 @@ require (
 	github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e // indirect
 	github.com/zeebo/errs v1.4.0 // indirect
 	go.opencensus.io v0.24.0 // indirect
-	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
-	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.61.0 // indirect
+	go.opentelemetry.io/auto/sdk v1.2.1 // indirect
+	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.63.0 // indirect
 	go.opentelemetry.io/otel/trace v1.38.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.7.1 // indirect
 	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
-	golang.org/x/oauth2 v0.30.0 // indirect
+	golang.org/x/oauth2 v0.31.0 // indirect
 	golang.org/x/sys v0.36.0 // indirect
 	golang.org/x/term v0.35.0 // indirect
 	golang.org/x/text v0.29.0 // indirect
-	golang.org/x/time v0.12.0 // indirect
-	google.golang.org/genproto v0.0.0-20250603155806-513f23925822 // indirect
-	google.golang.org/genproto/googleapis/api v0.0.0-20250825161204-c5933d9347a5 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250825161204-c5933d9347a5 // indirect
-	google.golang.org/protobuf v1.36.8 // indirect
+	google.golang.org/genproto v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/api v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250922171735-9219d122eba9 // indirect
+	google.golang.org/protobuf v1.36.9 // indirect
 )
