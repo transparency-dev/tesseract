@@ -100,9 +100,20 @@ variable "enable_publication_awaiter" {
   default     = true
 }
 
-variable "limit_old_submissions" {
-  description = "Set to configure rate limiting for old submissions. See --limit_old_submissions flag for format."
+variable "rate_limit_old_not_before" {
+  description = "Set to configure rate limiting for old submissions. See --rate_limit_old_not_before flag for format."
   type        = string
   default     = ""
 }
 
+variable "rate_limit_per_issuer" {
+  description = "Set to rate limit submissions per issuer per second."
+  type        = number
+  default     = -1 
+}
+
+variable "rate_limit_dedup" {
+  description = "Set to rate limit duplicate submissions per second."
+  type        = number
+  default     = -1 
+}

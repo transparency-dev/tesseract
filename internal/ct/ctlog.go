@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/storage"
@@ -34,7 +35,9 @@ type signSCT func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimes
 // Storage provides functions to store certificates in a static-ct-api log.
 type Storage interface {
 	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
-	Add(context.Context, *ctonly.Entry) (idx uint64, timestamp uint64, err error)
+	Add(context.Context, *ctonly.Entry) (tessera.IndexFuture, error)
+	// DedupFuture fetches a duplicate tessera ctlog entry from the log and extracts its timestamp.
+	DedupFuture(context.Context, tessera.IndexFuture) (uint64, error)
 	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
 	AddIssuerChain(context.Context, []*x509.Certificate) error
 }

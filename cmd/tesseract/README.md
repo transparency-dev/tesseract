@@ -54,7 +54,7 @@ means no upper bound on the accepted range. RFC3339 UTC format, e.g:
 signing algorithms. This flag is a temporary solution to allow chains submitted
 by Chrome's Merge Delay Monitor Root. It will eventually be removed and chains
 using such algorithms will be rejected.
-- `limit_old_submissions`: This optional flag can be set define a limit on how
+- `rate_limit_old_not_before`: This optional flag can be set define a limit on how
 many "old" certificates and precertificates will be accepted per second.
 The flag value should be of the form `<age>:<limit>`, where `<limit>` is a
 per-second rate limit, and `<age>` defines how old a given submission's
@@ -119,7 +119,7 @@ This flag is on by default.
 
 #### Antispam
 
-The `pushback_max_antispam_lag`, `pushback_max_dedup_in_flight` and
+The `pushback_max_antispam_lag`, `rate_limit_dedup` and
 `inmemory_antispam_cache_size` flags control how [TesseraCT's Antispam feature](/docs/architecture.md#antispam)
 works, which itself is built on top of [Tessera's Antispam](https://github.com/transparency-dev/tessera?tab=readme-ov-file#antispam)
 capabilities. It is composed of three main steps:
@@ -146,14 +146,13 @@ calls faster, and provides optimistic coverage for entries submitted _very_
 recently and which have not yet been processed by the asynchronous process in
 `(1)`.
 
-The `pushback_max_dedup_in_flight` flag rate limits how many concurrent `add-*`
-requests identified as duplicates will be processed by the
-**synchronous** process in `(3)` wich fetches entries and extracts information
-required to build SCTs. When this value is exceeded, TesseraCT returns
-`429 -Too Many Requests` to subsequent **duplicate** `add-*` requests only.
-Non-duplicate `add-*` requests are not impacted, and can still be processed.
-This limits the amount of resources TesseraCT spends on servicing duplicate
-requests.
+The `rate_limit_dedup` flag rate limits how many concurrent `add-*` requests
+identified as duplicates will be processed by the **synchronous** process in
+`(3)` which fetches entries and extracts information required to build SCTs.
+When this value is exceeded, TesseraCT returns `429 -Too Many Requests` to
+subsequent **duplicate** `add-*` requests only. Non-duplicate `add-*` requests
+are not impacted, and can still be processed. This limits the amount of
+resources TesseraCT spends on servicing duplicate requests.
 
 ### Setup
 

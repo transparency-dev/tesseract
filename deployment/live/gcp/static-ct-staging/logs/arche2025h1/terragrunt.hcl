@@ -14,7 +14,7 @@ locals {
   trace_fraction                = 0.1
   create_internal_load_balancer = true
   public_bucket                 = true
-  limit_old_submissions         = "28h:150"
+  rate_limit_old_not_before         = "28h:150"
 }
 
 include "root" {

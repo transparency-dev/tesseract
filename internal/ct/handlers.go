@@ -16,6 +16,7 @@ package ct
 
 import (
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -198,32 +199,82 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 // RateLimits knows how to apply configurable rate limits to submissions.
 type RateLimits struct {
-	oldAge     time.Duration
-	oldLimiter *rate.Limiter
+	notBeforeLimit time.Duration
+	notBefore      *rate.Limiter
+	dedup          *rate.Limiter
+	issuerLimit    float64
+	issuer         *sync.Map
 }
 
 // OldSubmission configures a rate limit on old certs.
 //
 // Submissions whose notBefore date is at least as old as age will be subject to the specified number of entries per second.
-func (r *RateLimits) OldSubmission(age time.Duration, limit float64) {
-	r.oldAge = age
-	r.oldLimiter = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
+func (r *RateLimits) NotBefore(age time.Duration, limit float64) {
+	r.notBeforeLimit = age
+	r.notBefore = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
 	klog.Infof("Configured OldSubmission limiter with %0.2f qps for certs aged >= %s", limit, age)
 }
 
-// Accept returns true if the provided chain should be accepted, and false otherwise.
-func (r *RateLimits) Accept(ctx context.Context, chain []*x509.Certificate) bool {
+// Issuer configures a rate limit on the first issuer of each chain.
+//
+// Submissions will be subject to the specified number of entries per second.
+func (r *RateLimits) Issuer(limit float64) {
+	r.issuerLimit = limit
+	r.issuer = &sync.Map{}
+	klog.Infof("Configured Issuer limiter with %0.2f qps per issuer", limit)
+}
+
+// Dedup configures a rate limit on entries being deduplicated.
+//
+// Submissions will be subject to the specified number of entries per second.
+func (r *RateLimits) Dedup(limit float64) {
+	r.dedup = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
+	klog.Infof("Configured DedupInFlight limiter with %0.2f qps", limit)
+}
+
+// AcceptNotBefore returns true if the provided chain should be accepted, and false otherwise.
+func (r *RateLimits) AcceptNotBefore(ctx context.Context, chain []*x509.Certificate) bool {
 	if len(chain) == 0 {
 		return false
 	}
-	if r.oldLimiter != nil {
-		if age := time.Since(chain[0].NotBefore); age >= r.oldAge {
-			if r.oldLimiter.Allow() {
+	if r.notBefore != nil {
+		if age := time.Since(chain[0].NotBefore); age >= r.notBeforeLimit {
+			if r.notBefore.Allow() {
 				return true
 			}
 			rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("old_cert")))
 			return false
 		}
+	}
+	return true
+}
+
+// AcceptIssuer returns true if a chain should be accepted based on its first issuer, and false othwerwise.
+func (r *RateLimits) AcceptIssuer(ctx context.Context, chain []*x509.Certificate) bool {
+	if len(chain) == 0 {
+		return false
+	}
+	if r.issuer != nil && r.issuerLimit >= 0 {
+		issuer := sha256.Sum256(chain[0].RawIssuer)
+		v, _ := r.issuer.LoadOrStore(issuer, rate.NewLimiter(rate.Limit(r.issuerLimit), int(math.Ceil(r.issuerLimit))))
+		rl := v.(*rate.Limiter)
+		if rl.Allow() {
+			return true
+		}
+		rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("issuer")))
+		return false
+	}
+	return true
+}
+
+// AcceptDedup returns true if a duplicate entry is permitted to be resolved.
+func (r *RateLimits) AcceptDedup(ctx context.Context) bool {
+	if r.dedup != nil {
+		if r.dedup.Allow() {
+			return true
+		}
+		rateLimitedRequests.Add(ctx, 1, metric.WithAttributes(rateLimitReasonKey.String("dedup")))
+		return false
 	}
 	return true
 }
@@ -326,8 +377,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	notBeforeAgeUnverified.Record(ctx, time.Since(chain[0].NotBefore).Seconds())
-
-	if ok := opts.RateLimits.Accept(ctx, chain); !ok {
+	if ok := opts.RateLimits.AcceptNotBefore(ctx, chain); !ok {
 		opts.RequestLog.addCertToChain(ctx, chain[0])
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 		return http.StatusTooManyRequests,
@@ -341,6 +391,11 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 	for _, cert := range chain {
 		opts.RequestLog.addCertToChain(ctx, cert)
+	}
+
+	if ok := opts.RateLimits.AcceptIssuer(ctx, chain); !ok {
+		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+		return http.StatusTooManyRequests, []attribute.KeyValue{tooManyRequestsReasonKey.String("rate_limit_issuer")}, errors.New(http.StatusText(http.StatusTooManyRequests))
 	}
 
 	// Get the current time in the form used throughout RFC6962, namely milliseconds since Unix
@@ -358,7 +413,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
-	index, dedupTimeMillis, err := log.storage.Add(ctx, entry)
+	future, err := log.storage.Add(ctx, entry)
 	// helper function to return a 429
 	tooManyRequests := func(reason string) (int, []attribute.KeyValue, error) {
 		w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
@@ -378,12 +433,25 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
 	}
 
-	isDup := dedupTimeMillis != timeMillis
-	entry.Timestamp = dedupTimeMillis
+	index, err := future()
+	if err != nil {
+		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't resolve tessera future: %v", err)
+	}
+
+	if index.IsDup {
+		if ok := opts.RateLimits.AcceptDedup(ctx); !ok {
+			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
+			return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
+		}
+		entry.Timestamp, err = log.storage.DedupFuture(ctx, future)
+		if err != nil {
+			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve duplicate: %v", err)
+		}
+	}
 
 	// Always use the returned leaf as the basis for an SCT.
 	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(index)
+	leafValue := entry.MerkleTreeLeaf(index.Index)
 	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
 	} else if len(rest) > 0 {
@@ -408,12 +476,12 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to write response: %s", err)
 	}
 	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
-	if !isDup {
+	if !index.IsDup {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
-		lastSCTIndex.Record(ctx, otel.Clamp64(index), metric.WithAttributes(originKey.String(log.origin)))
+		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))
 	}
 
-	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(isDup)}, nil
+	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
