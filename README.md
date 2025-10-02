@@ -28,17 +28,20 @@ S3+MySQL storage systems with [different levels of maturity](#mega-status).
 
 ## :mega: Status
 
-TesseraCT is under active development, and will reach alpha in 2025Q3 🚀.
+TesseraCT is under active development. It had its first [alpha release](https://github.com/transparency-dev/tesseract/releases/tag/v0.1.0)
+in 2025Q3 🚀.
 
-|Platform        |Architecture                                                                                                                                                                          |Our use-case                                                                                           |Performance                            |Binary                               |Deployment                                                     |
-|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|---------------------------------------|-------------------------------------|---------------------------------------------------------------|
-|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|[public staging logs](/deployment/live/gcp/static-ct-staging/logs/)                                    |[gcp](/docs/performance.md#gcp)        |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/static-ct-staging/logs/arche2025h1/)|
-|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |[continuous integration](/deployment/live/gcp/static-ct/logs/ci/)                                      |N/A                                    |[gcp](/cmd/tesseract/gcp/main.go)    |[example](/deployment/live/gcp/static-ct/logs/ci)              |
-|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |[codelab](/deployment/live/gcp/test/)                                                                  |[gcp](/docs/performance.md#gcp)        |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/test/)                              |
-|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                    |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)                |
-|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/ec2/)                                                                         |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)        |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                              |
-|POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)    |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/tesseract/posix/)                                   |
-|Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance.md#s3--mysql)|[aws](/cmd/tesseract/aws/main.go) |[doc](/cmd/tesseract/aws/README.md#vanilla-s3mysql-support)    |
+
+|Platform        |Architecture                                                                                                                                                                          |Our use-case                                                                                           |Performance                               |Binary                               |Deployment                                                 |Public instances                                 |
+|----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|------------------------------------------|-------------------------------------|-----------------------------------------------------------|-------------------------------------------------|
+|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|[public staging logs](#test_tube-public-test-instances)                                                |[gcp](/docs/performance.md#gcp)           |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/static-ct-staging/logs/)        |[Google - test](#test_tube-public-test-instances)|
+|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |[continuous integration](/deployment/live/gcp/static-ct/logs/ci/)                                      |N/A                                       |[gcp](/cmd/tesseract/gcp/main.go)    |[example](/deployment/live/gcp/static-ct/logs/ci)          |                                                 |
+|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |[codelab](/deployment/live/gcp/test/)                                                                  |[gcp](/docs/performance.md#gcp)           |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/test/)                          |                                                 |
+|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                       |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)            |                                                 |
+|AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/ec2/)                                                                         |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)           |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                          |                                                 |
+|POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)       |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/tesseract/posix/)                               |[IPng - prod](#ipng)                             |
+|Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance.md#s3--mysql)|[aws](/cmd/tesseract/aws/main.go)    |[doc](/cmd/tesseract/aws/README.md#vanilla-s3mysql-support)|                                                 |
+
 
 These deployments come with different levels of maturity depending on
 our use-case.
@@ -162,6 +165,21 @@ It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https
   "end_exclusive": "2026-07-01T00:00:00Z"
 }
 ```
+
+## Other known instances
+
+### IPng Networks
+
+[IPng Networks](https://ipng.ch/) runs [production CT logs](https://ipng.ch/s/ct/)
+using the [POSIX implementation](/cmd/tesseract/posix/). You can read more
+about their journey, together with how they've configured TesseraCT and their
+serving infrastructure in the great blog posts they published:
+[1](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1-tesseract/),
+[2](https://ipng.ch/s/articles/2025/08/10/certificate-transparency-part-2-sunlight/),
+[3](https://ipng.ch/s/articles/2025/08/24/certificate-transparency-part-3-operations/).
+
+[Cheese](https://git.ipng.ch/certificate-transparency/cheese) is a tool they
+wrote to ease deployment.
 
 ## :card_index_dividers: Repository structure
 
