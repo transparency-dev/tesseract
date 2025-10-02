@@ -769,8 +769,8 @@ func TestMaxDedupInFlight(t *testing.T) {
 		{
 			descr: "success",
 			chains: [][]string{
-				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
 			},
 			maxRate: 100,
 			wants:   []int{http.StatusOK, http.StatusOK},
@@ -778,8 +778,8 @@ func TestMaxDedupInFlight(t *testing.T) {
 		{
 			descr: "dup-not-allowed",
 			chains: [][]string{
-				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
 			},
 			maxRate: 0,
 			wants:   []int{http.StatusOK, http.StatusTooManyRequests},
@@ -787,27 +787,22 @@ func TestMaxDedupInFlight(t *testing.T) {
 		{
 			descr: "not-a-dup",
 			chains: [][]string{
-				[]string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
-				[]string{testdata.TestCertPEM, testdata.CACertPEM},
+				{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+				{testdata.TestCertPEM, testdata.CACertPEM},
 			},
 			maxRate: 0,
 			wants:   []int{http.StatusOK, http.StatusOK},
 		},
 	}
 
-	defer timeSource.Reset()
-
 	for _, test := range tests {
-		log, _ := setupTestLog(t)
-		hhOpts := hOpts()
-		hhOpts.RateLimits.Dedup(test.maxRate)
-		server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
-		defer server.Close()
-
-		// Increment time to make it unique for each test case.
 		t.Run(test.descr, func(t *testing.T) {
+			log, _ := setupTestLog(t)
+			hhOpts := hOpts()
+			hhOpts.RateLimits.Dedup(test.maxRate)
+			server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
+			defer server.Close()
 			for i, chain := range test.chains {
-				timeSource.Add1m()
 				pool := loadCertsIntoPoolOrDie(t, chain)
 				chain := createJSONChain(t, *pool)
 
