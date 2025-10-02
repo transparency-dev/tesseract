@@ -1,11 +1,23 @@
-# POSIX static-ct server
+# POSIX TesseraCT
 
 This directory contains a `static-ct` server which uses
 [Tessera's POSIX backend](https://pkg.go.dev/github.com/transparency-dev/tessera/storage/posix#section-readme)
 for storing the log.
 
 In this document, you will find information specific to this POSIX
-implementation. You can find more information about TesseraCT in general in the
+implementation. 
+
+[IPng Networks](https://ipng.ch/) runs [production CT logs](https://ipng.ch/s/ct/)
+using the POSIX implementation. You can read more about their journey, together
+with how they've configured TesseraCT and their serving infrastructure in the
+great blog posts they published:
+[1](https://ipng.ch/s/articles/2025/07/26/certificate-transparency-part-1-tesseract/),
+[2](https://ipng.ch/s/articles/2025/08/10/certificate-transparency-part-2-sunlight/),
+[3](https://ipng.ch/s/articles/2025/08/24/certificate-transparency-part-3-operations/). \
+[Cheese](https://git.ipng.ch/certificate-transparency/cheese) is a tool they
+wrote to ease deployment.
+
+You can find more information about TesseraCT in general in the
 [architecture design doc](/docs/architecture.md), and in TesseraCT's
 [configuration guide](../).
 
