@@ -25,7 +25,6 @@ import (
 	"os"
 	"strconv"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/transparency-dev/tessera"
@@ -57,126 +56,91 @@ type IssuerStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender          *tessera.Appender
-	Reader            tessera.LogReader
-	IssuerStorage     IssuerStorage
-	EnableAwaiter     bool
-	MaxDedupInFlight uint
+	Appender      *tessera.Appender
+	Reader        tessera.LogReader
+	IssuerStorage IssuerStorage
+	EnableAwaiter bool
 }
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData               func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers            func(context.Context, []KV) error
-	reader                  tessera.LogReader
-	awaiter                 *tessera.PublicationAwaiter
-	enableAwaiter           bool
-	dedupFutureInFlight    atomic.Int64
-	maxDedupFutureInFlight uint
+	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers  func(context.Context, []KV) error
+	reader        tessera.LogReader
+	awaiter       *tessera.PublicationAwaiter
+	enableAwaiter bool
 }
 
 // NewCTStorage instantiates a CTStorage object.
 func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
 	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
 	ctStorage := &CTStorage{
-		storeData:               tessera.NewCertificateTransparencyAppender(opts.Appender),
-		storeIssuers:            cachedStoreIssuers(opts.IssuerStorage),
-		reader:                  opts.Reader,
-		awaiter:                 awaiter,
-		enableAwaiter:           opts.EnableAwaiter,
-		maxDedupFutureInFlight: opts.MaxDedupInFlight,
+		storeData:     tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:  cachedStoreIssuers(opts.IssuerStorage),
+		reader:        opts.Reader,
+		awaiter:       awaiter,
+		enableAwaiter: opts.EnableAwaiter,
 	}
-
-	// Reset the number of dedupFutureInFlight every second allow new duplicate requests in.
-	go ctStorage.resetDedupFutureInFlightJob(ctx, 1*time.Second)
 
 	return ctStorage, nil
 }
 
-// resetDedupFutureInFlightJob resets the number of dedupFutureInFlight to 0 every interval.
-func (cts *CTStorage) resetDedupFutureInFlightJob(ctx context.Context, interval time.Duration) {
-	t := time.NewTicker(interval)
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-t.C:
-			cts.dedupFutureInFlight.Store(0)
-		}
-	}
-}
-
-// dedupFuture returns the index and timestamp matching a future.
-// It waits for the entry matching the future to be integrated, fetches it and
-// extracts the timstamp from it.
+// DedupFuture returns the timestamp matching a future.
 //
-// dedupFuture returns tessera.ErrPushback if too many concurent calls are in flight.
-// Use resetDedupsInFlightJob to periodically reset the number of calls in flight.
+// It waits for the entry matching the future to be integrated, fetches it and
+// extracts the timestamp from it.
 //
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) dedupFuture(ctx context.Context, f tessera.IndexFuture) (index, ts uint64, err error) {
+func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
 	defer span.End()
 
-	if cts.dedupFutureInFlight.Load() > int64(cts.maxDedupFutureInFlight) {
-		return 0, 0, fmt.Errorf("too many duplicate submissions %w", tessera.ErrPushback)
-	}
-	cts.dedupFutureInFlight.Add(1)
-
 	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+		return 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 	}
 
 	// A https://c2sp.org/static-ct-api logsize is on the second line
 	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
 	if len(l) < 2 {
-		return 0, 0, errors.New("invalid checkpoint - no size")
+		return 0, errors.New("invalid checkpoint - no size")
 	}
 	ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
 	if err != nil {
-		return 0, 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+		return 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
 	}
 
 	eBIdx := idx.Index / layout.EntryBundleWidth
 	eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return 0, 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+			return 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
 		}
-		return 0, 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
+		return 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 	}
 	eIdx := idx.Index % layout.EntryBundleWidth
 	t, err := timestamp(eBRaw, eIdx)
 	if err != nil {
-		return 0, 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+		return 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
 	}
-	return idx.Index, t, nil
+	return t, nil
 }
 
 // Add stores CT entries.
-func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (uint64, uint64, error) {
+func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (tessera.IndexFuture, error) {
 	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
 	defer span.End()
 
 	future := cts.storeData(ctx, entry)
-	idx, err := future()
-	if err != nil {
-		return 0, 0, fmt.Errorf("error waiting for Tessera index future: %w", err)
-	}
-
-	if idx.IsDup {
-		return cts.dedupFuture(ctx, future)
-	}
 
 	if cts.enableAwaiter {
-		idx, _, err = cts.awaiter.Await(ctx, future)
+		_, _, err := cts.awaiter.Await(ctx, future)
 		if err != nil {
-			return 0, 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+			return future, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
 	}
 
-	return idx.Index, entry.Timestamp, nil
+	return future, nil
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.

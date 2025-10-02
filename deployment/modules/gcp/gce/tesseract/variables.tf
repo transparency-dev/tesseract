@@ -106,3 +106,8 @@ variable "limit_old_submissions" {
   default     = ""
 }
 
+variable "rate_limit_dedup" {
+  description = "Set to rate limit duplicate submissions per second."
+  type        = number
+  default     = -1 
+}

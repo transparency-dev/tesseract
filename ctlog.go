@@ -131,6 +131,7 @@ type OldSubmissionLimit struct {
 
 type LogHandlerOpts struct {
 	OldSubmissionLimit *OldSubmissionLimit
+	DedupRL            float64
 }
 
 // NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
@@ -161,6 +162,9 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 	}
 	if opts.OldSubmissionLimit != nil {
 		ctOpts.RateLimits.OldSubmission(opts.OldSubmissionLimit.AgeThreshold, opts.OldSubmissionLimit.RateLimit)
+	}
+	if opts.DedupRL >= 0 {
+		ctOpts.RateLimits.Dedup(opts.DedupRL)
 	}
 
 	handlers := ct.NewPathHandlers(ctx, ctOpts, log)
