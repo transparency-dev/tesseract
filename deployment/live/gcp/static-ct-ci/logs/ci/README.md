@@ -23,7 +23,7 @@ Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/conformance/),
 
 ### Manual Deployment
 
-First authenticate via `gcloud` as a principle with sufficient ACLs for
+First authenticate via `gcloud` as a principal with sufficient ACLs for
 the project:
 
 ```sh
