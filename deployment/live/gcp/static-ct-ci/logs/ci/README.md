@@ -19,7 +19,7 @@ At a high level, this environment consists of:
 
 This GCP TesseraCT conformance CI environment is designed to be deployed by the
 Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/conformance/),
-[Terragrunt configuration](/deployment/live/gcp/static-ct-ci/cloudbuild/prod/)).
+[Terragrunt configuration](/deployment/live/gcp/static-ct-ci/cloudbuild/ci/)).
 
 ### Manual Deployment
 
