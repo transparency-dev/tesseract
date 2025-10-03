@@ -19,7 +19,7 @@ At a high level, this environment consists of:
 
 This GCP TesseraCT conformance CI environment is designed to be deployed by the
 Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/conformance/),
-[Terragrunt configuration](/deployment/live/gcp/static-ct/cloudbuild/prod/)).
+[Terragrunt configuration](/deployment/live/gcp/static-ct-ci/cloudbuild/prod/)).
 
 ### Manual Deployment
 
@@ -58,5 +58,6 @@ docker push ${GOOGLE_REGION}-docker.pkg.dev/${GOOGLE_PROJECT}/docker-ci/conforma
 Deploy the Terraform config with OpenTofu:
 
   1. `cd` to
-  [/deployment/live/gcp/static-ct/logs/ci/](/deployment/live/gcp/static-ct/logs/ci/).
+  [/deployment/live/gcp/static-ct-ci/logs/ci/](/deployment/live/gcp/static-ct-ci/logs/ci/).
   2. Run `terragrunt apply`.
+
