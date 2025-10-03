@@ -851,8 +851,8 @@ func TestRateLimiter(t *testing.T) {
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			r := RateLimits{}
-			r.OldSubmission(test.age, test.rate)
-			if got := r.Accept(t.Context(), chain); got != test.wantAccept {
+			r.NotBefore(test.age, test.rate)
+			if got := r.AcceptNotBefore(t.Context(), chain); got != test.wantAccept {
 				t.Fatalf("Got %t want %t", got, test.wantAccept)
 			}
 		})

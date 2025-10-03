@@ -15,7 +15,7 @@ locals {
   create_internal_load_balancer = true
   public_bucket                 = true
   machine_type                  = "n2-standard-8"
-  limit_old_submissions         = "28h:150"
+  rate_limit_old_not_before     = "28h:150"
 }
 
 include "root" {
