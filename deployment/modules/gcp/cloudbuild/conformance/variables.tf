@@ -22,3 +22,8 @@ variable "github_owner" {
   description = "GitHub owner used in Cloud Build trigger repository mapping"
   type        = string
 }
+
+variable "log_terragrunt" {
+  description = "Path of the log terragrunt configs to deploy, from the root of the repository"
+  type        = string
+}
