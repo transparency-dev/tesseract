@@ -131,7 +131,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["docker_build_conformance_gcp"]
     }
 
-    ## Apply the deployment/live/gcp/static-ct/logs/ci terragrunt config.
+    ## Apply the terragrunt config.
     ## This will bring up the conformance infrastructure, including a service
     ## running the conformance server docker image built above.
     step {
@@ -140,7 +140,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
       EOT
-      dir    = "deployment/live/gcp/static-ct/logs/ci"
+      dir    = var.log_terragrunt
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
@@ -159,7 +159,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/conformance_bucket_name
         terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
-      dir    = "deployment/live/gcp/static-ct/logs/ci"
+      dir    = var.log_terragrunt
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
@@ -210,7 +210,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["bearer_token"]
     }
 
-    ## Destroy the deployment/live/gcp/static-ct/logs/ci terragrunt config.
+    ## Destroy the terragrunt config.
     ## This will tear down the conformance infrastructure we brought up
     ## above.
     step {
@@ -219,7 +219,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-non-interactive --terragrunt-no-color destroy -auto-approve -no-color 2>&1
       EOT
-      dir    = "deployment/live/gcp/static-ct/logs/ci"
+      dir    = var.log_terragrunt
       env = [
         "GOOGLE_PROJECT=${var.project_id}",
         "TF_IN_AUTOMATION=1",
