@@ -3,12 +3,15 @@ terraform {
 }
 
 locals {
-  env          = path_relative_to_include()
-  project_id   = get_env("GOOGLE_PROJECT", "static-ct")
-  location     = get_env("GOOGLE_REGION", "us-central1")
-  base_name    = get_env("TESSERA_BASE_NAME", "${local.env}-cloudbuild")
-  github_owner = get_env("GITHUB_OWNER", "transparency-dev")
+  env            = path_relative_to_include()
+  project_id     = get_env("GOOGLE_PROJECT", "static-ct")
+  location       = get_env("GOOGLE_REGION", "us-central1")
+  base_name      = get_env("TESSERA_BASE_NAME", "${local.env}-cloudbuild")
+  github_owner   = get_env("GITHUB_OWNER", "transparency-dev")
+  log_terragrunt = "deployment/live/gcp/static-ct/logs/ci"
 }
+
+inputs = local
 
 remote_state {
   backend = "gcs"
