@@ -23,6 +23,8 @@ require (
 	github.com/google/go-cmp v0.7.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.42.0
+	github.com/tink-crypto/tink-go-gcpkms/v2 v2.2.0
+	github.com/tink-crypto/tink-go/v2 v2.4.0
 	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
 	github.com/transparency-dev/merkle v0.0.2
 	github.com/transparency-dev/tessera v1.0.1-0.20250930174249-112eca49fafd
