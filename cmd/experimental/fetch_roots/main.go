@@ -31,7 +31,7 @@ import (
 )
 
 var (
-	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV at.")
+	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
 	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
 )
 
@@ -91,15 +91,15 @@ func main() {
 		indices[cleanName] = i
 	}
 
-	minLineLength := 0
+	minNumColumns := 0
 	// Verify all required headers were found
 	for _, req := range requiredHeaders {
 		i, found := indices[req]
 		if !found {
 			klog.Exitf("Required column not found in CSV header: %s", req)
 		}
-		if i+1 > minLineLength {
-			minLineLength = i + 1
+		if i+1 > minNumColumns {
+			minNumColumns = i + 1
 		}
 	}
 
@@ -123,11 +123,10 @@ func main() {
 		}
 		if err != nil {
 			klog.Exitf("Malformed record: %v", err)
-			continue
 		}
 
 		// Ensure the record is long enough before attempting to access fields
-		if len(row) < minLineLength {
+		if len(row) < minNumColumns {
 			klog.Exitf("Row is too short: %q", row)
 		}
 
