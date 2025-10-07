@@ -43,7 +43,7 @@ Cloud Build ([OpenTofu module](/deployment/modules/gcp/cloudbuild/tesseract/),
 TODO(phboneff): come back to this, MIG doesn't trigger a deployment if the
 tag does not change value.
 
-First authenticate via `gcloud` as a principle with sufficient ACLs for
+First authenticate via `gcloud` as a principal with sufficient ACLs for
 the project:
 
 ```sh
