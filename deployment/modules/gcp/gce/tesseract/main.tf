@@ -45,6 +45,11 @@ locals {
 
   container_name = "tesseract-${var.base_name}"
 
+  // cloud_init is the config used to configure the COS VM.
+  //
+  // See:
+  // - Cloud Init docs: https://cloudinit.readthedocs.io/en/latest/index.html
+  // - Systemd config docs: https://www.freedesktop.org/software/systemd/man/latest/systemd.directives.html
   cloud_init = <<EOT
     #cloud-config
 
@@ -76,6 +81,7 @@ locals {
 
           [Service]
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
+          # --log-driver=gcplogs below causes Docker to integrate with GCP logging such that we can inspect TesseraCT's logs in the GCP Log Explorer.
           ExecStart=sudo -u tesseract -E /usr/bin/docker run --rm -u 2000 --name=${local.container_name} -p 80:80 --log-driver=gcplogs ${var.server_docker_image} ${local.tesseract_args}
           ExecStop=sudo -u tesseract /usr/bin/docker stop ${local.container_name}
           ExecStopPost=sudo -u /usr/bin/docker rm ${local.container_name}
