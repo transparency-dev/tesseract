@@ -5,6 +5,7 @@ locals {
   base_name            = path_relative_to_include()
   origin_suffix        = get_env("TESSERA_ORIGIN_SUFFIX", ".staging.ct.transparency.dev")
   docker_container_tag = get_env("DOCKER_CONTAINER_TAG", "latest")
+  witness_policy       = file("./witness.policy")
 }
 
 remote_state {

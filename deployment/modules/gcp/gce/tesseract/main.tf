@@ -20,6 +20,21 @@ data "google_compute_image" "cos" {
 }
 
 locals {
+
+  witness_policy_file="/etc/tesseract-witness.policy"
+
+  # docker_run_args are provided to the docker run command.
+  # Use this to configure docker-specific things.
+  docker_run_args = join(" ", [
+    # Map the port
+    "-p 80:80",
+    # Ensure that TesseraCT logs are delivered to GCP logging.
+    "--log-driver=gcplogs",
+    # Bind-mount the witness policy, if one has been provided.
+    var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}"
+  ])
+
+  # tesseract_args are provided to the tesseract command.
   tesseract_args = join(" ", [
          "-logtostderr",
          "-v=2",
@@ -41,6 +56,7 @@ locals {
          "-accept_sha1_signing_algorithms=true",
          "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
          "-rate_limit_dedup=${var.rate_limit_dedup}",
+        var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
   ])
 
   container_name = "tesseract-${var.base_name}"
@@ -59,6 +75,11 @@ locals {
         groups: docker # Add the user to the Docker group
 
     write_files:
+      - path: ${local.witness_policy_file}
+        permissions: 0444
+        owner: root
+        encoding: b64
+        content: ${base64encode(var.witness_policy)}
       - path: /etc/systemd/system/config-firewall.service
         permissions: 0644
         owner: root
@@ -81,8 +102,7 @@ locals {
 
           [Service]
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
-          # --log-driver=gcplogs below causes Docker to integrate with GCP logging such that we can inspect TesseraCT's logs in the GCP Log Explorer.
-          ExecStart=sudo -u tesseract -E /usr/bin/docker run --rm -u 2000 --name=${local.container_name} -p 80:80 --log-driver=gcplogs ${var.server_docker_image} ${local.tesseract_args}
+          ExecStart=sudo -u tesseract -E /usr/bin/docker run --rm -u 2000 --name=${local.container_name} ${local.docker_run_args} ${var.server_docker_image} ${local.tesseract_args}
           ExecStop=sudo -u tesseract /usr/bin/docker stop ${local.container_name}
           ExecStopPost=sudo -u /usr/bin/docker rm ${local.container_name}
           StandardOutput=journal

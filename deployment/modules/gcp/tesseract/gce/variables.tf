@@ -110,3 +110,11 @@ variable "rate_limit_dedup" {
   type        = number
   default     = -1 
 }
+
+
+variable "witness_policy" {
+  description = "Set to apply a witness policy which will be used by TesseraCT to gather cosignatures for checkpoints."
+  type        = string
+  default     = ""
+}
+
