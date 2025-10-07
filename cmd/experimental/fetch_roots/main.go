@@ -33,6 +33,7 @@ import (
 var (
 	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
 	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
+	formatB64      = flag.Bool("format_b64", false, "Format base64 encoded SHA256 comments in the output file with a column every two characters.")
 )
 
 var (
@@ -140,6 +141,9 @@ func main() {
 		sha256 := row[indices[colSHA]]
 		cert := row[indices[colPEM]]
 
+		if *formatB64 {
+			sha256 = formatBase64(sha256, ":", 2)
+		}
 		// Format and write the metadata (prefixed by #) and the certificate
 		output := fmt.Sprintf("# Issuer: %s\n# Subject: %s\n# SHA256 Fingerprint: %s\n%s\n",
 			issuer, subject, sha256, cert)
@@ -158,4 +162,18 @@ func createFile(p string) (*os.File, error) {
 		return nil, fmt.Errorf("os.MkdirAll: %v", err)
 	}
 	return os.Create(p)
+}
+
+// formatBase64 adds a separator string every X characters of an input string.
+// For instance, with ":", and 2: DEADBEEF --> DE:AD:BE:EF
+func formatBase64(input string, separator string, chunkSize int) string {
+	var parts []string
+	for i := 0; i < len(input); i += chunkSize {
+		end := i + chunkSize
+		if end > len(input) {
+			end = len(input)
+		}
+		parts = append(parts, input[i:end])
+	}
+	return strings.Join(parts, separator)
 }
