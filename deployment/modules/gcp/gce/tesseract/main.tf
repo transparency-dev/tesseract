@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "6.43.0"
+      version = "6.50.0"
     }
   }
 }
@@ -15,14 +15,14 @@ locals {
 }
 
 data "google_compute_image" "cos" {
-  family  = "cos-beta"
+  family  = "cos-121-lts"
   project = "cos-cloud"
 }
 
 locals {
   tesseract_args = join(" ", [
          "-logtostderr",
-         "-v=3",
+         "-v=2",
          "-http_endpoint=:80",
          "-bucket=${var.bucket}",
          "-spanner_db_path=${local.spanner_log_db_path}",
@@ -161,13 +161,15 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   version {
     instance_template = google_compute_region_instance_template.tesseract.id
   }
+  wait_for_instances = true
+  wait_for_instances_status = "UPDATED"
 
   all_instances_config {
     metadata = {
       service_name = var.base_name 
     }
     labels = {
-      service_name =var.base_name 
+      service_name = var.base_name 
     }
   }
 
