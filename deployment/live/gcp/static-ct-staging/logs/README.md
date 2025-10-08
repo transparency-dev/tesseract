@@ -127,6 +127,7 @@ These keys MUST be stored as note-formatted signing keys (see https://pkg.go.dev
 Since such keys are not natively supported by either Terraform/OpenTofu or Secret Manager, they must be created manually.
 This is easily achieved by running the command below in Cloud Shell, note that `${LOG_ORIGIN}` MUST be set to the full `origin` line of the
 log which will use this key, and `${TESSERA_BASE_NAME}` SHOULD be set to whatever `locals.base_name` is in the log terragrunt config:
+
 ```bash
 go run github.com/transparency-dev/serverless-log/cmd/generate_keys@HEAD \
    --key_name="${LOG_ORIGIN}" \
