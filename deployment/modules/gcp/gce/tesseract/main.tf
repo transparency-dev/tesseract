@@ -147,6 +147,9 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   network_interface {
     network = "default"
+    access_config {
+      // Ephemeral public IP for outbound witness requests.
+    }
   }
 
   metadata = {
