@@ -14,7 +14,7 @@ provider "aws" {
 
 # Secrets Manager
 resource "aws_secretsmanager_secret" "tesseract_ecdsa_p256_public_key" {
-  name = "${var.base_name}-ecdsa-p256-public-key"
+  name                    = "${var.base_name}-ecdsa-p256-public-key"
   recovery_window_in_days = 0
 
   tags = {
@@ -28,9 +28,9 @@ resource "aws_secretsmanager_secret_version" "tesseract_ecdsa_p256_public_key" {
 }
 
 resource "aws_secretsmanager_secret" "tesseract_ecdsa_p256_private_key" {
-  name = "${var.base_name}-ecdsa-p256-private-key"
+  name                    = "${var.base_name}-ecdsa-p256-private-key"
   recovery_window_in_days = 0
-  
+
   tags = {
     label = "tesseract-private-key"
   }

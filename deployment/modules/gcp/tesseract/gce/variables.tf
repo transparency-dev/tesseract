@@ -108,9 +108,8 @@ variable "rate_limit_old_not_before" {
 variable "rate_limit_dedup" {
   description = "Set to rate limit duplicate submissions per second."
   type        = number
-  default     = -1 
+  default     = -1
 }
-
 
 variable "witness_policy" {
   description = "Set to apply a witness policy which will be used by TesseraCT to gather cosignatures for checkpoints."
@@ -118,3 +117,7 @@ variable "witness_policy" {
   default     = ""
 }
 
+variable "additional_signer_private_key_secret_names" {
+  description = "List of additional private key secret name for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
+  type        = list(string)
+}

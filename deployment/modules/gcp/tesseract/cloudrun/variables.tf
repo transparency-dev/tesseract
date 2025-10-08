@@ -47,8 +47,8 @@ variable "server_docker_image" {
 
 variable "spanner_pu" {
   description = "Amount of Spanner processing units"
-  type = number
-  default = 100
+  type        = number
+  default     = 100
 }
 
 variable "batch_max_size" {

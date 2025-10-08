@@ -25,5 +25,5 @@ variable "github_owner" {
 
 variable "logs_terragrunts" {
   description = "Paths of the log terragrunt configs to deploy, from the root of the repository"
-  type        = list
+  type        = list(any)
 }
