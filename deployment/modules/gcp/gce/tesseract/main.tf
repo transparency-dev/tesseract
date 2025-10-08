@@ -57,6 +57,7 @@ locals {
          "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
          "-rate_limit_dedup=${var.rate_limit_dedup}",
         var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
+        length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names))
   ])
 
   container_name = "tesseract-${var.base_name}"

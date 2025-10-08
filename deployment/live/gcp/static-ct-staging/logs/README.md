@@ -118,3 +118,20 @@ between forwarding rules and the load balancer backend groups, Terragrunt might
 not be able to apply the config. If you run into this go to the Load Balancer
 page in the Google Cloud UI, and manually delete the corresponding forwarding
 rule and backend group.
+
+### Create additional signers
+
+To support witnessing, additional ed25519 key material must be created and stored in Secret Manager.
+These keys MUST be stored as note-formatted signing keys (see https://pkg.go.dev/golang.org/x/mod/sumdb/note#hdr-Signing_Notes).
+
+Since such keys are not natively supported by either Terraform/OpenTofu or Secret Manager, they must be created manually.
+This is easily achieved by running the command below in Cloud Shell, note that `${LOG_ORIGIN}` MUST be set to the full `origin` line of the
+log which will use this key, and `${TESSERA_BASE_NAME}` SHOULD be set to whatever `locals.base_name` is in the log terragrunt config:
+```bash
+go run github.com/transparency-dev/serverless-log/cmd/generate_keys@HEAD \
+   --key_name="${LOG_ORIGIN}" \
+   --print | 
+   tee >(grep -v PRIVATE | gcloud secrets create ${TESSERA_BASE_NAME}-ed25519-public-key --data-file=-) |
+   grep PRIVATE | gcloud secrets create ${TESSERA_BASE_NAME}-ed25519-private-key --data-file=-
+```
+

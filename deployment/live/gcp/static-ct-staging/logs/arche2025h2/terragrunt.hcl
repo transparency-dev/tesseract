@@ -16,6 +16,7 @@ locals {
   public_bucket                 = true
   machine_type                  = "n2-standard-8"
   rate_limit_old_not_before     = "28h:150"
+  additional_signer_private_key_secret_names = ["projects/781477119959/secrets/arche2025h2-ed25519-private-key/versions/1"]
 }
 
 include "root" {

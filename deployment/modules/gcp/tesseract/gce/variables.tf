@@ -111,10 +111,13 @@ variable "rate_limit_dedup" {
   default     = -1 
 }
 
-
 variable "witness_policy" {
   description = "Set to apply a witness policy which will be used by TesseraCT to gather cosignatures for checkpoints."
   type        = string
   default     = ""
 }
 
+variable "additional_signer_private_key_secret_names" {
+  description = "List of additional private key secret name for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
+  type        = list(string)
+}

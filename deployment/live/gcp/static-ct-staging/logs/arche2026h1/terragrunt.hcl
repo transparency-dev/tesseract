@@ -15,6 +15,7 @@ locals {
   create_internal_load_balancer = true
   public_bucket                 = true
   rate_limit_old_not_before     = "28h:150"
+  additional_signer_private_key_secret_names = ["projects/781477119959/secrets/arche2026h1-ed25519-private-key/versions/1"]
 }
 
 include "root" {
