@@ -12,8 +12,8 @@ terraform {
 # Cloud Build
 
 locals {
-  cloudbuild_service_account   = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
-  scheduler_service_account    = "scheduler-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
+  cloudbuild_service_account = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
+  scheduler_service_account  = "scheduler-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
 }
 
 resource "google_project_service" "cloudbuild_api" {
@@ -54,9 +54,9 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
     ## bearer tokens for the test to access them.
     ## This step creates those, and stores them for later use.
     step {
-      id       = "bearer_token"
-      name     = "gcr.io/cloud-builders/gcloud"
-      script   = <<EOT
+      id     = "bearer_token"
+      name   = "gcr.io/cloud-builders/gcloud"
+      script = <<EOT
         gcloud auth print-access-token > /workspace/cb_access
         curl -H "Metadata-Flavor: Google" "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/${local.cloudbuild_service_account}/identity?audience=${var.submission_url}" > /workspace/cb_identity
       EOT
@@ -85,7 +85,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
           --parallel_submit=400
       EOT
       wait_for = ["bearer_token"]
-      timeout = "3420s" // 57 minutes, since token validity if of 60 min.
+      timeout  = "3420s" // 57 minutes, since token validity if of 60 min.
     }
 
     options {
@@ -97,7 +97,7 @@ resource "google_cloudbuild_trigger" "preloader_trigger" {
 
 // TODO(phboneff): replace with a long running job once the log is public.
 resource "google_cloud_scheduler_job" "deploy_cron" {
-  paused = false
+  paused  = false
   project = var.project_id
   region  = var.location
   name    = "deploy-cron-${var.base_name}"
@@ -110,7 +110,7 @@ resource "google_cloud_scheduler_job" "deploy_cron" {
   http_target {
     http_method = "POST"
     uri         = "https://cloudbuild.googleapis.com/v1/projects/${var.project_id}/locations/${var.location}/triggers/${google_cloudbuild_trigger.preloader_trigger.trigger_id}:run"
-    body        = base64encode(jsonencode({
+    body = base64encode(jsonencode({
       source = {
         branchName = "main"
       }

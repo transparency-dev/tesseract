@@ -77,6 +77,6 @@ resource "google_compute_instance" "preloader" {
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
     email  = "${local.preloader_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
-    scopes = ["cloud-platform"]                                                               # Allows using service accounts and OAuth.
+    scopes = ["cloud-platform"] # Allows using service accounts and OAuth.
   }
 }

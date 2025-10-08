@@ -10,8 +10,8 @@ terraform {
 locals {
   # TODO(phbnf): use a different service account
   tesseract_service_account_id = var.env == "" ? "tesseract-sa" : "tesseract-${var.env}-sa"
-  spanner_log_db_path         = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
-  spanner_antispam_db_path    = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
+  spanner_log_db_path          = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.log_spanner_db}"
+  spanner_antispam_db_path     = "projects/${var.project_id}/instances/${var.log_spanner_instance}/databases/${var.antispam_spanner_db}"
 }
 
 data "google_compute_image" "cos" {
@@ -21,7 +21,7 @@ data "google_compute_image" "cos" {
 
 locals {
 
-  witness_policy_file="/etc/tesseract-witness.policy"
+  witness_policy_file = "/etc/tesseract-witness.policy"
 
   # docker_run_args are provided to the docker run command.
   # Use this to configure docker-specific things.
@@ -36,28 +36,28 @@ locals {
 
   # tesseract_args are provided to the tesseract command.
   tesseract_args = join(" ", [
-         "-logtostderr",
-         "-v=2",
-         "-http_endpoint=:80",
-         "-bucket=${var.bucket}",
-         "-spanner_db_path=${local.spanner_log_db_path}",
-         "-spanner_antispam_db_path=${local.spanner_antispam_db_path}",
-         "-roots_pem_file=/bin/test_root_ca_cert.pem",
-         "-origin=${var.base_name}${var.origin_suffix}",
-         "-signer_public_key_secret_name=${var.signer_public_key_secret_name}",
-         "-signer_private_key_secret_name=${var.signer_private_key_secret_name}",
-         "-inmemory_antispam_cache_size=256k",
-         "-not_after_start=${var.not_after_start}",
-         "-not_after_limit=${var.not_after_limit}",
-         "-trace_fraction=${var.trace_fraction}",
-         "-batch_max_size=${var.batch_max_size}",
-         "-batch_max_age=${var.batch_max_age}",
-         "-enable_publication_awaiter=${var.enable_publication_awaiter}",
-         "-accept_sha1_signing_algorithms=true",
-         "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
-         "-rate_limit_dedup=${var.rate_limit_dedup}",
-        var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
-        length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names))
+    "-logtostderr",
+    "-v=2",
+    "-http_endpoint=:80",
+    "-bucket=${var.bucket}",
+    "-spanner_db_path=${local.spanner_log_db_path}",
+    "-spanner_antispam_db_path=${local.spanner_antispam_db_path}",
+    "-roots_pem_file=/bin/test_root_ca_cert.pem",
+    "-origin=${var.base_name}${var.origin_suffix}",
+    "-signer_public_key_secret_name=${var.signer_public_key_secret_name}",
+    "-signer_private_key_secret_name=${var.signer_private_key_secret_name}",
+    "-inmemory_antispam_cache_size=256k",
+    "-not_after_start=${var.not_after_start}",
+    "-not_after_limit=${var.not_after_limit}",
+    "-trace_fraction=${var.trace_fraction}",
+    "-batch_max_size=${var.batch_max_size}",
+    "-batch_max_age=${var.batch_max_age}",
+    "-enable_publication_awaiter=${var.enable_publication_awaiter}",
+    "-accept_sha1_signing_algorithms=true",
+    "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
+    "-rate_limit_dedup=${var.rate_limit_dedup}",
+    var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
+    length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names))
   ])
 
   container_name = "tesseract-${var.base_name}"
@@ -128,7 +128,7 @@ resource "google_compute_region_instance_template" "tesseract" {
   tags = ["tesseract", "allow-health-checks", "preloader"]
 
   labels = {
-    environment  = var.env
+    environment = var.env
   }
 
   instance_description = "TesseraCT"
@@ -156,13 +156,13 @@ resource "google_compute_region_instance_template" "tesseract" {
   metadata = {
     google-logging-enabled    = "true"
     google-monitoring-enabled = "true"
-    user-data = local.cloud_init
+    user-data                 = local.cloud_init
   }
 
   service_account {
     # Google recommends custom service accounts that have cloud-platform scope and permissions granted via IAM Roles.
     email  = "${local.tesseract_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
-    scopes = ["cloud-platform"]                                                               # Allows using service accounts and OAuth.
+    scopes = ["cloud-platform"] # Allows using service accounts and OAuth.
   }
 }
 
@@ -191,15 +191,15 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   version {
     instance_template = google_compute_region_instance_template.tesseract.id
   }
-  wait_for_instances = true
+  wait_for_instances        = true
   wait_for_instances_status = "UPDATED"
 
   all_instances_config {
     metadata = {
-      service_name = var.base_name 
+      service_name = var.base_name
     }
     labels = {
-      service_name = var.base_name 
+      service_name = var.base_name
     }
   }
 
