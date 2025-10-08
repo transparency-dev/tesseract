@@ -43,6 +43,7 @@ module "gce" {
   enable_publication_awaiter     = var.enable_publication_awaiter
   rate_limit_old_not_before      = var.rate_limit_old_not_before
   rate_limit_dedup               = var.rate_limit_dedup
+  witness_policy                 = var.witness_policy
 
   depends_on = [
     module.secretmanager,
