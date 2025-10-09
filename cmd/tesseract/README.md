@@ -117,6 +117,40 @@ to be fully processed.
 
 This flag is on by default.
 
+##### Witnessing
+
+Witnessing is a mechanism which provides security against split-view attacks.
+
+With witnessing enabled, TesseraCT will attempt to gather counter-signatures from
+the configured witnesses for each checkpoint it publishes.
+
+> [!NOTE]
+> The public witness network is currently experimental.
+
+To enable witnessing:
+1. Generate an Ed25519 note signer key, you can use `go run github.com/transparency-dev/serverless-log/cmd/generate_keys@HEAD` to do this.
+   Note that the `key_name` you provide SHOULD match the `origin` for your log.
+2. Register your newly generated key with the public witness network by adding it to the config here: 
+   https://github.com/transparency-dev/witness-network/blob/main/site/static/testing/log-list.1 .
+3. Set an `additional_signer` flag on your TesseraCT binary to pass your new key (the exact flag name and
+   value depend on the platform).
+4. Create a `witness.policy` file to configure the set of witnesses to request signatures from (see below for
+   more information), and provide the path to this file to TesseraCT using the `witness_policy_file` flag.
+
+###### Policy file
+
+TesseraCT's witness policy file uses the Sigsum
+[Trust policy format](https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md) to describe
+the set of witness signatures to fetch.
+
+A very simple example policy which requests a cosignature from just one witness is shown below:
+
+```
+witness o1 transparency.dev/DEV:witness-little-garden+4b7fca75+AStusOxINQNUTN5Oj8HObRkh2yHf/MwYaGX4CPdiVEPM https://api.transparency.dev/dev/witness/little-garden 
+
+quorum o1
+```
+
 #### Antispam
 
 The `pushback_max_antispam_lag`, `rate_limit_dedup` and

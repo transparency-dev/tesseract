@@ -67,7 +67,7 @@ At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 |  4  | Basic Antispam                                                                           | :white_check_mark: | alpha          |
 |  5  | Monitoring and metrics                                                                   | :white_check_mark: | alpha          |
 |  6  | Secure key management [#219](https://github.com/transparency-dev/tesseract/issues/219)   | :hammer:           | beta           |
-|  7  | Witnessing [#443](https://github.com/transparency-dev/tesseract/issues/443)              | :hammer:           | beta           |
+|  7  | Witnessing                                                                               | :white_check_mark: | beta           |
 |  8  | Structured logging [#346](https://github.com/transparency-dev/tesseract/issues/346)      | :hammer:           | beta           |
 |  9  | CCADB based root update [#212](https://github.com/transparency-dev/tesseract/issues/212) | :hammer:           | beta           |
 |  10 | Client                                                                                   | :hammer:           | 1.0            |
