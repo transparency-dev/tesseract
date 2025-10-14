@@ -216,11 +216,12 @@ which also happens to be a [4-dimensional hypercube](https://en.wikipedia.org/wi
 ### What's the difference between Tessera and TesseraCT?
 
 [Tessera](https://github.com/transparency-dev/tessera) is a Go library for
-building [tile-based transparency logs (tlogs)](https://c2sp.org/tlog-tiles) on
-various deployment backends. TesseraCT is a service using the Tessera library
-with CT specific settings to implement Certificate Transparency logs complying
-with [static-ct-api](https://c2sp.org/static-ct-api). TesseraCT supports a
-subset of Tessera's backends. A TesseraCT serving stack is composed of:
+building [tile-based transparency logs (tlog-tiles)](https://c2sp.org/tlog-tiles)
+on various deployment backends. TesseraCT is a service using the Tessera
+library with CT specific settings to implement Certificate Transparency logs
+complying with [static-ct-api](https://c2sp.org/static-ct-api). TesseraCT
+supports a subset of Tessera's backends. A TesseraCT serving stack is composed
+of:
 
 - one or multiple instances of a TesseraCT binary using the Tessera library,
 providing [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
