@@ -27,6 +27,7 @@ import (
 	"github.com/aws/smithy-go"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/klog/v2"
 )
 
@@ -83,6 +84,8 @@ func (s *IssuersStorage) keyToObjName(key []byte) string {
 
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
 func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
+	eg := errgroup.Group{}
+
 	// We first try and see if this issuer cert has already been stored since reads
 	// are cheaper than writes.
 	for _, kv := range kv {
@@ -102,7 +105,7 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 			var apiErr smithy.APIError
 			if errors.As(err, &apiErr); apiErr.ErrorCode() == "PreconditionFailed" {
 				klog.V(2).Infof("AddIssuersIfNotExist: object %q already exists in bucket %q, continuing", objName, s.bucket)
-				return nil
+				continue
 			}
 			return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket, err)
 		}
