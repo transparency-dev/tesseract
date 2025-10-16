@@ -130,7 +130,7 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 					return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
 				}
 				klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
-				return nil
+				continue
 			}
 
 			return fmt.Errorf("failed to close write on %q: %v", objName, err)
