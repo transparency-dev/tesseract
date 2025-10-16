@@ -21,12 +21,14 @@ import (
 	"io"
 	"net/http"
 	"path"
+	"time"
 
 	gcs "cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"google.golang.org/api/googleapi"
+	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -63,6 +65,27 @@ func NewIssuerStorage(ctx context.Context, bucket string, gcsClient *gcs.Client)
 // keyToObjName converts bytes to a GCS object name.
 func (s *IssuersStorage) keyToObjName(key []byte) string {
 	return path.Join(s.prefix, string(key))
+}
+
+// listFiles lists objects within specified bucket.
+func listFiles(b *gcs.BucketHandle) {
+	// bucket := "bucket-name"
+	ctx := context.Background()
+
+	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
+	defer cancel()
+
+	it := b.Objects(ctx, nil)
+	for {
+		attrs, err := it.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			panic(err)
+		}
+		klog.Infof("found %q", attrs.Name)
+	}
 }
 
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.

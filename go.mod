@@ -18,6 +18,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/x/ansi v0.10.2
 	github.com/dustin/go-humanize v1.0.1
+	github.com/fsouza/fake-gcs-server v1.52.3
 	github.com/gdamore/tcell/v2 v2.9.0
 	github.com/go-sql-driver/mysql v1.9.3
 	github.com/google/go-cmp v0.7.0
@@ -52,6 +53,7 @@ require (
 	cloud.google.com/go/iam v1.5.2 // indirect
 	cloud.google.com/go/longrunning v0.6.7 // indirect
 	cloud.google.com/go/monitoring v1.24.2 // indirect
+	cloud.google.com/go/pubsub/v2 v2.0.0 // indirect
 	cloud.google.com/go/spanner v1.86.0 // indirect
 	cloud.google.com/go/trace v1.11.6 // indirect
 	filippo.io/edwards25519 v1.1.0 // indirect
@@ -90,10 +92,13 @@ require (
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/golang/groupcache v0.0.0-20241129210726-2c02b8208cf8 // indirect
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
+	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/googleapis/enterprise-certificate-proxy v0.3.6 // indirect
 	github.com/googleapis/gax-go/v2 v2.15.0 // indirect
+	github.com/gorilla/handlers v1.5.2 // indirect
+	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.27.2 // indirect
 	github.com/hashicorp/golang-lru/v2 v2.0.7 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
@@ -104,6 +109,7 @@ require (
 	github.com/muesli/ansi v0.0.0-20230316100256-276c6243b2f6 // indirect
 	github.com/muesli/cancelreader v0.2.2 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
+	github.com/pkg/xattr v0.4.10 // indirect
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/spiffe/go-spiffe/v2 v2.5.0 // indirect
