@@ -85,7 +85,6 @@ func TestNewIssuerStorage(t *testing.T) {
 }
 
 func TestAddIssuersIfNotExist(t *testing.T) {
-
 	tests := []struct {
 		name    string
 		kv      []storage.KV

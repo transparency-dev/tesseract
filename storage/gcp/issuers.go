@@ -21,14 +21,13 @@ import (
 	"io"
 	"net/http"
 	"path"
-	"time"
 
 	gcs "cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/googleapi"
-	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"k8s.io/klog/v2"
@@ -67,76 +66,58 @@ func (s *IssuersStorage) keyToObjName(key []byte) string {
 	return path.Join(s.prefix, string(key))
 }
 
-// listFiles lists objects within specified bucket.
-func listFiles(b *gcs.BucketHandle) {
-	// bucket := "bucket-name"
-	ctx := context.Background()
-
-	ctx, cancel := context.WithTimeout(ctx, time.Second*10)
-	defer cancel()
-
-	it := b.Objects(ctx, nil)
-	for {
-		attrs, err := it.Next()
-		if err == iterator.Done {
-			break
-		}
-		if err != nil {
-			panic(err)
-		}
-		klog.Infof("found %q", attrs.Name)
-	}
-}
-
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
 func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
 	// We first try and see if this issuer cert has already been stored since reads
 	// are cheaper than writes.
-	// TODO(phboneff): add parallel operations
+	eg := errgroup.Group{}
 	for _, kv := range kv {
-		objName := s.keyToObjName(kv.K)
-		obj := s.bucket.Object(objName)
+		eg.Go(func() error {
+			objName := s.keyToObjName(kv.K)
+			obj := s.bucket.Object(objName)
 
-		w := obj.If(gcs.Conditions{DoesNotExist: true}).NewWriter(ctx)
-		w.ContentType = s.contentType
+			w := obj.If(gcs.Conditions{DoesNotExist: true}).NewWriter(ctx)
+			w.ContentType = s.contentType
 
-		if _, err := w.Write(kv.V); err != nil {
-			return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket.BucketName(), err)
-		}
-
-		if err := w.Close(); err != nil {
-			// Need to check whether the issuer was already present so that we can hide the error if this is an idempotent write.
-			// Unfortunately, the way in which this is communicated by the gcs client differs depending on whether the underlying
-			// transport used is HTTP or gRPC, so we need to check both:
-			failedPrecondition := false
-			if ee, ok := err.(*googleapi.Error); ok && ee.Code == http.StatusPreconditionFailed {
-				failedPrecondition = true
-			} else if st, ok := status.FromError(err); ok && st.Code() == codes.FailedPrecondition {
-				failedPrecondition = true
-			}
-			if failedPrecondition {
-				r, err := obj.NewReader(ctx)
-				if err != nil {
-					return fmt.Errorf("failed to create reader for object %q in bucket %q: %w", objName, s.bucket.BucketName(), err)
-				}
-
-				existing, err := io.ReadAll(r)
-				if err != nil {
-					return fmt.Errorf("failed to read %q: %v", objName, err)
-				}
-
-				if !bytes.Equal(existing, kv.V) {
-					klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
-					return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
-				}
-				klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
-				continue
+			if _, err := w.Write(kv.V); err != nil {
+				return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket.BucketName(), err)
 			}
 
-			return fmt.Errorf("failed to close write on %q: %v", objName, err)
-		}
+			if err := w.Close(); err != nil {
+				// Need to check whether the issuer was already present so that we can hide the error if this is an idempotent write.
+				// Unfortunately, the way in which this is communicated by the gcs client differs depending on whether the underlying
+				// transport used is HTTP or gRPC, so we need to check both:
+				failedPrecondition := false
+				if ee, ok := err.(*googleapi.Error); ok && ee.Code == http.StatusPreconditionFailed {
+					failedPrecondition = true
+				} else if st, ok := status.FromError(err); ok && st.Code() == codes.FailedPrecondition {
+					failedPrecondition = true
+				}
+				if failedPrecondition {
+					r, err := obj.NewReader(ctx)
+					if err != nil {
+						return fmt.Errorf("failed to create reader for object %q in bucket %q: %w", objName, s.bucket.BucketName(), err)
+					}
 
-		klog.V(2).Infof("AddIssuersIfNotExist: added %q in bucket %q", objName, s.bucket.BucketName())
+					existing, err := io.ReadAll(r)
+					if err != nil {
+						return fmt.Errorf("failed to read %q: %v", objName, err)
+					}
+
+					if !bytes.Equal(existing, kv.V) {
+						klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
+						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
+					}
+					klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
+					return nil
+				}
+
+				return fmt.Errorf("failed to close write on %q: %v", objName, err)
+			}
+
+			klog.V(2).Infof("AddIssuersIfNotExist: added %q in bucket %q", objName, s.bucket.BucketName())
+			return nil
+		})
 	}
-	return nil
+	return eg.Wait()
 }
