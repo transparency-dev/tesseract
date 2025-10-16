@@ -87,9 +87,6 @@ func (s *IssuersStorage) keyToObjName(key []byte) string {
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
 func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
 	eg := errgroup.Group{}
-
-	// We first try and see if this issuer cert has already been stored since reads
-	// are cheaper than writes.
 	for _, kv := range kv {
 		objName := s.keyToObjName(kv.K)
 		put := &s3.PutObjectInput{
