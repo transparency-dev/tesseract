@@ -189,6 +189,9 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
+			if tt.wantErr {
+				return
+			}
 
 			// Now look for expected final state.
 			for k, v := range tt.want {
