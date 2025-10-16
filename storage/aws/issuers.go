@@ -19,14 +19,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"path"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go"
+	"github.com/google/go-cmp/cmp"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
+	"golang.org/x/sync/errgroup"
 	"k8s.io/klog/v2"
 )
 
@@ -83,8 +86,7 @@ func (s *IssuersStorage) keyToObjName(key []byte) string {
 
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
 func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
-	// We first try and see if this issuer cert has already been stored since reads
-	// are cheaper than writes.
+	eg := errgroup.Group{}
 	for _, kv := range kv {
 		objName := s.keyToObjName(kv.K)
 		put := &s3.PutObjectInput{
@@ -95,18 +97,34 @@ func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.
 			IfNoneMatch: aws.String("*"),
 		}
 
-		// If we run into a precondition failure error, check that the object
-		// which exists contains the same content that we want to write.
-		// If so, we can consider this write to be idempotently successful.
-		if _, err := s.s3Client.PutObject(ctx, put); err != nil {
-			var apiErr smithy.APIError
-			if errors.As(err, &apiErr); apiErr.ErrorCode() == "PreconditionFailed" {
-				klog.V(2).Infof("AddIssuersIfNotExist: object %q already exists in bucket %q, continuing", objName, s.bucket)
-				return nil
+		eg.Go(func() error {
+			// If we run into a precondition failure error, check that the object
+			// which exists contains the same content that we want to write.
+			// If so, we can consider this write to be idempotently successful.
+			if _, err := s.s3Client.PutObject(ctx, put); err != nil {
+				var apiErr smithy.APIError
+				if errors.As(err, &apiErr) && apiErr.ErrorCode() == "PreconditionFailed" {
+					existingObj, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+						Bucket: aws.String(s.bucket),
+						Key:    aws.String(objName),
+					})
+					if err != nil {
+						return fmt.Errorf("failed to fetch existing object %q: %v", objName, err)
+					}
+					existing, err := io.ReadAll(existingObj.Body)
+					if err != nil {
+						return fmt.Errorf("failed to read object %q: %v", objName, err)
+					}
+					if !bytes.Equal(existing, kv.V) {
+						klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
+						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
+					}
+					return nil
+				}
+				return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket, err)
 			}
-			return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket, err)
-		}
-		klog.V(2).Infof("AddIssuersIfNotExist: added %q in bucket %q", objName, s.bucket)
+			return nil
+		})
 	}
-	return nil
+	return eg.Wait()
 }
