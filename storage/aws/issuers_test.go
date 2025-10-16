@@ -148,17 +148,6 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "add existing issuer with different data",
-			kv: []storage.KV{
-				{K: []byte("issuer1"), V: []byte("issuer1 data")},
-				{K: []byte("issuer1"), V: []byte("different data")},
-			},
-			want: map[string][]byte{
-				"issuer1": []byte("issuer1 data"),
-			},
-			wantErr: true,
-		},
-		{
 			name: "add new issuer and existing issuer",
 			kv: []storage.KV{
 				{K: []byte("issuer1"), V: []byte("issuer1 data")},
@@ -217,10 +206,11 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 
 func TestAllKVAreWritten(t *testing.T) {
 	tests := []struct {
-		name  string
-		setup []storage.KV
-		kv    []storage.KV
-		want  map[string][]byte
+		name    string
+		setup   []storage.KV
+		kv      []storage.KV
+		want    map[string][]byte
+		wantErr bool
 	}{
 		{
 			name: "Don't bail batch if idempotent write happens",
@@ -237,6 +227,19 @@ func TestAllKVAreWritten(t *testing.T) {
 				"issuer2": []byte("issuer2 data"),
 				"issuer3": []byte("issuer3 data"),
 			},
+		},
+		{
+			name: "add existing issuer with different data",
+			setup: []storage.KV{
+				{K: []byte("issuer1"), V: []byte("issuer1 data")},
+			},
+			kv: []storage.KV{
+				{K: []byte("issuer1"), V: []byte("different data")},
+			},
+			want: map[string][]byte{
+				"issuer1": []byte("issuer1 data"),
+			},
+			wantErr: true,
 		},
 	}
 
@@ -258,8 +261,10 @@ func TestAllKVAreWritten(t *testing.T) {
 
 			// Apply KV updates.
 			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
-			if err != nil {
-				t.Errorf("AddIssuersIfNotExist() error = %v", err)
+			if gotErr := err != nil; gotErr != tt.wantErr {
+				t.Fatalf("AddIssuersIfNotExist = %v, want err %t", err, tt.wantErr)
+			}
+			if tt.wantErr {
 				return
 			}
 
