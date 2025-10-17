@@ -124,6 +124,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       content {
         id     = "terraform_apply_tesseract_${tg_path.key}"
         name   = "terragrunt-opentofu"
+        ## Terragrunt apply can take up to 10+ minutes, give it 15m to be safe.
+        timeout = "900s"
         script = <<EOT
           terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
         EOT
