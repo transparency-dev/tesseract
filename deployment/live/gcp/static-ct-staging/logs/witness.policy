@@ -1,9 +1,10 @@
 # Staging logs witness policy.
 
-## Dev Omni.
-witness o1 transparency.dev/DEV:witness-little-garden+4b7fca75+AStusOxINQNUTN5Oj8HObRkh2yHf/MwYaGX4CPdiVEPM https://api.transparency.dev/dev/witness/little-garden 
+## Dev witnesses
+witness tf-1 transparency.dev/DEV:witness-little-garden+4b7fca75+AStusOxINQNUTN5Oj8HObRkh2yHf/MwYaGX4CPdiVEPM https://api.transparency.dev/dev/witness/little-garden 
+witness remora-1 remora.n621.de+da77ade7+BOvN63jn/bLvkieywe8R6UYAtVtNbZpXh34x7onlmtw2 https://remora.n621.de/
 
-group o_grp all o1
+group dev_grp all tf-1 remora-1
 
 ## AW CI devices
 witness aw1 ArmoredWitness-wispy-snow+834b82b1+ASho7B13t7PhXoLr43ppVFCHEpTSajIybNRYMSi8XR1Q   https://bastion.glasklar.is/ea8a7b22bb1a6420464bab7a01f768f120cf237bb399b46d0973109059175264
@@ -14,5 +15,5 @@ witness aw5 ArmoredWitness-long-dew+0de2fcf1+AUyK/KE1b77kJiBE9SQc0T90NqbiAYm4ksc
 
 group aw_grp 3 aw1 aw2 aw3 aw4 aw5
 
-group q_grp all o_grp aw_grp
+group q_grp all dev_grp aw_grp
 quorum q_grp
