@@ -25,9 +25,9 @@ require (
 	github.com/johannesboyne/gofakes3 v0.0.0-20250916175020-ebf3e50324d3
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.42.0
-	github.com/transparency-dev/formats v0.0.0-20250421220931-bb8ad4d07c26
+	github.com/transparency-dev/formats v0.0.0-20251017110053-404c0d5b696c
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/tessera v1.0.1-0.20250930174249-112eca49fafd
+	github.com/transparency-dev/tessera v1.0.1-0.20251017111740-ac0ba0aa82a0
 	go.opentelemetry.io/contrib/detectors/gcp v1.38.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.63.0
 	go.opentelemetry.io/otel v1.38.0
