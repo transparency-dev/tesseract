@@ -62,6 +62,9 @@ resource "google_cloudbuild_trigger" "build_trigger" {
   }
 
   build {
+    ## This overall timeout is complete overkill, but there seems to be a bug in terraform/GCB which means that this number needs
+    ## to be larger than the sum of all build steps below, _even_ if the build steps run in parallel.
+    timeout = "3000s"
     ## Install Terragrunt and OpenTofu in alpine container.
     step {
       id   = "prepare_terragrunt_opentofu_container"
@@ -117,6 +120,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     ## Apply the deployment/live/gcp/static-staging/logs/XXX terragrunt configs.
     ## This will bring up or update TesseraCT's infrastructure, including a service
     ## running the server docker image built above.
+    ##
+    ## We run these in parallel because each one can take up to 10+ minutes to apply.
     dynamic "step" {
       for_each = var.logs_terragrunts
       iterator = tg_path
@@ -124,6 +129,8 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       content {
         id     = "terraform_apply_tesseract_${tg_path.key}"
         name   = "terragrunt-opentofu"
+        ## Terragrunt apply can take up to 10+ minutes, give it 15m to be safe.
+        timeout = "900s"
         script = <<EOT
           terragrunt --terragrunt-non-interactive --terragrunt-no-color apply -auto-approve -no-color 2>&1
         EOT
@@ -135,7 +142,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           "TF_VAR_project_id=${var.project_id}",
           "DOCKER_CONTAINER_TAG=$SHORT_SHA"
         ]
-        wait_for = tg_path.key > 0 ? ["prepare_terragrunt_opentofu_container", "docker_push_tesseract_gcp", "terraform_apply_tesseract_${tg_path.key - 1}"] : ["prepare_terragrunt_opentofu_container", "docker_push_tesseract_gcp"]
+        wait_for = ["prepare_terragrunt_opentofu_container", "docker_push_tesseract_gcp"]
       }
     }
 
