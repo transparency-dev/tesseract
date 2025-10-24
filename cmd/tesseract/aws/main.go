@@ -70,6 +70,8 @@ var (
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
+	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
@@ -227,6 +229,24 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointInterval(*checkpointInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
+
+	if *witnessPolicyFile != "" {
+		f, err := os.ReadFile(*witnessPolicyFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+		}
+		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+		}
+
+		// Don't block if witnesses are unavailable.
+		wOpts := &tessera.WitnessOptions{
+			FailOpen: true,
+			Timeout:  *witnessTimeout,
+		}
+		opts.WithWitnesses(wg, wOpts)
+	}
 
 	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
