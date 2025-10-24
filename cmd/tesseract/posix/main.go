@@ -74,6 +74,7 @@ var (
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format describe at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
+	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
@@ -242,7 +243,10 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 		}
 
 		// Don't block if witnesses are unavailable.
-		wOpts := &tessera.WitnessOptions{FailOpen: true}
+		wOpts := &tessera.WitnessOptions{
+			FailOpen: true,
+			Timeout:  *witnessTimeout,
+		}
 		opts.WithWitnesses(wg, wOpts)
 	}
 
