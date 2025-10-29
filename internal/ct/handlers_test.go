@@ -940,3 +940,75 @@ func BenchmarkValidateChain(b *testing.B) {
 		}
 	}
 }
+
+func TestSubmissionEndpoint(t *testing.T) {
+	tests := []struct {
+		name    string
+		reqUrl  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "all good",
+			reqUrl:  "https://submission.com/prefix",
+			want:    "submission.com/prefix",
+			wantErr: false,
+		},
+		{
+			name:    "all good no path",
+			reqUrl:  "http://submission.com/",
+			want:    "submission.com/",
+			wantErr: false,
+		},
+		{
+			name:    "all good with port",
+			reqUrl:  "https://submission.com:6962/prefix",
+			want:    "submission.com/prefix",
+			wantErr: false,
+		},
+		{
+			name:    "ipv4 host with port",
+			reqUrl:  "http://127.0.0.1:8080/prefix",
+			want:    "127.0.0.1/prefix",
+			wantErr: false,
+		},
+		{
+			name:    "ipv6",
+			reqUrl:  "https://[::1]/prefix",
+			want:    "::1/prefix",
+			wantErr: false,
+		},
+		{
+			name:    "ipv6 with port",
+			reqUrl:  "https://[::1]:6962/prefix",
+			want:    "::1/prefix",
+			wantErr: false,
+		},
+		{
+			name:    "missing hostname",
+			reqUrl:  "https://:6962/prefix",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := http.NewRequest("GET", tt.reqUrl, strings.NewReader("req"))
+			if err != nil {
+				t.Fatalf("failed to create HTTP request: %v", err)
+			}
+			got, gotErr := submissionEndpoint(r)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("submissionEndpoint() failed, want no error: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("submissionEndpoint() succeeded unexpectedly")
+			}
+			if got != tt.want {
+				t.Errorf("submissionEndpoint() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

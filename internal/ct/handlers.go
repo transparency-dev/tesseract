@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -129,6 +130,30 @@ type appHandler struct {
 	method  string // http.MethodGet or http.MethodPost
 }
 
+// submissionEndpoint returns the endpoint on which a request was received.
+// It does not include any port, nor any query string.
+func submissionEndpoint(r *http.Request) (string, error) {
+	// url.Parse won't work on "example.com:8080" directly.
+	// It needs a scheme. So, we add a dummy scheme to
+	// trick it into parsing r.Host as the "host" part of a URL.
+	u, err := url.Parse("dummy://" + r.Host)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse Host: %v", err)
+	}
+
+	// u.Hostname() splits the host and port, handling IPv4, IPv6, and no-port
+	// cases.
+	host := u.Hostname()
+
+	// Handle edge case where r.Host might be just ":8080"
+	if host == "" {
+		return "", fmt.Errorf("r.Host does not include a Hostname: %v", r.Host)
+	}
+
+	// Now 'host' is guaranteed to be just the hostname.
+	return fmt.Sprintf("%s%s", host, r.URL.Path), nil
+}
+
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +172,12 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		latency := time.Since(startTime).Seconds()
 		reqDuration.Record(r.Context(), latency, metric.WithAttributes(attrs...))
 	}()
+
+	if ep, err := submissionEndpoint(r); err != nil {
+		klog.Warningf("%s: %s cannot extract submission endpoint from request: %v", a.log.origin, a.name, err)
+	} else if !strings.HasPrefix(ep, a.log.origin) {
+		klog.Warningf("%s: %s request received at %q, which does not start with the log's origin %q, as specificed by https://c2sp.org/static-ct-api", a.log.origin, a.name, ep, a.log.origin)
+	}
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
