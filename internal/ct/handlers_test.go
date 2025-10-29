@@ -944,55 +944,55 @@ func BenchmarkValidateChain(b *testing.B) {
 func TestSubmissionEndpoint(t *testing.T) {
 	tests := []struct {
 		name    string
-		reqUrl  string
+		reqURL  string
 		want    string
 		wantErr bool
 	}{
 		{
 			name:    "all good",
-			reqUrl:  "https://submission.com/prefix",
-			want:    "submission.com/prefix",
+			reqURL:  "http://hostname.com/path/to/something",
+			want:    "hostname.com/path/to/something",
 			wantErr: false,
 		},
 		{
 			name:    "all good no path",
-			reqUrl:  "http://submission.com/",
-			want:    "submission.com/",
+			reqURL:  "http://hostname.com/",
+			want:    "hostname.com/",
 			wantErr: false,
 		},
 		{
 			name:    "all good with port",
-			reqUrl:  "https://submission.com:6962/prefix",
-			want:    "submission.com/prefix",
+			reqURL:  "http://hostname.com:6962/path/to/something",
+			want:    "hostname.com/path/to/something",
 			wantErr: false,
 		},
 		{
 			name:    "ipv4 host with port",
-			reqUrl:  "http://127.0.0.1:8080/prefix",
-			want:    "127.0.0.1/prefix",
+			reqURL:  "http://127.0.0.1:8080/path/to/something",
+			want:    "127.0.0.1/path/to/something",
 			wantErr: false,
 		},
 		{
 			name:    "ipv6",
-			reqUrl:  "https://[::1]/prefix",
-			want:    "::1/prefix",
+			reqURL:  "https://[::1]/path/to/something",
+			want:    "::1/path/to/something",
 			wantErr: false,
 		},
 		{
 			name:    "ipv6 with port",
-			reqUrl:  "https://[::1]:6962/prefix",
-			want:    "::1/prefix",
+			reqURL:  "https://[::1]:6962/path/to/something",
+			want:    "::1/path/to/something",
 			wantErr: false,
 		},
 		{
 			name:    "missing hostname",
-			reqUrl:  "https://:6962/prefix",
+			reqURL:  "https://:6962/path/to/something",
 			wantErr: true,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r, err := http.NewRequest("GET", tt.reqUrl, strings.NewReader("req"))
+			r, err := http.NewRequest("GET", tt.reqURL, strings.NewReader("req"))
 			if err != nil {
 				t.Fatalf("failed to create HTTP request: %v", err)
 			}
@@ -1008,6 +1008,65 @@ func TestSubmissionEndpoint(t *testing.T) {
 			}
 			if got != tt.want {
 				t.Errorf("submissionEndpoint() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReceivedAtOrigin(t *testing.T) {
+	tests := []struct {
+		name    string
+		reqURL  string
+		origin  string
+		want    string
+		wantErr bool
+	}{
+		{
+			name:    "all good",
+			reqURL:  "http://hostname.com/path/to/something",
+			origin:  "hostname.com/path/to/something",
+			want:    "",
+			wantErr: false,
+		},
+		{
+			name:    "all good punycode",
+			reqURL:  "http://xn--ixaia7diae.com/path/to/something",
+			origin:  "τέσσαρα.com/path/to/something",
+			want:    "",
+			wantErr: false,
+		},
+		{
+			name:    "does not match",
+			reqURL:  "http://hostname.com/path/to/something",
+			origin:  "hello.com/path/to/something",
+			want:    "hostname.com/path/to/something",
+			wantErr: false,
+		},
+		{
+			name:    "missing hostname",
+			reqURL:  "https://:6962/path/to/something",
+			want:    "",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, err := http.NewRequest("GET", tt.reqURL, strings.NewReader("req"))
+			if err != nil {
+				t.Fatalf("failed to create HTTP request: %v", err)
+			}
+			got, gotErr := receivedAtOrigin(r, tt.origin)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("receivedAtOrigin() failed, want no error: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("receivedAtOrigin() succeeded unexpectedly")
+			}
+			if got != tt.want {
+				t.Errorf("receivedAtOrigin() = %v, want %v", got, tt.want)
 			}
 		})
 	}

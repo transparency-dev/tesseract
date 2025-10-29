@@ -39,6 +39,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	"golang.org/x/net/idna"
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
@@ -154,6 +155,32 @@ func submissionEndpoint(r *http.Request) (string, error) {
 	return fmt.Sprintf("%s%s", host, r.URL.Path), nil
 }
 
+// receivedAtOrigin returns an empty string if r was received on a URL starting with origin.
+// If not, it returns the URL the request was received at, without the port and the query string.
+//
+// receivedAtOrigin allows the hostname and origin encodings to differ.
+func receivedAtOrigin(r *http.Request, origin string) (string, error) {
+	ep, err := submissionEndpoint(r)
+	if err != nil {
+		return "", fmt.Errorf("cannot extract submission endpoint from request: %v", err)
+	}
+	if strings.HasPrefix(ep, origin) {
+		return "", nil
+	}
+	unicodeEP, err1 := idna.ToUnicode(ep)
+	if strings.HasPrefix(unicodeEP, origin) {
+		return "", nil
+	}
+	asciiEP, err2 := idna.ToASCII(ep)
+	if strings.HasPrefix(asciiEP, origin) {
+		return "", nil
+	}
+	if err1 != nil || err2 != nil {
+		return ep, errors.Join(err1, err2)
+	}
+	return ep, nil
+}
+
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -173,10 +200,12 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reqDuration.Record(r.Context(), latency, metric.WithAttributes(attrs...))
 	}()
 
-	if ep, err := submissionEndpoint(r); err != nil {
-		klog.Warningf("%s: %s cannot extract submission endpoint from request: %v", a.log.origin, a.name, err)
-	} else if !strings.HasPrefix(ep, a.log.origin) {
-		klog.Warningf("%s: %s request received at %q, which does not start with the log's origin %q, as specificed by https://c2sp.org/static-ct-api", a.log.origin, a.name, ep, a.log.origin)
+	// Verify that the request was received at an URL starting with the origin, as per https://c2sp.org/static-ct-api.
+	// Don't block requests that don't satisfy this to allow for custom proxy configuration, or custom request routing.
+	if ep, err := receivedAtOrigin(r, a.log.origin); err != nil {
+		klog.Warningf("%s: %s cannot check if the request was received on a URL starting with the configured origin %q: %v", a.log.origin, a.name, a.log.origin, err)
+	} else if ep != "" {
+		klog.Warningf("%s: %s request received at %q, which does not start with the log's origin %q, as required by https://c2sp.org/static-ct-api", a.log.origin, a.name, ep, a.log.origin)
 	}
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
