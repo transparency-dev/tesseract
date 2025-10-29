@@ -25,6 +25,7 @@ import (
 	"math"
 	"math/rand/v2"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
+	"golang.org/x/net/idna"
 	"golang.org/x/time/rate"
 	"k8s.io/klog/v2"
 )
@@ -129,6 +131,56 @@ type appHandler struct {
 	method  string // http.MethodGet or http.MethodPost
 }
 
+// submissionEndpoint returns the endpoint on which a request was received.
+// It does not include any port, nor any query string.
+func submissionEndpoint(r *http.Request) (string, error) {
+	// url.Parse won't work on "example.com:8080" directly.
+	// It needs a scheme. So, we add a dummy scheme to
+	// trick it into parsing r.Host as the "host" part of a URL.
+	u, err := url.Parse("dummy://" + r.Host)
+	if err != nil {
+		return "", fmt.Errorf("cannot parse Host: %v", err)
+	}
+
+	// u.Hostname() splits the host and port, handling IPv4, IPv6, and no-port
+	// cases.
+	host := u.Hostname()
+
+	// Handle edge case where r.Host might be just ":8080"
+	if host == "" {
+		return "", fmt.Errorf("r.Host does not include a Hostname: %v", r.Host)
+	}
+
+	// Now 'host' is guaranteed to be just the hostname.
+	return fmt.Sprintf("%s%s", host, r.URL.Path), nil
+}
+
+// receivedAtOrigin returns an error if r was not received on a URL starting with origin.
+// If not, it returns nil.
+//
+// It allows the hostname and origin encodings to differ.
+func receivedAtOrigin(r *http.Request, origin string) error {
+	ep, err := submissionEndpoint(r)
+	if err != nil {
+		return fmt.Errorf("cannot extract submission endpoint from request: %v", err)
+	}
+	if strings.HasPrefix(ep, origin) {
+		return nil
+	}
+	unicodeEP, err1 := idna.ToUnicode(ep)
+	if strings.HasPrefix(unicodeEP, origin) {
+		return nil
+	}
+	asciiEP, err2 := idna.ToASCII(ep)
+	if strings.HasPrefix(asciiEP, origin) {
+		return nil
+	}
+	if err1 != nil || err2 != nil {
+		return errors.Join(err1, err2)
+	}
+	return fmt.Errorf("received request at %q, which does not start with %q", ep, origin)
+}
+
 // ServeHTTP for an AppHandler invokes the underlying handler function but
 // does additional common error and stats processing.
 func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -147,6 +199,12 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		latency := time.Since(startTime).Seconds()
 		reqDuration.Record(r.Context(), latency, metric.WithAttributes(attrs...))
 	}()
+
+	// Verify that the request was received at an URL starting with the origin, as per https://c2sp.org/static-ct-api.
+	// Don't block requests that don't satisfy this to allow for custom proxy configuration, or custom request routing.
+	if err := receivedAtOrigin(r, a.log.origin); err != nil {
+		klog.Warningf("%s: %s the request was received on a URL which is not prefixed with the configured origin: %v", a.log.origin, a.name, err)
+	}
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
