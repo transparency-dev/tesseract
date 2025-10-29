@@ -155,30 +155,30 @@ func submissionEndpoint(r *http.Request) (string, error) {
 	return fmt.Sprintf("%s%s", host, r.URL.Path), nil
 }
 
-// receivedAtOrigin returns an empty string if r was received on a URL starting with origin.
-// If not, it returns the URL the request was received at, without the port and the query string.
+// receivedAtOrigin returns an error if r was not received on a URL starting with origin.
+// If not, it returns nil.
 //
-// receivedAtOrigin allows the hostname and origin encodings to differ.
-func receivedAtOrigin(r *http.Request, origin string) (string, error) {
+// It allows the hostname and origin encodings to differ.
+func receivedAtOrigin(r *http.Request, origin string) error {
 	ep, err := submissionEndpoint(r)
 	if err != nil {
-		return "", fmt.Errorf("cannot extract submission endpoint from request: %v", err)
+		return fmt.Errorf("cannot extract submission endpoint from request: %v", err)
 	}
 	if strings.HasPrefix(ep, origin) {
-		return "", nil
+		return nil
 	}
 	unicodeEP, err1 := idna.ToUnicode(ep)
 	if strings.HasPrefix(unicodeEP, origin) {
-		return "", nil
+		return nil
 	}
 	asciiEP, err2 := idna.ToASCII(ep)
 	if strings.HasPrefix(asciiEP, origin) {
-		return "", nil
+		return nil
 	}
 	if err1 != nil || err2 != nil {
-		return ep, errors.Join(err1, err2)
+		return errors.Join(err1, err2)
 	}
-	return ep, nil
+	return fmt.Errorf("received request at %q, which does not start with %q", ep, origin)
 }
 
 // ServeHTTP for an AppHandler invokes the underlying handler function but
@@ -202,10 +202,8 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Verify that the request was received at an URL starting with the origin, as per https://c2sp.org/static-ct-api.
 	// Don't block requests that don't satisfy this to allow for custom proxy configuration, or custom request routing.
-	if ep, err := receivedAtOrigin(r, a.log.origin); err != nil {
-		klog.Warningf("%s: %s cannot check if the request was received on a URL starting with the configured origin %q: %v", a.log.origin, a.name, a.log.origin, err)
-	} else if ep != "" {
-		klog.Warningf("%s: %s request received at %q, which does not start with the log's origin %q, as required by https://c2sp.org/static-ct-api", a.log.origin, a.name, ep, a.log.origin)
+	if err := receivedAtOrigin(r, a.log.origin); err != nil {
+		klog.Warningf("%s: %s the request was received on a URL which is not prefixed with the configured origin: %v", a.log.origin, a.name, err)
 	}
 
 	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)

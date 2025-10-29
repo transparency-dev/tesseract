@@ -1018,34 +1018,29 @@ func TestReceivedAtOrigin(t *testing.T) {
 		name    string
 		reqURL  string
 		origin  string
-		want    string
 		wantErr bool
 	}{
 		{
 			name:    "all good",
 			reqURL:  "http://hostname.com/path/to/something",
 			origin:  "hostname.com/path/to/something",
-			want:    "",
 			wantErr: false,
 		},
 		{
 			name:    "all good punycode",
 			reqURL:  "http://xn--ixaia7diae.com/path/to/something",
 			origin:  "τέσσαρα.com/path/to/something",
-			want:    "",
 			wantErr: false,
 		},
 		{
 			name:    "does not match",
 			reqURL:  "http://hostname.com/path/to/something",
-			origin:  "hello.com/path/to/something",
-			want:    "hostname.com/path/to/something",
-			wantErr: false,
+			origin:  "hostname.com/path/to/something/else",
+			wantErr: true,
 		},
 		{
 			name:    "missing hostname",
 			reqURL:  "https://:6962/path/to/something",
-			want:    "",
 			wantErr: true,
 		},
 	}
@@ -1055,18 +1050,11 @@ func TestReceivedAtOrigin(t *testing.T) {
 			if err != nil {
 				t.Fatalf("failed to create HTTP request: %v", err)
 			}
-			got, gotErr := receivedAtOrigin(r, tt.origin)
-			if gotErr != nil {
-				if !tt.wantErr {
-					t.Errorf("receivedAtOrigin() failed, want no error: %v", gotErr)
-				}
-				return
-			}
-			if tt.wantErr {
-				t.Fatal("receivedAtOrigin() succeeded unexpectedly")
-			}
-			if got != tt.want {
-				t.Errorf("receivedAtOrigin() = %v, want %v", got, tt.want)
+			gotErr := receivedAtOrigin(r, tt.origin)
+			if gotErr != nil && !tt.wantErr {
+				t.Errorf("receivedAtOrigin() failed, want no error: %v", gotErr)
+			} else if gotErr == nil && tt.wantErr {
+				t.Errorf("receivedAtOrigin() succeeded, but want error: %v", gotErr)
 			}
 		})
 	}
