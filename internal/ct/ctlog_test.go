@@ -129,3 +129,51 @@ func loadPEMPrivateKey(path string) (crypto.Signer, error) {
 		return nil, errors.New("unsupported private key type")
 	}
 }
+
+func TestIsValidOrigin(t *testing.T) {
+	tests := []struct {
+		name    string
+		origin  string
+		wantErr bool
+	}{
+		{
+			name:    "ok",
+			origin:  "hostname.tld/path/to/something",
+			wantErr: false,
+		},
+		{
+			name:    "empty",
+			origin:  "",
+			wantErr: true,
+		},
+		{
+			name:    "scheme",
+			origin:  "scheme://hostname.tld/path/to/something",
+			wantErr: true,
+		},
+		{
+			name:    "trailing-slash",
+			origin:  "hostname.tld/path/to/something/",
+			wantErr: true,
+		},
+		{
+			name:    "not-valid-url",
+			origin:  ":notValidURL",
+			wantErr: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotErr := isValidOrigin(tt.origin)
+			if gotErr != nil {
+				if !tt.wantErr {
+					t.Errorf("isValidOrigin() failed: %v", gotErr)
+				}
+				return
+			}
+			if tt.wantErr {
+				t.Fatal("isValidOrigin() succeeded unexpectedly")
+			}
+		})
+	}
+}

@@ -7,6 +7,8 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"net/url"
+	"strings"
 
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/ctonly"
@@ -48,6 +50,26 @@ type ChainValidator interface {
 	Roots() []*x509.Certificate
 }
 
+// isValidOrigin returns nil if the origin complies with https://c2sp.org/static-ct-api.
+// Returns an error otherwise.
+func isValidOrigin(origin string) error {
+	if origin == "" {
+		return errors.New("empty origin")
+	}
+	if strings.HasSuffix(origin, "/") {
+		return fmt.Errorf("origin has a trailing slash")
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return fmt.Errorf("can't parse origin as an URL: %v", err)
+	} else if u == nil {
+		return errors.New("origin parsed as an empty url")
+	} else if u.Scheme != "" {
+		return fmt.Errorf("origin starts with scheme %q", u.Scheme)
+	}
+	return nil
+}
+
 // NewLog instantiates a new log instance, with write endpoints.
 // It initiates:
 //   - checkpoint signer
@@ -56,8 +78,8 @@ type ChainValidator interface {
 func NewLog(ctx context.Context, origin string, signer crypto.Signer, cv ChainValidator, cs storage.CreateStorage, ts TimeSource) (*log, error) {
 	log := &log{}
 
-	if origin == "" {
-		return nil, errors.New("empty origin")
+	if err := isValidOrigin(origin); err != nil {
+		return nil, fmt.Errorf("origin %q is not valid: %v", origin, err)
 	}
 	log.origin = origin
 
