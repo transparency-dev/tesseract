@@ -1,11 +1,12 @@
 # Staging logs witness policy.
 
 ## Dev witnesses
-witness tf-1 transparency.dev/DEV:witness-little-garden+4b7fca75+AStusOxINQNUTN5Oj8HObRkh2yHf/MwYaGX4CPdiVEPM https://api.transparency.dev/dev/witness/little-garden 
+witness mulvad-1 witness.stagemole.eu+67f7aea0+BEqSG3yu9YrmcM3BHvQYTxwFj3uSWakQepafafpUqklv https://witness.stagemole.eu/
 witness remora-1 remora.n621.de+da77ade7+BOvN63jn/bLvkieywe8R6UYAtVtNbZpXh34x7onlmtw2 https://remora.n621.de/
-witness smartit-1 witness1.smartit.nu/witness1+a48c820f+BPSFWg9G6KPiO7QPryYO5Xq4oYJJ+kAvLKLSimDhoxMO https://witness1.smartit.nu/witness1
 witness rgdd-1 rgdd.se/poc-witness+db03732e+BCjJKlo6BU0xfIb8LutqerIFTWIXEA0L5n3tW3QyPFgG https://bastion.glasklar.is/70b861a010f25030de6ff6a5267e0b951e70c04b20ba4a3ce41e7fba7b9b7dfc
+witness smartit-1 witness1.smartit.nu/witness1+a48c820f+BPSFWg9G6KPiO7QPryYO5Xq4oYJJ+kAvLKLSimDhoxMO https://witness1.smartit.nu/witness1
+witness tf-1 transparency.dev/DEV:witness-little-garden+4b7fca75+AStusOxINQNUTN5Oj8HObRkh2yHf/MwYaGX4CPdiVEPM https://api.transparency.dev/dev/witness/little-garden 
 
-group dev_grp all tf-1 remora-1 smartit-1 rgdd-1
+group dev_grp all mulvad-1 remora-1 rgdd-1 smartit-1 tf-1
 
 quorum dev_grp
