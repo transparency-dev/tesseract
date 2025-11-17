@@ -57,7 +57,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
     owner = var.github_owner
     name  = "tesseract"
     push {
-      tag = "^staging-deploy-(.+)$"
+      tag = var.git_tag_trigger_regexp
     }
   }
 

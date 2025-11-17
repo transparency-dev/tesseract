@@ -27,3 +27,8 @@ variable "logs_terragrunts" {
   description = "Paths of the log terragrunt configs to deploy, from the root of the repository"
   type        = list(any)
 }
+
+variable "git_tag_trigger_regexp" {
+  description = "Regular expression Git tags must match to trigger a build"
+  type        = string
+}
