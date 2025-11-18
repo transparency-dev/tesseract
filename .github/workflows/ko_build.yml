@@ -82,7 +82,7 @@ jobs:
       - name: Attest SBOMs
         run: |
             sbom="${GITHUB_WORKSPACE}/sbom-output/${BINARY##*/}-index.spdx.json"
-            cosign attest --yes --predicate "${sbom}" --type "https://spdx.dev/Document" "${IMAGE}@${DIGEST}"
+            cosign attest --yes --predicate "${sbom}" --type spdxjson "${IMAGE}@${DIGEST}"
         env:
           BINARY: ${{ matrix.binary }}
           IMAGE: ${{ steps.build.outputs.image }}
