@@ -122,3 +122,9 @@ variable "witness_policy" {
   type        = string
   default     = ""
 }
+
+variable "health_checks" {
+  description = "If true, enables GCE health checks."
+  type        = bool
+  default     = true
+}
