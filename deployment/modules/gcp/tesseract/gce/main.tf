@@ -45,6 +45,7 @@ module "gce" {
   rate_limit_old_not_before                  = var.rate_limit_old_not_before
   rate_limit_dedup                           = var.rate_limit_dedup
   witness_policy                             = var.witness_policy
+  health_checks                              = var.gce_health_checks
 
   depends_on = [
     module.secretmanager,

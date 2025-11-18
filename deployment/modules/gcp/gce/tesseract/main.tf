@@ -167,6 +167,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 }
 
 resource "google_compute_health_check" "healthz" {
+  count               = var.health_checks ? 1: 0
   name                = "${var.base_name}-mig-hc-http"
   timeout_sec         = 10
   check_interval_sec  = 10
@@ -223,8 +224,13 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     port = 80
   }
 
-  auto_healing_policies {
-    health_check      = google_compute_health_check.healthz.id
-    initial_delay_sec = 300 // Give enough time for the TesseraCT container to start.
+
+  dynamic "auto_healing_policies" {
+    for_each = google_compute_health_check.healthz[*]
+
+    content {
+      health_check      = auto_healing_policies.value.id
+      initial_delay_sec = 300 // Give enough time for the TesseraCT container to start.
+    }
   }
 }
