@@ -26,7 +26,7 @@ locals {
 
   # docker_run_args are provided to the docker run command.
   # Use this to configure docker-specific things.
-  input_docker_run_args = [
+  docker_run_args = join(" ", compact([
     # Map the port
     "-p 80:80",
     # Ensure that TesseraCT logs are delivered to GCP logging.
@@ -35,10 +35,7 @@ locals {
     var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
     # Bind-mount the roots file, if one has been provided.
     var.accepted_roots == "" ? "" : "--mount type=bind,src=${local.accepted_roots_file},dst=${local.accepted_roots_file}"
-  ]
-
-  # Remove any empty string, if any.
-  docker_run_args = join(" ", compact(local.input_docker_run_args))
+  ]))
 
   # tesseract_args are provided to the tesseract command.
   tesseract_args = join(" ", [
