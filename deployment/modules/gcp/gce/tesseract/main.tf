@@ -22,17 +22,20 @@ data "google_compute_image" "cos" {
 locals {
 
   witness_policy_file = "/etc/tesseract-witness.policy"
+  accepted_roots_file = "/etc/roots.pem"
 
   # docker_run_args are provided to the docker run command.
   # Use this to configure docker-specific things.
-  docker_run_args = join(" ", [
+  docker_run_args = join(" ", compact([
     # Map the port
     "-p 80:80",
     # Ensure that TesseraCT logs are delivered to GCP logging.
     "--log-driver=gcplogs",
     # Bind-mount the witness policy, if one has been provided.
-    var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}"
-  ])
+    var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
+    # Bind-mount the roots file, if one has been provided.
+    var.accepted_roots == "" ? "" : "--mount type=bind,src=${local.accepted_roots_file},dst=${local.accepted_roots_file}"
+  ]))
 
   # tesseract_args are provided to the tesseract command.
   tesseract_args = join(" ", [
@@ -42,7 +45,7 @@ locals {
     "-bucket=${var.bucket}",
     "-spanner_db_path=${local.spanner_log_db_path}",
     "-spanner_antispam_db_path=${local.spanner_antispam_db_path}",
-    "-roots_pem_file=/bin/test_root_ca_cert.pem",
+    format("-roots_pem_file=%s", var.accepted_roots == "" ? "/bin/test_root_ca_cert.pem" : local.accepted_roots_file),
     "-origin=${var.base_name}${var.origin_suffix}",
     "-signer_public_key_secret_name=${var.signer_public_key_secret_name}",
     "-signer_private_key_secret_name=${var.signer_private_key_secret_name}",
@@ -81,6 +84,11 @@ locals {
         owner: root
         encoding: b64
         content: ${base64encode(var.witness_policy)}
+      - path: ${local.accepted_roots_file}
+        permissions: 0444
+        owner: root
+        encoding: b64
+        content: ${base64encode(var.accepted_roots)}
       - path: /etc/systemd/system/config-firewall.service
         permissions: 0644
         owner: root
