@@ -127,3 +127,9 @@ variable "gce_health_checks" {
   type        = bool
   default     = true
 }
+
+variable "accepted_roots" {
+  description = "Path to the file containing root certificates that are acceptable to the log. Experimental, only accepts small files."
+  type        = string
+  default     = ""
+}
