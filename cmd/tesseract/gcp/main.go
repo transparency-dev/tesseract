@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"crypto"
 	"errors"
 	"flag"
 	"fmt"
@@ -92,6 +93,8 @@ var (
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
+	signerTinkKekUri           = flag.String("signer-tink-kek-uri", "", "Encryption key for decrypting Tink keyset. Format: gcp-kms://projects/{projectId}/locations/{location}/keyRings/{keyRing}/cryptoKeys/{cryptoKey}/cryptoKeyVersions/{version}")
+	signerTinkKeysetFile       = flag.String("signer-tink-keyset-path", "", "Path to encrypted Tink keyset")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter. This is only required for local runs.")
 )
@@ -105,9 +108,22 @@ func main() {
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
 
-	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
-	if err != nil {
-		klog.Exitf("Can't create secret manager signer: %v", err)
+	var signer crypto.Signer
+	var err error
+	if *signerPrivateKeySecretName != "" && *signerPublicKeySecretName != "" {
+		signer, err = NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
+		if err != nil {
+			klog.Exitf("Can't create secret manager signer: %v", err)
+		}
+	}
+	if *signerTinkKekUri != "" && *signerTinkKeysetFile != "" {
+		signer, err = NewTinkSignerVerifier(ctx, *signerTinkKekUri, *signerTinkKeysetFile)
+		if err != nil {
+			klog.Exitf("Can't initialize Tink signer: %v", err)
+		}
+	}
+	if signer == nil {
+		klog.Exit("Signer not initialized, provide either a key either in GCP Secret Manager or a GCP KMS-encrypted Tink keyset")
 	}
 
 	chainValidationConfig := tesseract.ChainValidationConfig{
