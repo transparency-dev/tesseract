@@ -87,10 +87,19 @@ tailored to your setup.
 
 ##### Checkpoint publication
 
-The `checkpoint_interval` flag controls the duration between two subsequent
-checkpoint publications. Due to constraints imposed by underlying storage
-systems, this interval has a lower limit. Tessera ensures that the configured
-interval is larger than any such lower limit during the initialization process.
+The interval between publishing new checkpoints is controlled with the `checkpoint_interval` and
+`checkpoint_republish_interval` flags.
+
+The `checkpoint_interval` flag controls the interval between checkpoints when the log is actively growing,
+and the `checkpoint_republish_interval` controls the interval between checkpoints of the _same_ size
+(i.e. where the log is not currently growing).
+
+If, for some reason, it's necessary to entirely _disable_ republication of checkpoints, this can be
+achieved by setting the `checkpoint_republish_flag` to zero.
+
+Due to constraints imposed by underlying storage systems, these intervals have a lower limit. 
+Tessera ensures that the configured interval is larger than any such lower limit during the initialization
+process.
 
 | Backend | Minimum Permitted Checkpoint Interval (ms) |
 | ------- | ------------------------------------------ |
