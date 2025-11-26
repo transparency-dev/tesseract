@@ -75,13 +75,14 @@ var (
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
-	httpDeadline              = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	inMemoryAntispamCacheSize = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
-	checkpointInterval        = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between checkpoint publishing")
-	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
-	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
-	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
-	pushbackMaxAntispamLag    = flag.Uint("pushback_max_antispam_lag", aws_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
+	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	inMemoryAntispamCacheSize   = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
+	checkpointInterval          = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
+	checkpointRepublishInterval = flag.Duration("checkpoint_republish_interval", 30*time.Second, "Interval between republishing a checkpoint for a log which hasn't grown since the previous checkpoint was published")
+	batchMaxSize                = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single Tessera sequencing batch.")
+	batchMaxAge                 = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
+	pushbackMaxOutstanding      = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	pushbackMaxAntispamLag      = flag.Uint("pushback_max_antispam_lag", aws_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the S3 bucket to store the log in.")
@@ -227,6 +228,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCTLayout().
 		WithAntispam(uint(antispamCacheSize), antispam).
 		WithCheckpointInterval(*checkpointInterval).
+		WithCheckpointRepublishInterval(*checkpointRepublishInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
 		WithPushback(*pushbackMaxOutstanding)
 
