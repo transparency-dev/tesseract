@@ -77,6 +77,9 @@ resource "google_compute_instance" "preloader" {
 
   network_interface {
     network = "default"
+    access_config {
+      // Ephemeral public IP for outbound witness requests.
+    }
   }
 
   boot_disk {
