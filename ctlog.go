@@ -120,7 +120,7 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 	}
 
 	cv := ct.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds, cfg.AcceptSHA1)
-	return &cv, nil
+	return cv, nil
 }
 
 // NotBeforeRL configures rate limits based on certificate not_before's age.

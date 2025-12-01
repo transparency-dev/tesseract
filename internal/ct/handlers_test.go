@@ -529,7 +529,7 @@ func TestAddChain(t *testing.T) {
 		timeSource.Add1m()
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
-			chain := createJSONChain(t, *pool)
+			chain := createJSONChain(t, pool)
 
 			resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
 
@@ -676,7 +676,7 @@ func TestAddPreChain(t *testing.T) {
 		timeSource.Add1m()
 		t.Run(test.descr, func(t *testing.T) {
 			pool := loadCertsIntoPoolOrDie(t, test.chain)
-			chain := createJSONChain(t, *pool)
+			chain := createJSONChain(t, pool)
 
 			resp, err := http.Post(server.URL+rfc6962.AddPreChainPath, "application/json", chain)
 			if err != nil {
@@ -804,7 +804,7 @@ func TestMaxDedupInFlight(t *testing.T) {
 			defer server.Close()
 			for i, chain := range test.chains {
 				pool := loadCertsIntoPoolOrDie(t, chain)
-				chain := createJSONChain(t, *pool)
+				chain := createJSONChain(t, pool)
 
 				resp, err := http.Post(server.URL+rfc6962.AddChainPath, "application/json", chain)
 
@@ -860,7 +860,7 @@ func TestRateLimiter(t *testing.T) {
 
 }
 
-func createJSONChain(t *testing.T, p x509util.PEMCertPool) io.Reader {
+func createJSONChain(t *testing.T, p *x509util.PEMCertPool) io.Reader {
 	t.Helper()
 	var req rfc6962.AddChainRequest
 	for _, rawCert := range p.RawCertificates() {

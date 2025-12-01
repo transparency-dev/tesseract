@@ -113,8 +113,8 @@ type chainValidator struct {
 	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) chainValidator {
-	return chainValidator{
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
+	return &chainValidator{
 		trustedRoots:    trustedRoots,
 		rejectExpired:   rejectExpired,
 		rejectUnexpired: rejectUnexpired,
