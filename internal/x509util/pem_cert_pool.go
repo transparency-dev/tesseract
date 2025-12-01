@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 
 	"github.com/transparency-dev/tesseract/internal/lax509"
 	"k8s.io/klog/v2"
@@ -34,6 +35,7 @@ const pemCertificateBlockType string = "CERTIFICATE"
 // certs into the pool. CertPool ignores errors if at least one cert loads correctly but
 // PEMCertPool requires all certs to load.
 type PEMCertPool struct {
+	mu sync.Mutex
 	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
@@ -42,12 +44,14 @@ type PEMCertPool struct {
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
+	return &PEMCertPool{mu: sync.Mutex{}, fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
 }
 
 // AddCert adds a certificate to a pool. Uses fingerprint to weed out duplicates.
 // cert must not be nil.
 func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	fingerprint := sha256.Sum256(cert.Raw)
 	_, ok := p.fingerprintToCertMap[fingerprint]
 
@@ -60,6 +64,8 @@ func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
 
 // Included indicates whether the given cert is included in the pool.
 func (p *PEMCertPool) Included(cert *x509.Certificate) bool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	fingerprint := sha256.Sum256(cert.Raw)
 	_, ok := p.fingerprintToCertMap[fingerprint]
 	return ok
@@ -107,15 +113,21 @@ func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
 
 // Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
 func (p *PEMCertPool) Subjects() (res [][]byte) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.certPool.Subjects()
 }
 
 // CertPool returns the underlying CertPool.
 func (p *PEMCertPool) CertPool() *lax509.CertPool {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.certPool
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
 func (p *PEMCertPool) RawCertificates() []*x509.Certificate {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	return p.rawCerts
 }
