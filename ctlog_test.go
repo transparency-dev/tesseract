@@ -15,9 +15,20 @@
 package tesseract
 
 import (
+	"crypto/x509"
+	"encoding/csv"
+	"encoding/pem"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/transparency-dev/tesseract/internal/ccadb"
+	"github.com/transparency-dev/tesseract/internal/testdata"
 )
 
 func TestNewCertValidationOpts(t *testing.T) {
@@ -132,7 +143,7 @@ func TestNewCertValidationOpts(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			vc, err := newChainValidator(tc.cvCfg)
+			vc, err := newChainValidator(t.Context(), tc.cvCfg)
 			if len(tc.wantErr) == 0 && err != nil {
 				t.Errorf("ValidateLogConfig()=%v, want nil", err)
 			}
@@ -144,4 +155,105 @@ func TestNewCertValidationOpts(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
+	fetchInterval := 20 * time.Millisecond
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Parse query params
+		query := r.URL.Query()
+
+		codeStr := query.Get("code")
+		if codeStr != "" {
+			if code, err := strconv.Atoi(codeStr); err == nil {
+				w.WriteHeader(code)
+			}
+		}
+		if codeStr != "200" {
+			return
+		}
+
+		body := query.Get("body")
+		cert := parsePEM(t, body)
+
+		cw := csv.NewWriter(w)
+		records := [][]string{
+			{ccadb.ColIssuer, ccadb.ColSHA, ccadb.ColSubject, ccadb.ColPEM, ccadb.ColUseCase},
+			{cert.Issuer.String(), "dum", cert.Subject.String(), body, ccadb.UseCaseServerAuth},
+		}
+		for _, record := range records {
+			if err := cw.Write(record); err != nil {
+				t.Fatalf("error writing record to csv: %v", err)
+			}
+		}
+		cw.Flush()
+	}))
+	defer ts.Close()
+
+	for _, tc := range []struct {
+		desc       string
+		cvCfg      ChainValidationConfig
+		wantNRoots int
+	}{
+		{
+			desc: "ok-no-remote",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
+			},
+			wantNRoots: 1,
+		},
+		{
+			desc: "404",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 404, ""),
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			wantNRoots: 1,
+		},
+		{
+			desc: "new-root",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 200, url.QueryEscape(testdata.CACertPEM)),
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			wantNRoots: 2,
+		},
+		{
+			desc: "no-new-root",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 200, url.QueryEscape(testdata.FakeRootCACertPEM)),
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			wantNRoots: 1,
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			cv, err := newChainValidator(t.Context(), tc.cvCfg)
+			if err == nil && cv == nil {
+				t.Error("err and ValidatedLogConfig are both nil")
+			}
+			time.Sleep(3 * fetchInterval)
+			if got := len(cv.Roots()); got != tc.wantNRoots {
+				t.Errorf("ChainValidator has %d roots, want %d", got, tc.wantNRoots)
+			}
+
+		})
+	}
+}
+
+func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
+	var block *pem.Block
+	block, _ = pem.Decode([]byte(pemCert))
+	if block == nil || block.Type != "CERTIFICATE" || len(block.Headers) != 0 {
+		t.Fatal("No PEM data found")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("Failed to parse PEM certificate: %v", err)
+	}
+	return cert
 }
