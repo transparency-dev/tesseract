@@ -12,18 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// fetch_roots is a command-line tool for fetching PEM roots that production CT
-// logs should trust from the Common CA Database (CCADB).
-package main
+package ccadb
 
 import (
+	"context"
 	"encoding/csv"
-	"flag"
 	"fmt"
 	"io"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -31,149 +27,111 @@ import (
 )
 
 var (
-	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
-	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
-	formatB64      = flag.Bool("format_b64", false, "Format base64 encoded SHA256 comments in the output file with a column every two characters.")
+	ColSubject        = "Subject"
+	ColIssuer         = "CA Owner"
+	ColPEM            = "X.509 Certificate (PEM)"
+	ColSHA            = "SHA-256 Fingerprint"
+	ColUseCase        = "Intended Use Case(s) Served"
+	UseCaseServerAuth = "Server Authentication (TLS) 1.3.6.1.5.5.7.3.1"
+	KnownHeaders      = []string{ColSubject, ColIssuer, ColPEM, ColSHA, ColUseCase}
 )
 
-var (
-	colSubject        = "Subject"
-	colIssuer         = "CA Owner"
-	colPEM            = "X.509 Certificate (PEM)"
-	colSHA            = "SHA-256 Fingerprint"
-	colUsecase        = "Intended Use Case(s) Served"
-	usecaseServerAuth = "Server Authentication (TLS) 1.3.6.1.5.5.7.3.1"
-	dirPerm           = 0o755
-)
-
-func main() {
-	klog.InitFlags(nil)
-	flag.Parse()
-
+// Fetch retrieves a CCADB CSV and returns rows with a Use Case set to Server Authentication.
+//
+// It expects the CSV to have a header with at least the following columns:
+//
+//	Subject, CA Owner, X.509 Certificate (PEM), SHA-256 Fingerprint, Intended Use Case(s) Served
+//
+// Callers chose which columns are returned, and can request additional ones.
+func Fetch(ctx context.Context, url string, fetchHeaders []string) ([][][]byte, error) {
 	// 1. Fetch the CSV content from the URL
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
-	resp, err := client.Get(*url)
+	cctx, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(cctx, http.MethodGet, url, nil)
 	if err != nil {
-		klog.Exitf("Error fetching URL: %v", err)
+		return nil, fmt.Errorf("NewRequestWithContext(%q): %v", url, err)
+	}
+	rsp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("GET(%q): %v", url, err)
 	}
 
 	defer func() {
-		if err := resp.Body.Close(); err != nil {
+		if err := rsp.Body.Close(); err != nil {
 			klog.Errorf("resp.Body.Close(): %v", err)
 		}
 	}()
 
-	if resp.StatusCode != http.StatusOK {
-		klog.Exitf("Received non-OK HTTP status: %s", resp.Status)
+	if rsp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("received non-OK HTTP status: %s", rsp.Status)
 	}
 
 	// 2. Set up the CSV reader
-	r := csv.NewReader(resp.Body)
+	r := csv.NewReader(rsp.Body)
 	// Set FieldsPerRecord to -1 to allow records to have a variable number of fields,
 	// which is safer for complex CSVs.
 	r.FieldsPerRecord = -1
 	// The Go CSV parser correctly handles quoted fields with internal newlines by default.
 
-	// 3. Read the header row
-	header, err := r.Read()
+	// 3. Verify that necessary headers are present
+	headers, err := r.Read()
 	if err != nil {
-		klog.Exitf("Error reading header row: %v", err)
+		return nil, fmt.Errorf("error reading header row: %v", err)
 	}
 
-	// 4. Dynamically find the required column indices
 	indices := make(map[string]int)
-	requiredHeaders := []string{colSubject, colIssuer, colPEM, colSHA, colUsecase}
-
-	for i, colName := range header {
+	for i, h := range headers {
 		// Clean up the header name (trim potential whitespace or encoding artifacts)
-		cleanName := strings.TrimSpace(colName)
+		cleanName := strings.TrimSpace(h)
 		indices[cleanName] = i
 	}
 
+	allHeadersMap := make(map[string]struct{})
+	for _, h := range KnownHeaders {
+		allHeadersMap[h] = struct{}{}
+	}
+	for _, h := range fetchHeaders {
+		allHeadersMap[h] = struct{}{}
+	}
+
 	minNumColumns := 0
-	// Verify all required headers were found
-	for _, req := range requiredHeaders {
-		i, found := indices[req]
+	for h := range allHeadersMap {
+		i, found := indices[h]
 		if !found {
-			klog.Exitf("Required column not found in CSV header: %s", req)
+			return nil, fmt.Errorf("required column %q not found in CSV headers %q", h, headers)
 		}
 		if i+1 > minNumColumns {
 			minNumColumns = i + 1
 		}
 	}
 
-	// 5. Set up the output file
-	outFile, err := createFile(*outputFilename)
-	if err != nil {
-		klog.Exitf("Error creating output file: %v", err)
-	}
-
-	defer func() {
-		if err := outFile.Close(); err != nil {
-			klog.Errorf("Error closing %q: %v", outFile.Name(), err)
-		}
-	}()
-
-	// 6. Process the remaining records
+	// 4. Process records
+	rows := [][][]byte{}
 	for {
 		row, err := r.Read()
 		if err == io.EOF {
 			break // End of file
 		}
 		if err != nil {
-			klog.Exitf("Malformed record: %v", err)
+			return nil, fmt.Errorf("malformed record: %v", err)
 		}
 
 		// Ensure the record is long enough before attempting to access fields
 		if len(row) < minNumColumns {
-			klog.Exitf("Row is too short: %q", row)
+			return nil, fmt.Errorf("row is too short: %q", row)
 		}
 
-		usecase := row[indices[colUsecase]]
-		if !strings.Contains(usecase, usecaseServerAuth) {
+		usecase := row[indices[ColUseCase]]
+		if !strings.Contains(usecase, UseCaseServerAuth) {
 			continue
 		}
 
-		issuer := row[indices[colIssuer]]
-		subject := row[indices[colSubject]]
-		sha256 := row[indices[colSHA]]
-		cert := row[indices[colPEM]]
-
-		if *formatB64 {
-			sha256 = formatBase64(sha256, ":", 2)
+		elems := [][]byte{}
+		for _, col := range fetchHeaders {
+			elems = append(elems, []byte(row[indices[col]]))
 		}
-		// Format and write the metadata (prefixed by #) and the certificate
-		output := fmt.Sprintf("# Issuer: %s\n# Subject: %s\n# SHA256 Fingerprint: %s\n%s\n",
-			issuer, subject, sha256, cert)
-
-		if _, err := outFile.WriteString(output); err != nil {
-			klog.Exitf("Error writing to output file: %v", err)
-		}
+		rows = append(rows, elems)
 	}
 
-	klog.Infof("Successfully extracted certificates to %s", *outputFilename)
-}
-
-// createFile creates a file at path p, and creates necessary parent directories.
-func createFile(p string) (*os.File, error) {
-	if err := os.MkdirAll(filepath.Dir(p), os.FileMode(dirPerm)); err != nil {
-		return nil, fmt.Errorf("os.MkdirAll: %v", err)
-	}
-	return os.Create(p)
-}
-
-// formatBase64 adds a separator string every X characters of an input string.
-// For instance, with ":", and 2: DEADBEEF --> DE:AD:BE:EF
-func formatBase64(input string, separator string, chunkSize int) string {
-	var parts []string
-	for i := 0; i < len(input); i += chunkSize {
-		end := i + chunkSize
-		if end > len(input) {
-			end = len(input)
-		}
-		parts = append(parts, input[i:end])
-	}
-	return strings.Join(parts, separator)
+	return rows, nil
 }
