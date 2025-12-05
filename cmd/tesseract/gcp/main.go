@@ -86,6 +86,7 @@ var (
 	clientHTTPTimeout           = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
 	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
 	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
+	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", time.Minute, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
@@ -253,7 +254,8 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointInterval(*checkpointInterval).
 		WithCheckpointRepublishInterval(*checkpointRepublishInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
-		WithPushback(*pushbackMaxOutstanding)
+		WithPushback(*pushbackMaxOutstanding).
+		WithGarbageCollectionInterval(*garbageCollectionInterval)
 
 	if *witnessPolicyFile != "" {
 		f, err := os.ReadFile(*witnessPolicyFile)

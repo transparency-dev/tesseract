@@ -57,6 +57,12 @@ index, and extract its timestamp to rebuild the SCT.
 TesseraCT can rate limit these duplicate submission independently from
 non-duplicate ones, thus allowing logs to prioritize non-duplicate submissions.
 
+### Garbage Collection
+
+[Tessera's Garbage Collection] deletes partial tiles and entry bundles once a
+corresponding full tile or entry bundle has been published. It runs
+periodically in the background.
+
 ### Chain filtering
 
 TesseraCT needs to parse incoming certificate chains to process them. This allows:
