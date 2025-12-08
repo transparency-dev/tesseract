@@ -197,6 +197,12 @@ subsequent **duplicate** `add-*` requests only. Non-duplicate `add-*` requests
 are not impacted, and can still be processed. This limits the amount of
 resources TesseraCT spends on servicing duplicate requests.
 
+#### Garbage Collection
+
+The `garbage_collection_interval` flag controls Tessera's Garbage Collection.
+It controls how often Tessera scans for partial tiles and entry bundles, and
+deletes them if a matching full tile or entry bundle has been published.
+
 ### Setup
 
 #### Origin and submission prefix

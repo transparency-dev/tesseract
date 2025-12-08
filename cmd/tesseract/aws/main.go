@@ -83,6 +83,7 @@ var (
 	batchMaxAge                 = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single Tessera sequencing batch.")
 	pushbackMaxOutstanding      = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxAntispamLag      = flag.Uint("pushback_max_antispam_lag", aws_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returneing pushback.")
+	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", time.Minute, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the S3 bucket to store the log in.")
@@ -230,7 +231,8 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		WithCheckpointInterval(*checkpointInterval).
 		WithCheckpointRepublishInterval(*checkpointRepublishInterval).
 		WithBatching(*batchMaxSize, *batchMaxAge).
-		WithPushback(*pushbackMaxOutstanding)
+		WithPushback(*pushbackMaxOutstanding).
+		WithGarbageCollectionInterval(*garbageCollectionInterval)
 
 	if *witnessPolicyFile != "" {
 		f, err := os.ReadFile(*witnessPolicyFile)
