@@ -141,7 +141,7 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 			}
 		}
 
-		// fetchAndAppendRemoteRoots()
+		fetchAndAppendRemoteRoots()
 
 		go func() {
 			ticker := time.NewTicker(cfg.RootsRemoteFetchInterval)
