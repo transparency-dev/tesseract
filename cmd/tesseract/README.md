@@ -201,7 +201,21 @@ resources TesseraCT spends on servicing duplicate requests.
 
 The `garbage_collection_interval` flag controls Tessera's Garbage Collection.
 It controls how often Tessera scans for partial tiles and entry bundles, and
-deletes them if a matching full tile or entry bundle has been published.
+deletes them if a corresponding full tile or entry bundle has been published.
+Each storage implementation keeps track of the highest entry index that was
+garbage collected. Every `garbage_collection_interval`, Tessera pre-computes
+the potential paths of [100](https://github.com/search?q=repo%3Atransparency-dev%2Ftessera+maxBundlesPerRun&type=code)
+partial entry bundle and partial tile directories. It then attempts to delete them
+one after another. If a path resolves to an existing partial entry bundle or tile
+directory, it is deleted. Otherwise, nothing happens and it moves to the next one.
+
+To ensure that garbage collection is cleaning the log faster than it grows, 
+`100*256/garbage_collection_interval` must be higher than the log's throughput.
+
+If garbage collection was turned off, and is then turned on, it will take
+`log_size/256/100*garbage_collection_interval` for garbage collection to catch
+up.
+
 
 ### Setup
 
