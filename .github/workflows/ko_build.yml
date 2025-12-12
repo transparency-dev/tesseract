@@ -1,7 +1,9 @@
 name: Release
 
 on:
-  workflow_dispatch:
+  release:
+    types:
+      - 'published'
   push:
     branches:
       - 'main'
@@ -50,7 +52,7 @@ jobs:
           image_and_digest=$(ko publish \
             --base-import-paths \
             --platform=linux/amd64,linux/arm64 \
-            --tags=latest,${{ github.sha }} \
+            --tags=latest,${{ github.sha }},${{ github.event.release.tag_name }} \
             --sbom-dir=${GITHUB_WORKSPACE}/sbom-output \
             github.com/transparency-dev/tesseract/cmd/${BINARY})
 
