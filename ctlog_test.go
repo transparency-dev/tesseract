@@ -18,11 +18,8 @@ import (
 	"crypto/x509"
 	"encoding/csv"
 	"encoding/pem"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -157,30 +154,37 @@ func TestNewCertValidationOpts(t *testing.T) {
 	}
 }
 
-func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
-	fetchInterval := 20 * time.Millisecond
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Parse query params
-		query := r.URL.Query()
+type ccadbRsp struct {
+	code int
+	crts []string
+}
 
-		codeStr := query.Get("code")
-		if codeStr != "" {
-			if code, err := strconv.Atoi(codeStr); err == nil {
-				w.WriteHeader(code)
-			}
-		}
-		if codeStr != "200" {
+func newCCADBTestServer(t *testing.T, rsps []ccadbRsp) *httptest.Server {
+	t.Helper()
+
+	i := 0
+	next := func() ccadbRsp {
+		idx := min(i, len(rsps)-1)
+		i++
+		return rsps[idx]
+	}
+
+	return httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		rsp := next()
+		w.WriteHeader(rsp.code)
+		if rsp.code != 200 {
 			return
 		}
-
-		body := query.Get("body")
-		cert := parsePEM(t, body)
 
 		cw := csv.NewWriter(w)
 		records := [][]string{
 			{ccadb.ColIssuer, ccadb.ColSHA, ccadb.ColSubject, ccadb.ColPEM, ccadb.ColUseCase},
-			{cert.Issuer.String(), "dum", cert.Subject.String(), body, ccadb.UseCaseServerAuth},
 		}
+		for _, c := range rsp.crts {
+			cert := parsePEM(t, c)
+			records = append(records, []string{cert.Issuer.String(), "dum", cert.Subject.String(), c, ccadb.UseCaseServerAuth})
+		}
+
 		for _, record := range records {
 			if err := cw.Write(record); err != nil {
 				t.Fatalf("error writing record to csv: %v", err)
@@ -188,11 +192,15 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 		}
 		cw.Flush()
 	}))
-	defer ts.Close()
+}
+
+func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
+	fetchInterval := 20 * time.Millisecond
 
 	for _, tc := range []struct {
 		desc       string
 		cvCfg      ChainValidationConfig
+		rsps       []ccadbRsp
 		wantNRoots int
 	}{
 		{
@@ -206,17 +214,50 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 			desc: "404",
 			cvCfg: ChainValidationConfig{
 				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
-				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 404, ""),
 				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 404,
+				},
 			},
 			wantNRoots: 1,
 		},
 		{
-			desc: "new-root",
+			desc: "404-then-200-new-root",
 			cvCfg: ChainValidationConfig{
 				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
-				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 200, url.QueryEscape(testdata.CACertPEM)),
 				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 404,
+				},
+				{
+					code: 404,
+				},
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM,
+					},
+				},
+			},
+			wantNRoots: 2,
+		},
+		{
+			desc: "new-root-on-start",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM,
+					},
+				},
 			},
 			wantNRoots: 2,
 		},
@@ -224,18 +265,52 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 			desc: "no-new-root",
 			cvCfg: ChainValidationConfig{
 				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
-				RootsRemoteFetchURL:      fmt.Sprintf("%s?&code=%d&body=%s", ts.URL, 200, url.QueryEscape(testdata.FakeRootCACertPEM)),
 				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.FakeRootCACertPEM,
+					},
+				},
 			},
 			wantNRoots: 1,
 		},
+		{
+			desc: "root-removed",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM,
+						testdata.FakeRootCACertPEM,
+					},
+				},
+				{
+					code: 200,
+					crts: []string{
+						testdata.FakeRootCACertPEM,
+					},
+				},
+			},
+			wantNRoots: 2,
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
+			ts := newCCADBTestServer(t, tc.rsps)
+			ts.Start()
+			defer ts.Close()
+			tc.cvCfg.RootsRemoteFetchURL = ts.URL
 			cv, err := newChainValidator(t.Context(), tc.cvCfg)
 			if err == nil && cv == nil {
 				t.Error("err and ValidatedLogConfig are both nil")
 			}
-			time.Sleep(3 * fetchInterval)
+			time.Sleep(10 * fetchInterval)
 			if got := len(cv.Roots()); got != tc.wantNRoots {
 				t.Errorf("ChainValidator has %d roots, want %d", got, tc.wantNRoots)
 			}
