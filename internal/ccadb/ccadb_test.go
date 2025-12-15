@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 
 	"github.com/transparency-dev/tesseract/internal/testdata"
@@ -107,6 +108,18 @@ func TestFetch(t *testing.T) {
 			},
 			fields: []string{ColPEM, ColSHA},
 			want:   [][][]byte{{[]byte(testdata.CACertPEM), []byte(testSHA256)}},
+		},
+		{
+			name: "ok-upper-usecase",
+			rsp: ccadbRsp{
+				code: 200,
+				crts: []string{
+					testdata.CACertPEM,
+				},
+				useCase: strings.ToUpper(UseCaseServerAuth),
+			},
+			fields: []string{ColPEM},
+			want:   [][][]byte{{[]byte(testdata.CACertPEM)}},
 		},
 		{
 			name: "ok-two-certs",

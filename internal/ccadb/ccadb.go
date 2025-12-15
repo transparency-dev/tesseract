@@ -122,7 +122,7 @@ func Fetch(ctx context.Context, url string, fetchHeaders []string) ([][][]byte, 
 		}
 
 		usecase := row[indices[ColUseCase]]
-		if !strings.Contains(usecase, UseCaseServerAuth) {
+		if !strings.Contains(strings.ToLower(usecase), strings.ToLower(UseCaseServerAuth)) {
 			continue
 		}
 
