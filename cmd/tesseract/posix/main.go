@@ -258,12 +258,12 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 	// when it's time to exit.
 	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
+		return nil, fmt.Errorf("failed to initialize POSIX Tessera appender: %v", err)
 	}
 
 	issuerStorage, err := posix.NewIssuerStorage(ctx, *storageDir)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
+		return nil, fmt.Errorf("failed to initialize POSIX issuer storage: %v", err)
 	}
 
 	sopts := storage.CTStorageOptions{
