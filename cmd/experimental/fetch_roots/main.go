@@ -17,94 +17,35 @@
 package main
 
 import (
-	"encoding/csv"
+	"context"
 	"flag"
 	"fmt"
-	"io"
-	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
+	"github.com/transparency-dev/tesseract/internal/ccadb"
 	"k8s.io/klog/v2"
 )
 
 var (
 	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
 	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
-	formatB64      = flag.Bool("format_b64", false, "Format base64 encoded SHA256 comments in the output file with a column every two characters.")
 )
 
 var (
-	colSubject        = "Subject"
-	colIssuer         = "CA Owner"
-	colPEM            = "X.509 Certificate (PEM)"
-	colSHA            = "SHA-256 Fingerprint"
-	colUsecase        = "Intended Use Case(s) Served"
-	usecaseServerAuth = "Server Authentication (TLS) 1.3.6.1.5.5.7.3.1"
-	dirPerm           = 0o755
+	dirPerm    = 0o755
+	allColumns = []string{ccadb.ColIssuer, ccadb.ColSubject, ccadb.ColSHA, ccadb.ColPEM}
 )
 
 func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
-
-	// 1. Fetch the CSV content from the URL
-	client := http.Client{
-		Timeout: 30 * time.Second,
-	}
-	resp, err := client.Get(*url)
+	roots, err := ccadb.Fetch(context.Background(), *url, allColumns)
 	if err != nil {
-		klog.Exitf("Error fetching URL: %v", err)
+		klog.Exitf("Error fetching roots: %s", err)
 	}
 
-	defer func() {
-		if err := resp.Body.Close(); err != nil {
-			klog.Errorf("resp.Body.Close(): %v", err)
-		}
-	}()
-
-	if resp.StatusCode != http.StatusOK {
-		klog.Exitf("Received non-OK HTTP status: %s", resp.Status)
-	}
-
-	// 2. Set up the CSV reader
-	r := csv.NewReader(resp.Body)
-	// Set FieldsPerRecord to -1 to allow records to have a variable number of fields,
-	// which is safer for complex CSVs.
-	r.FieldsPerRecord = -1
-	// The Go CSV parser correctly handles quoted fields with internal newlines by default.
-
-	// 3. Read the header row
-	header, err := r.Read()
-	if err != nil {
-		klog.Exitf("Error reading header row: %v", err)
-	}
-
-	// 4. Dynamically find the required column indices
-	indices := make(map[string]int)
-	requiredHeaders := []string{colSubject, colIssuer, colPEM, colSHA, colUsecase}
-
-	for i, colName := range header {
-		// Clean up the header name (trim potential whitespace or encoding artifacts)
-		cleanName := strings.TrimSpace(colName)
-		indices[cleanName] = i
-	}
-
-	minNumColumns := 0
-	// Verify all required headers were found
-	for _, req := range requiredHeaders {
-		i, found := indices[req]
-		if !found {
-			klog.Exitf("Required column not found in CSV header: %s", req)
-		}
-		if i+1 > minNumColumns {
-			minNumColumns = i + 1
-		}
-	}
-
-	// 5. Set up the output file
 	outFile, err := createFile(*outputFilename)
 	if err != nil {
 		klog.Exitf("Error creating output file: %v", err)
@@ -116,37 +57,15 @@ func main() {
 		}
 	}()
 
-	// 6. Process the remaining records
-	for {
-		row, err := r.Read()
-		if err == io.EOF {
-			break // End of file
-		}
-		if err != nil {
-			klog.Exitf("Malformed record: %v", err)
+	for _, row := range roots {
+		if len(row) != len(allColumns) {
+			klog.Errorf("Unexpected number of columns in row: got %d, want %d", len(row), len(allColumns))
 		}
 
-		// Ensure the record is long enough before attempting to access fields
-		if len(row) < minNumColumns {
-			klog.Exitf("Row is too short: %q", row)
-		}
-
-		usecase := row[indices[colUsecase]]
-		if !strings.Contains(usecase, usecaseServerAuth) {
-			continue
-		}
-
-		issuer := row[indices[colIssuer]]
-		subject := row[indices[colSubject]]
-		sha256 := row[indices[colSHA]]
-		cert := row[indices[colPEM]]
-
-		if *formatB64 {
-			sha256 = formatBase64(sha256, ":", 2)
-		}
+		sha256 := formatBase64(string(row[2]), ":", 2)
 		// Format and write the metadata (prefixed by #) and the certificate
 		output := fmt.Sprintf("# Issuer: %s\n# Subject: %s\n# SHA256 Fingerprint: %s\n%s\n",
-			issuer, subject, sha256, cert)
+			row[0], row[1], sha256, row[3])
 
 		if _, err := outFile.WriteString(output); err != nil {
 			klog.Exitf("Error writing to output file: %v", err)
