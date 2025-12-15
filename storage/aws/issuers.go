@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -51,8 +52,9 @@ type Options struct {
 	S3Options func(*s3.Options)
 }
 
-// NewIssuerStorage creates a new IssuerStorage.
-func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error) {
+// newPrefixedStorage creates a new S3 based issuer storage.
+// Objects will be stored under prefix/.
+func newPrefixedStorage(ctx context.Context, opts Options, prefix string) (*IssuersStorage, error) {
 	var sdkConfig aws.Config
 	if opts.SDKConfig != nil {
 		sdkConfig = *opts.SDKConfig
@@ -70,16 +72,74 @@ func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error
 	r := &IssuersStorage{
 		s3Client:    s3.NewFromConfig(sdkConfig, opts.S3Options),
 		bucket:      opts.Bucket,
-		prefix:      staticct.IssuersPrefix,
+		prefix:      prefix,
 		contentType: staticct.IssuersContentType,
 	}
 
 	return r, nil
 }
 
+// NewIssuerStorage creates a new S3 based issuer storage.
+func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error) {
+	return newPrefixedStorage(ctx, opts, staticct.IssuersPrefix)
+}
+
+// NewRootsStorage creates a new S3 based roots storage.
+func NewRootsStorage(ctx context.Context, opts Options) (*IssuersStorage, error) {
+	return newPrefixedStorage(ctx, opts, storage.RootsPrefix)
+}
+
 // keyToObjName converts bytes to an S3 object name.
 func (s *IssuersStorage) keyToObjName(key []byte) string {
 	return path.Join(s.prefix, string(key))
+}
+
+// keyToObjName converts an S3 object name to a key.
+func (s *IssuersStorage) objNameToKey(objName string) []byte {
+	return []byte(strings.TrimPrefix(objName, s.prefix))
+}
+
+// LoadAll loads all the values in the bucket under the prefix.
+func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
+	errs := []error(nil)
+	kvs := []storage.KV{}
+
+	paginator := s3.NewListObjectsV2Paginator(s.s3Client, &s3.ListObjectsV2Input{
+		Bucket: aws.String(s.bucket),
+		Prefix: aws.String(s.prefix),
+	})
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(ctx)
+		if err != nil {
+			// If listing fails, stop iterating
+			errs = append(errs, fmt.Errorf("failed to list objects in bucket %q prefix %q: %w", s.bucket, s.prefix, err))
+			break
+		}
+
+		for _, obj := range page.Contents {
+			resp, err := s.s3Client.GetObject(ctx, &s3.GetObjectInput{
+				Bucket: aws.String(s.bucket),
+				Key:    obj.Key,
+			})
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to get object %q: %w", *obj.Key, err))
+				continue
+			}
+
+			data, err := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+
+			if err != nil {
+				errs = append(errs, fmt.Errorf("failed to read object body %q: %w", *obj.Key, err))
+				continue
+			}
+
+			kvs = append(kvs, storage.KV{K: s.objNameToKey(*obj.Key), V: data})
+		}
+	}
+
+	return kvs, errors.Join(errs...)
 }
 
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.

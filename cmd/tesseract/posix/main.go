@@ -107,10 +107,16 @@ func main() {
 	defer shutdownOTel(ctx)
 	signer := signerFromFlags()
 
+	fetchedRootsBackupStorage, err := posix.NewRootsStorage(ctx, *storageDir)
+	if err != nil {
+		klog.Exitf("failed to initialize POSIX backup storage for remotely fetched roots: %v", err)
+	}
+
 	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:             *rootsPemFile,
 		RootsRemoteFetchURL:      *rootsRemoteFetchURL,
 		RootsRemoteFetchInterval: *rootsRemoteFetchInterval,
+		RootsRemoteFetchBackup:   fetchedRootsBackupStorage,
 		RejectExpired:            *rejectExpired,
 		RejectUnexpired:          *rejectUnexpired,
 		ExtKeyUsages:             *extKeyUsages,

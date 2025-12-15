@@ -43,6 +43,7 @@ const (
 	// A CT log references ~15k unique issuer certifiates in 2024, so this gives plenty of space
 	// if we ever run into this limit, we should re-think how it works.
 	maxCachedIssuerKeys = 1 << 20
+	RootsPrefix         = "roots/"
 )
 
 type KV struct {
@@ -53,6 +54,12 @@ type KV struct {
 // IssuerStorage issuer certificates under their hex encoded sha256.
 type IssuerStorage interface {
 	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
+}
+
+// RootsStorage stores root certificates under their hex encoded sha256.
+type RootsStorage interface {
+	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
+	LoadAll(ctx context.Context) ([]KV, error)
 }
 
 type CTStorageOptions struct {

@@ -128,10 +128,21 @@ func main() {
 		klog.Exit("Must specify either local key files (--signer_public_key_file and --signer_private_key_file) or secrets manager keys (--signer_public_key_secret_name and --signer_private_key_secret_name)")
 	}
 
+	awsCfg := storageConfigFromFlags()
+	fetchedRootsBackupStorage, err := aws.NewRootsStorage(ctx, aws.Options{
+		Bucket:    *bucket,
+		SDKConfig: awsCfg.SDKConfig,
+		S3Options: awsCfg.S3Options,
+	})
+	if err != nil {
+		klog.Exitf("failed to initialize S3 backup storage for remotely fetched roots: %v", err)
+	}
+
 	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:             *rootsPemFile,
 		RootsRemoteFetchURL:      *rootsRemoteFetchURL,
 		RootsRemoteFetchInterval: *rootsRemoteFetchInterval,
+		RootsRemoteFetchBackup:   fetchedRootsBackupStorage,
 		RejectExpired:            *rejectExpired,
 		RejectUnexpired:          *rejectUnexpired,
 		ExtKeyUsages:             *extKeyUsages,
@@ -151,7 +162,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		NotBeforeRL: notBeforeRLFromFlags(),
 		DedupRL:     dedupRL,
 	}
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorageFunc(awsCfg), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
@@ -205,79 +216,80 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-	awsCfg := storageConfigFromFlags()
-	driver, err := taws.New(ctx, awsCfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize AWS Tessera storage driver: %v", err)
-	}
-
-	var antispam tessera.Antispam
-	if *antispamDBName != "" {
-		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
+func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+		driver, err := taws.New(ctx, awsCfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create new AWS antispam storage: %v", err)
+			return nil, fmt.Errorf("failed to initialize AWS Tessera storage driver: %v", err)
 		}
-	}
 
-	antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
-	if unit != "" {
-		return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
-	}
-	if error != nil {
-		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
-	}
+		var antispam tessera.Antispam
+		if *antispamDBName != "" {
+			antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create new AWS antispam storage: %v", err)
+			}
+		}
 
-	opts := tessera.NewAppendOptions().
-		WithCheckpointSigner(signer).
-		WithCTLayout().
-		WithAntispam(uint(antispamCacheSize), antispam).
-		WithCheckpointInterval(*checkpointInterval).
-		WithCheckpointRepublishInterval(*checkpointRepublishInterval).
-		WithBatching(*batchMaxSize, *batchMaxAge).
-		WithPushback(*pushbackMaxOutstanding).
-		WithGarbageCollectionInterval(*garbageCollectionInterval)
+		antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
+		if unit != "" {
+			return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
+		}
+		if error != nil {
+			return nil, fmt.Errorf("invalid antispam cache size: %v", error)
+		}
 
-	if *witnessPolicyFile != "" {
-		f, err := os.ReadFile(*witnessPolicyFile)
+		opts := tessera.NewAppendOptions().
+			WithCheckpointSigner(signer).
+			WithCTLayout().
+			WithAntispam(uint(antispamCacheSize), antispam).
+			WithCheckpointInterval(*checkpointInterval).
+			WithCheckpointRepublishInterval(*checkpointRepublishInterval).
+			WithBatching(*batchMaxSize, *batchMaxAge).
+			WithPushback(*pushbackMaxOutstanding).
+			WithGarbageCollectionInterval(*garbageCollectionInterval)
+
+		if *witnessPolicyFile != "" {
+			f, err := os.ReadFile(*witnessPolicyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+			}
+			wg, err := tessera.NewWitnessGroupFromPolicy(f)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			}
+
+			// Don't block if witnesses are unavailable.
+			wOpts := &tessera.WitnessOptions{
+				FailOpen: true,
+				Timeout:  *witnessTimeout,
+			}
+			opts.WithWitnesses(wg, wOpts)
+		}
+
+		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+			return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 		}
-		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+
+		issuerStorage, err := aws.NewIssuerStorage(ctx, aws.Options{
+			Bucket:    *bucket,
+			SDKConfig: awsCfg.SDKConfig,
+			S3Options: awsCfg.S3Options,
+		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
 		}
 
-		// Don't block if witnesses are unavailable.
-		wOpts := &tessera.WitnessOptions{
-			FailOpen: true,
-			Timeout:  *witnessTimeout,
+		sopts := storage.CTStorageOptions{
+			Appender:      appender,
+			Reader:        reader,
+			IssuerStorage: issuerStorage,
+			EnableAwaiter: *enablePublicationAwaiter,
 		}
-		opts.WithWitnesses(wg, wOpts)
-	}
 
-	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
+		return storage.NewCTStorage(ctx, &sopts)
 	}
-
-	issuerStorage, err := aws.NewIssuerStorage(ctx, aws.Options{
-		Bucket:    *bucket,
-		SDKConfig: awsCfg.SDKConfig,
-		S3Options: awsCfg.S3Options,
-	})
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize AWS issuer storage: %v", err)
-	}
-
-	sopts := storage.CTStorageOptions{
-		Appender:      appender,
-		Reader:        reader,
-		IssuerStorage: issuerStorage,
-		EnableAwaiter: *enablePublicationAwaiter,
-	}
-
-	return storage.NewCTStorage(ctx, &sopts)
 }
 
 type timestampFlag struct {
