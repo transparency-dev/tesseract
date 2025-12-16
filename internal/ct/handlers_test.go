@@ -928,7 +928,7 @@ func BenchmarkValidateChain(b *testing.B) {
 		b.Fatalf("parseChain: %v", err)
 	}
 	r := x509util.NewPEMCertPool()
-	r.AddCert(chain[2])
+	r.AddCerts([]*x509.Certificate{chain[2]})
 	cv := chainValidator{
 		trustedRoots: r,
 	}

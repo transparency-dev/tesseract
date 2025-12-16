@@ -83,7 +83,7 @@ func TestIncluded(t *testing.T) {
 	pool := x509util.NewPEMCertPool()
 	for _, test := range tests {
 		if test.cert != nil {
-			pool.AddCert(test.cert)
+			pool.AddCerts([]*x509.Certificate{test.cert})
 		}
 		for i, cert := range certs {
 			got := pool.Included(cert)

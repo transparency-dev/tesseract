@@ -47,19 +47,30 @@ func NewPEMCertPool() *PEMCertPool {
 	return &PEMCertPool{mu: sync.Mutex{}, fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
 }
 
-// AddCert adds a certificate to a pool. Uses fingerprint to weed out duplicates.
-// cert must not be nil.
-func (p *PEMCertPool) AddCert(cert *x509.Certificate) {
+// AddCerts adds certificates to a pool. certs must not be nil.
+//
+// It uses fingerprint to weed out duplicates and identify new certificates.
+// If any new certificates is detected, the underlying certPool is cloned,
+// new certs are added, and then pools are swapped.
+func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	fingerprint := sha256.Sum256(cert.Raw)
-	_, ok := p.fingerprintToCertMap[fingerprint]
+	newCerts := []*x509.Certificate{}
+	for _, cert := range certs {
+		fingerprint := sha256.Sum256(cert.Raw)
+		_, ok := p.fingerprintToCertMap[fingerprint]
 
-	if !ok {
-		p.fingerprintToCertMap[fingerprint] = *cert
-		p.certPool.AddCert(cert)
-		p.rawCerts = append(p.rawCerts, cert)
+		if !ok {
+			newCerts = append(newCerts, cert)
+			p.fingerprintToCertMap[fingerprint] = *cert
+			p.rawCerts = append(p.rawCerts, cert)
+		}
 	}
+	newPool := p.certPool.Clone()
+	for _, cert := range newCerts {
+		newPool.AddCert(cert)
+	}
+	p.certPool = newPool
 }
 
 // Included indicates whether the given cert is included in the pool.
@@ -75,6 +86,7 @@ func (p *PEMCertPool) Included(cert *x509.Certificate) bool {
 // Skips over non certificate blocks in the data. Returns true if all certificates in the
 // data were parsed and added to the pool successfully and at least one certificate was found.
 func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+	certs := []*x509.Certificate{}
 	for len(pemCerts) > 0 {
 		var block *pem.Block
 		block, pemCerts = pem.Decode(pemCerts)
@@ -91,9 +103,10 @@ func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
 			return false
 		}
 
-		p.AddCert(cert)
+		certs = append(certs, cert)
 		ok = true
 	}
+	p.AddCerts(certs)
 
 	return
 }
