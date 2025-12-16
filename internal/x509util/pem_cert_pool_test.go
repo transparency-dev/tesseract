@@ -26,7 +26,7 @@ func TestLoadSingleCertFromPEMs(t *testing.T) {
 	for _, p := range []string{pemCACert, pemCACertWithOtherStuff, pemCACertDuplicated} {
 		pool := x509util.NewPEMCertPool()
 
-		ok := pool.AppendCertsFromPEM([]byte(p))
+		ok := pool.AppendCertsFromPEMs([]byte(p))
 		if !ok {
 			t.Fatal("Expected to append a certificate ok")
 		}
@@ -40,7 +40,7 @@ func TestBadOrEmptyCertificateRejected(t *testing.T) {
 	for _, p := range []string{pemUnknownBlockType, pemCACertBad} {
 		pool := x509util.NewPEMCertPool()
 
-		ok := pool.AppendCertsFromPEM([]byte(p))
+		ok := pool.AppendCertsFromPEMs([]byte(p))
 		if ok {
 			t.Fatal("Expected appending no certs")
 		}
@@ -53,7 +53,7 @@ func TestBadOrEmptyCertificateRejected(t *testing.T) {
 func TestLoadMultipleCertsFromPEM(t *testing.T) {
 	pool := x509util.NewPEMCertPool()
 
-	ok := pool.AppendCertsFromPEM([]byte(pemCACertMultiple))
+	ok := pool.AppendCertsFromPEMs([]byte(pemCACertMultiple))
 	if !ok {
 		t.Fatal("Rejected valid multiple certs")
 	}

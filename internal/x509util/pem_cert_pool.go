@@ -87,29 +87,31 @@ func (p *PEMCertPool) Included(cert *x509.Certificate) bool {
 	return ok
 }
 
-// AppendCertsFromPEM adds certs to the pool from a byte slice assumed to contain PEM encoded data.
+// AppendCertsFromPEMs adds certs to the pool from byte slices assumed to contain PEM encoded data.
 // Skips over non certificate blocks in the data. Returns true if all certificates in the
 // data were parsed and added to the pool successfully and at least one certificate was found.
-func (p *PEMCertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+func (p *PEMCertPool) AppendCertsFromPEMs(pems ...[]byte) (ok bool) {
 	certs := []*x509.Certificate{}
-	for len(pemCerts) > 0 {
-		var block *pem.Block
-		block, pemCerts = pem.Decode(pemCerts)
-		if block == nil {
-			break
-		}
-		if block.Type != pemCertificateBlockType || len(block.Headers) != 0 {
-			continue
-		}
+	for _, pemCerts := range pems {
+		for len(pemCerts) > 0 {
+			var block *pem.Block
+			block, pemCerts = pem.Decode(pemCerts)
+			if block == nil {
+				break
+			}
+			if block.Type != pemCertificateBlockType || len(block.Headers) != 0 {
+				continue
+			}
 
-		cert, err := x509.ParseCertificate(block.Bytes)
-		if err != nil {
-			klog.Warningf("error parsing PEM certificate: %v", err)
-			return false
-		}
+			cert, err := x509.ParseCertificate(block.Bytes)
+			if err != nil {
+				klog.Warningf("error parsing PEM certificate: %v", err)
+				return false
+			}
 
-		certs = append(certs, cert)
-		ok = true
+			certs = append(certs, cert)
+			ok = true
+		}
 	}
 	p.AddCerts(certs)
 
@@ -123,7 +125,7 @@ func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
 		return fmt.Errorf("failed to load PEM certs file: %v", err)
 	}
 
-	if !p.AppendCertsFromPEM(pemData) {
+	if !p.AppendCertsFromPEMs(pemData) {
 		return errors.New("failed to parse PEM certs file")
 	}
 	return nil

@@ -192,13 +192,13 @@ func (s *CertPool) addCertFunc(rawSum224 sum224, rawSubject string, getCert func
 	s.byName[rawSubject] = append(s.byName[rawSubject], len(s.lazyCerts)-1)
 }
 
-// AppendCertsFromPEM attempts to parse a series of PEM encoded certificates.
+// AppendCertsFromPEMs attempts to parse a series of PEM encoded certificates.
 // It appends any certificates found to s and reports whether any certificates
 // were successfully parsed.
 //
 // On many Linux systems, /etc/ssl/cert.pem will contain the system wide set
 // of root CAs in a format suitable for this function.
-func (s *CertPool) AppendCertsFromPEM(pemCerts []byte) (ok bool) {
+func (s *CertPool) AppendCertsFromPEMs(pemCerts []byte) (ok bool) {
 	for len(pemCerts) > 0 {
 		var block *pem.Block
 		block, pemCerts = pem.Decode(pemCerts)

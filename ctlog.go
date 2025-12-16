@@ -132,13 +132,15 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 			if err != nil {
 				klog.Errorf("Couldn't fetch roots from %q: %s", cfg.RootsRemoteFetchURL, err)
 			}
+			pems := make([][]byte, 0, len(rr))
 			for _, r := range rr {
 				if len(r) < 1 {
 					klog.Errorf("Couldn't parse root from %q: empty row", cfg.RootsRemoteFetchURL)
 					continue
 				}
-				roots.AppendCertsFromPEM(r[0])
+				pems = append(pems, r[0])
 			}
+			roots.AppendCertsFromPEMs(pems...)
 		}
 
 		fetchAndAppendRemoteRoots()
