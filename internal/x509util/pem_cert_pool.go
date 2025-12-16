@@ -35,7 +35,7 @@ const pemCertificateBlockType string = "CERTIFICATE"
 // certs into the pool. CertPool ignores errors if at least one cert loads correctly but
 // PEMCertPool requires all certs to load.
 type PEMCertPool struct {
-	mu sync.Mutex
+	mu sync.RWMutex
 	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
@@ -44,7 +44,7 @@ type PEMCertPool struct {
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{mu: sync.Mutex{}, fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
+	return &PEMCertPool{mu: sync.RWMutex{}, fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
 }
 
 // AddCerts adds certificates to a pool. certs must not be nil.
@@ -55,6 +55,7 @@ func NewPEMCertPool() *PEMCertPool {
 func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	newCerts := []*x509.Certificate{}
 	for _, cert := range certs {
 		fingerprint := sha256.Sum256(cert.Raw)
@@ -62,21 +63,25 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) {
 
 		if !ok {
 			newCerts = append(newCerts, cert)
-			p.fingerprintToCertMap[fingerprint] = *cert
-			p.rawCerts = append(p.rawCerts, cert)
 		}
 	}
-	newPool := p.certPool.Clone()
-	for _, cert := range newCerts {
-		newPool.AddCert(cert)
+
+	if len(newCerts) > 0 {
+		newPool := p.certPool.Clone()
+		for _, cert := range newCerts {
+			fingerprint := sha256.Sum256(cert.Raw)
+			p.fingerprintToCertMap[fingerprint] = *cert
+			p.rawCerts = append(p.rawCerts, cert)
+			newPool.AddCert(cert)
+		}
+		p.certPool = newPool
 	}
-	p.certPool = newPool
 }
 
 // Included indicates whether the given cert is included in the pool.
 func (p *PEMCertPool) Included(cert *x509.Certificate) bool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	fingerprint := sha256.Sum256(cert.Raw)
 	_, ok := p.fingerprintToCertMap[fingerprint]
 	return ok
@@ -126,21 +131,21 @@ func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
 
 // Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
 func (p *PEMCertPool) Subjects() (res [][]byte) {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.certPool.Subjects()
 }
 
 // CertPool returns the underlying CertPool.
 func (p *PEMCertPool) CertPool() *lax509.CertPool {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.certPool
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
 func (p *PEMCertPool) RawCertificates() []*x509.Certificate {
-	p.mu.Lock()
-	defer p.mu.Unlock()
+	p.mu.RLock()
+	defer p.mu.RUnlock()
 	return p.rawCerts
 }
