@@ -67,6 +67,8 @@ var (
 	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints. This MUST match the log's submission prefix as per https://c2sp.org/static-ct-api.")
 	pathPrefix               = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
 	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log. The certs are served through get-roots endpoint.")
+	rootsRemoteFetchURL      = flag.String("roots_remote_fetch_url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "WIP DO NOT USE - URL to fetch trusted roots from.")
+	rootsRemoteFetchInterval = flag.Duration("roots_remote_fetch_interval", time.Duration(0), "WIP DO NOT USE - Interval between two fetches from roots_fetch_url.")
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
 	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
@@ -106,14 +108,16 @@ func main() {
 	signer := signerFromFlags()
 
 	chainValidationConfig := tesseract.ChainValidationConfig{
-		RootsPEMFile:     *rootsPemFile,
-		RejectExpired:    *rejectExpired,
-		RejectUnexpired:  *rejectUnexpired,
-		ExtKeyUsages:     *extKeyUsages,
-		RejectExtensions: *rejectExtensions,
-		NotAfterStart:    notAfterStart.t,
-		NotAfterLimit:    notAfterLimit.t,
-		AcceptSHA1:       *acceptSHA1,
+		RootsPEMFile:             *rootsPemFile,
+		RootsRemoteFetchURL:      *rootsRemoteFetchURL,
+		RootsRemoteFetchInterval: *rootsRemoteFetchInterval,
+		RejectExpired:            *rejectExpired,
+		RejectUnexpired:          *rejectUnexpired,
+		ExtKeyUsages:             *extKeyUsages,
+		RejectExtensions:         *rejectExtensions,
+		NotAfterStart:            notAfterStart.t,
+		NotAfterLimit:            notAfterLimit.t,
+		AcceptSHA1:               *acceptSHA1,
 	}
 	if *acceptSHA1 {
 		klog.Info(`**** WARNING **** This server will accept chains signed
