@@ -240,7 +240,7 @@ func TestIsPrecertificate(t *testing.T) {
 	}
 }
 
-func TestValidateChain(t *testing.T) {
+func TestValidate(t *testing.T) {
 	fakeCARoots := x509util.NewPEMCertPool()
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
@@ -263,7 +263,7 @@ func TestValidateChain(t *testing.T) {
 		chain       [][]byte
 		wantErr     bool
 		wantPathLen int
-		modifyOpts  func(v *chainValidator)
+		modifyCV    func(v *chainValidator)
 	}{
 		{
 			desc:    "missing-intermediate-cert",
@@ -323,7 +323,7 @@ func TestValidateChain(t *testing.T) {
 		{
 			desc:  "reject-non-existent-ext-id",
 			chain: pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject SubjectKeyIdentifier extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{99, 99, 99, 99}}
 			},
@@ -332,7 +332,7 @@ func TestValidateChain(t *testing.T) {
 		{
 			desc:  "reject-non-existent-ext-id-precert",
 			chain: pemsToDERChain(t, []string{testdata.PrecertPEMValid}),
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject SubjectKeyIdentifier extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{99, 99, 99, 99}}
 			},
@@ -342,7 +342,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-ext-id",
 			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantErr: true,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject ExtendedKeyUsage extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
@@ -351,7 +351,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-ext-id-precert",
 			chain:   pemsToDERChain(t, []string{testdata.PrecertPEMValid}),
 			wantErr: true,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject ExtendedKeyUsage extension
 				v.rejectExtIds = []asn1.ObjectIdentifier{[]int{2, 5, 29, 37}}
 			},
@@ -360,7 +360,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-eku-not-present-in-cert",
 			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantErr: true,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject cert without ExtKeyUsageEmailProtection
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection}
 			},
@@ -369,7 +369,7 @@ func TestValidateChain(t *testing.T) {
 			desc:        "allow-eku-present-in-cert",
 			chain:       pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
 			wantPathLen: 3,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
@@ -377,7 +377,7 @@ func TestValidateChain(t *testing.T) {
 			desc:    "reject-eku-not-present-in-precert",
 			chain:   pemsToDERChain(t, []string{testdata.RealPrecertWithEKUPEM}),
 			wantErr: true,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				// reject cert without ExtKeyUsageEmailProtection
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageEmailProtection}
 			},
@@ -386,34 +386,34 @@ func TestValidateChain(t *testing.T) {
 			desc:        "allow-eku-present-in-precert",
 			chain:       pemsToDERChain(t, []string{testdata.RealPrecertWithEKUPEM}),
 			wantPathLen: 2,
-			modifyOpts: func(v *chainValidator) {
+			modifyCV: func(v *chainValidator) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 			},
 		},
 	}
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
-			opts := cv
-			if test.modifyOpts != nil {
-				test.modifyOpts(&opts)
+			cvv := cv
+			if test.modifyCV != nil {
+				test.modifyCV(&cvv)
 			}
 			chain, err := parseChain(test.chain)
 			if err != nil {
 				t.Fatalf("parseChain()=%v", err)
 			}
-			gotPath, err := opts.validate(chain)
+			gotPath, err := cvv.validate(chain)
 			if err != nil {
 				if !test.wantErr {
-					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
+					t.Errorf("chainValidator.validate()=%v,%v; want _,nil", gotPath, err)
 				}
 				return
 			}
 			if test.wantErr {
-				t.Errorf("ValidateChain()=%v,%v; want _,non-nil", gotPath, err)
+				t.Errorf("chainValidator.validate()=%v,%v; want _,non-nil", gotPath, err)
 				return
 			}
 			if len(gotPath) != test.wantPathLen {
-				t.Errorf("|ValidateChain()|=%d; want %d", len(gotPath), test.wantPathLen)
+				t.Errorf("|chainValidator.validate()|=%d; want %d", len(gotPath), test.wantPathLen)
 				for _, c := range gotPath {
 					t.Logf("Subject: %s Issuer: %s", c.Subject, c.Issuer)
 				}
@@ -428,7 +428,6 @@ func TestParseChain(t *testing.T) {
 		chain       [][]byte
 		wantErr     bool
 		wantPathLen int
-		modifyOpts  func(v *chainValidator)
 	}{
 		{
 			desc:    "empty-chain",
@@ -455,7 +454,7 @@ func TestNotAfterRange(t *testing.T) {
 	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-	opts := chainValidator{
+	cv := chainValidator{
 		trustedRoots:  fakeCARoots,
 		rejectExpired: false,
 	}
@@ -495,24 +494,24 @@ func TestNotAfterRange(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			if !test.notAfterStart.IsZero() {
-				opts.notAfterStart = &test.notAfterStart
+				cv.notAfterStart = &test.notAfterStart
 			}
 			if !test.notAfterLimit.IsZero() {
-				opts.notAfterLimit = &test.notAfterLimit
+				cv.notAfterLimit = &test.notAfterLimit
 			}
 			chain, err := parseChain(test.chain)
 			if err != nil {
 				t.Fatalf("parseChain()=%v", err)
 			}
-			gotPath, err := opts.validate(chain)
+			gotPath, err := cv.validate(chain)
 			if err != nil {
 				if !test.wantErr {
-					t.Errorf("ValidateChain()=%v,%v; want _,nil", gotPath, err)
+					t.Errorf("chainValidate.validate()=%v,%v; want _,nil", gotPath, err)
 				}
 				return
 			}
 			if test.wantErr {
-				t.Errorf("ValidateChain()=%v,%v; want _,non-nil", gotPath, err)
+				t.Errorf("chainValidate.validate()=%v,%v; want _,non-nil", gotPath, err)
 			}
 		})
 	}
@@ -530,7 +529,7 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 	if err != nil {
 		t.Fatalf("parseChain()=%v", err)
 	}
-	opts := chainValidator{
+	cv := chainValidator{
 		trustedRoots: fakeCARoots,
 		extKeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 	}
@@ -617,18 +616,18 @@ func TestRejectExpiredUnexpired(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			opts.currentTime = tc.now
-			opts.rejectExpired = tc.rejectExpired
-			opts.rejectUnexpired = tc.rejectUnexpired
-			_, err := opts.validate(chain)
+			cv.currentTime = tc.now
+			cv.rejectExpired = tc.rejectExpired
+			cv.rejectUnexpired = tc.rejectUnexpired
+			_, err := cv.validate(chain)
 			if err != nil {
 				if len(tc.wantErr) == 0 {
-					t.Errorf("ValidateChain()=_,%v; want _,nil", err)
+					t.Errorf("chainValidate.validate()=_,%v; want _,nil", err)
 				} else if !strings.Contains(err.Error(), tc.wantErr) {
-					t.Errorf("ValidateChain()=_,%v; want err containing %q", err, tc.wantErr)
+					t.Errorf("chainValidate.validate()=_,%v; want err containing %q", err, tc.wantErr)
 				}
 			} else if len(tc.wantErr) != 0 {
-				t.Errorf("ValidateChain()=_,nil; want err containing %q", tc.wantErr)
+				t.Errorf("chainValidate.validate()=_,nil; want err containing %q", tc.wantErr)
 			}
 		})
 	}
@@ -729,7 +728,7 @@ func TestPreIssuedCert(t *testing.T) {
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
-			opts := chainValidator{
+			cv := chainValidator{
 				trustedRoots: roots,
 				extKeyUsages: tc.eku,
 			}
@@ -737,9 +736,9 @@ func TestPreIssuedCert(t *testing.T) {
 			if err != nil {
 				t.Fatalf("parseChain()=%v", err)
 			}
-			chain, err = opts.validate(chain)
+			chain, err = cv.validate(chain)
 			if err != nil {
-				t.Fatalf("failed to ValidateChain: %v", err)
+				t.Fatalf("failed to chainValidate.validate: %v", err)
 			}
 			for i, c := range chain {
 				t.Logf("chain[%d] = \n%s", i, c.Subject)
