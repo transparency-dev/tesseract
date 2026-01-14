@@ -161,7 +161,7 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 				sha := sha256.Sum256(r[0])
 				key := []byte(hex.EncodeToString(sha[:]))
 				if cfg.RootsRemoteFetchBackup != nil {
-					if err := cfg.RootsRemoteFetchBackup.AddIssuersIfNotExist(ctx, []storage.KV{{K: key, V: r[0]}}); err != nil {
+					if err := cfg.RootsRemoteFetchBackup.AddIfNotExist(ctx, []storage.KV{{K: key, V: r[0]}}); err != nil {
 						klog.Errorf("Couldn't store roots %q: %v", string(key), err)
 						continue
 					}

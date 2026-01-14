@@ -177,7 +177,7 @@ func TestLoadAll(t *testing.T) {
 			}
 
 			if len(tt.data) > 0 {
-				if err := s.AddIssuersIfNotExist(t.Context(), tt.data); err != nil {
+				if err := s.AddIfNotExist(t.Context(), tt.data); err != nil {
 					t.Fatalf("Failed to setup test data: %v", err)
 				}
 			}
@@ -209,7 +209,7 @@ func TestLoadAll(t *testing.T) {
 	}
 }
 
-func TestAddIssuesIfNotExist(t *testing.T) {
+func TestAddIfNotExist(t *testing.T) {
 	tests := []struct {
 		name    string
 		kv      []storage.KV
@@ -275,9 +275,9 @@ func TestAddIssuesIfNotExist(t *testing.T) {
 			}
 
 			// Apply KV updates.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			err = s.AddIfNotExist(context.Background(), tt.kv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
@@ -355,16 +355,16 @@ func TestAllKVAreWritten(t *testing.T) {
 				t.Fatalf("NewIssuerStorage() failed: %v", err)
 			}
 			// Create test env with pre-existing entries.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.setup)
+			err = s.AddIfNotExist(context.Background(), tt.setup)
 			if err != nil {
-				t.Errorf("Setup: AddIssuersIfNotExist() error = %v", err)
+				t.Errorf("Setup: AddIfNotExist() error = %v", err)
 				return
 			}
 
 			// Apply KV updates.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			err = s.AddIfNotExist(context.Background(), tt.kv)
 			if gotErr := err != nil; gotErr != tt.wantErr {
-				t.Fatalf("AddIssuersIfNotExist = %v, want err %t", err, tt.wantErr)
+				t.Fatalf("AddIfNotExist = %v, want err %t", err, tt.wantErr)
 			}
 			if tt.wantErr {
 				return

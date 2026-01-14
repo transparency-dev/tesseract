@@ -130,7 +130,7 @@ func TestLoadAll(t *testing.T) {
 			}
 
 			if len(tt.data) > 0 {
-				if err := s.AddIssuersIfNotExist(t.Context(), tt.data); err != nil {
+				if err := s.AddIfNotExist(t.Context(), tt.data); err != nil {
 					t.Fatalf("Failed to setup test data: %v", err)
 				}
 			}
@@ -162,7 +162,7 @@ func TestLoadAll(t *testing.T) {
 	}
 }
 
-func TestAddIssuersIfNotExist(t *testing.T) {
+func TestAddIfNotExist(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	tests := []struct {
@@ -254,9 +254,9 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			}
 
 			// Apply KV updates.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			err = s.AddIfNotExist(context.Background(), tt.kv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 

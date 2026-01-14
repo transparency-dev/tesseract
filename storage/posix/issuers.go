@@ -81,8 +81,8 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 	return kvs, nil
 }
 
-// AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
-func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
+// AddIfNotExist stores values under their Key if there isn't an object under Key already.
+func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) error {
 	errs := make([]error, 0)
 	for _, kv := range kv {
 		k := string(kv.K)

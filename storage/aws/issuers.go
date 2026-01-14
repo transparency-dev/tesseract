@@ -142,8 +142,8 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 	return kvs, errors.Join(errs...)
 }
 
-// AddIssuers stores Issuers values under their Key if there isn't an object under Key already.
-func (s *IssuersStorage) AddIssuersIfNotExist(ctx context.Context, kv []storage.KV) error {
+// AddIfNotExist stores values under their Key if there isn't an object under Key already.
+func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) error {
 	eg := errgroup.Group{}
 	for _, kv := range kv {
 		objName := s.keyToObjName(kv.K)

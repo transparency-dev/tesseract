@@ -53,12 +53,12 @@ type KV struct {
 
 // IssuerStorage issuer certificates under their hex encoded sha256.
 type IssuerStorage interface {
-	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
+	AddIfNotExist(ctx context.Context, kv []KV) error
 }
 
 // RootsStorage stores root certificates under their hex encoded sha256.
 type RootsStorage interface {
-	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
+	AddIfNotExist(ctx context.Context, kv []KV) error
 	LoadAll(ctx context.Context) ([]KV, error)
 }
 
@@ -188,8 +188,8 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 			}
 			req = append(req, kv)
 		}
-		if err := s.AddIssuersIfNotExist(ctx, req); err != nil {
-			return fmt.Errorf("AddIssuersIfNotExist()s: error storing issuer data in the underlying IssuerStorage: %v", err)
+		if err := s.AddIfNotExist(ctx, req); err != nil {
+			return fmt.Errorf("issuerStorage.AddIfNotExist()s: error storing issuer data in the underlying IssuerStorage: %v", err)
 		}
 		for _, kv := range req {
 			if len(m) >= maxCachedIssuerKeys {
