@@ -70,7 +70,7 @@ At the moment, we are aiming for Beta in 2025Q3, and GA by the end of 2025.
 |  7  | Witnessing                                                                               | :white_check_mark: | beta           |
 |  8  | Structured logging [#346](https://github.com/transparency-dev/tesseract/issues/346)      | :hammer:           | beta           |
 |  9  | CCADB based root update [#212](https://github.com/transparency-dev/tesseract/issues/212) | :hammer:           | beta           |
-|  10 | Client                                                                                   | :hammer:           | 1.0            |
+|  10 | Client [#664](https://github.com/transparency-dev/tesseract/issues/664)                  | :hammer:           | 1.0            |
 |  11 | Stable APIs                                                                              | :hammer:           | 1.0            |
 
 Current public library APIs are unlikely to change in any significant way,
