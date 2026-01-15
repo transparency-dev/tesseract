@@ -52,8 +52,14 @@ func NewIssuerStorage(ctx context.Context, bucket string, gcsClient *gcs.Client)
 		gcsClient = c
 	}
 
+	bkt := gcsClient.Bucket(bucket)
+	// Check that the bucket exists and that we have access to it.
+	if _, err := bkt.Attrs(ctx); err != nil {
+		return nil, fmt.Errorf("error checking GCS bucket %q: %w", bucket, err)
+	}
+
 	r := &IssuersStorage{
-		bucket:      gcsClient.Bucket(bucket),
+		bucket:      bkt,
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
 	}

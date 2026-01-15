@@ -30,24 +30,24 @@ func TestNewIssuerStorage(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		path    string
+		root    string
 		wantErr bool
 	}{
 		{
-			name:    "valid path",
-			path:    "",
+			name:    "existing root",
+			root:    "",
 			wantErr: false,
 		},
 		{
-			name:    "non-existent path",
-			path:    "nonexistent",
+			name:    "non-existing root",
+			root:    "sho/vel",
 			wantErr: false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := NewIssuerStorage(t.Context(), filepath.Join(tmpDir, tt.path))
+			_, err := NewIssuerStorage(t.Context(), filepath.Join(tmpDir, tt.root))
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewIssuerStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return

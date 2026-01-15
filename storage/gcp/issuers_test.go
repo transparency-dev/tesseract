@@ -54,19 +54,19 @@ func newTestStorage(t *testing.T, bucket string) *fakestorage.Server {
 
 func TestNewIssuerStorage(t *testing.T) {
 	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
+		name       string
+		wantBucket string
+		wantErr    bool
 	}{
 		{
-			name:    "valid path",
-			path:    "",
-			wantErr: false,
+			name:       "valid bucket",
+			wantBucket: testBucket,
+			wantErr:    false,
 		},
 		{
-			name:    "non-existent path",
-			path:    "nonexistent",
-			wantErr: false,
+			name:       "non-existing bucket",
+			wantBucket: "shovel",
+			wantErr:    true,
 		},
 	}
 
@@ -75,7 +75,7 @@ func TestNewIssuerStorage(t *testing.T) {
 			srv := newTestStorage(t, testBucket)
 			defer srv.Stop()
 
-			_, err := NewIssuerStorage(t.Context(), testBucket, srv.Client())
+			_, err := NewIssuerStorage(t.Context(), tt.wantBucket, srv.Client())
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewIssuerStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return

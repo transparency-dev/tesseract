@@ -77,19 +77,19 @@ func newTestStorage(t *testing.T, bucket string) (*aws.Config, func(*s3.Options)
 
 func TestNewIssuerStorage(t *testing.T) {
 	tests := []struct {
-		name    string
-		path    string
-		wantErr bool
+		name       string
+		wantBucket string
+		wantErr    bool
 	}{
 		{
-			name:    "valid path",
-			path:    "",
-			wantErr: false,
+			name:       "valid bucket",
+			wantBucket: testBucket,
+			wantErr:    false,
 		},
 		{
-			name:    "non-existent path",
-			path:    "nonexistent",
-			wantErr: false,
+			name:       "non-existing bucket",
+			wantBucket: "shovel",
+			wantErr:    true,
 		},
 	}
 
@@ -98,7 +98,7 @@ func TestNewIssuerStorage(t *testing.T) {
 			cfg, opts, done := newTestStorage(t, testBucket)
 			defer done()
 
-			_, err := NewIssuerStorage(t.Context(), Options{Bucket: testBucket, SDKConfig: cfg, S3Options: opts})
+			_, err := NewIssuerStorage(t.Context(), Options{Bucket: tt.wantBucket, SDKConfig: cfg, S3Options: opts})
 			if (err != nil) != tt.wantErr {
 				t.Errorf("NewIssuerStorage() error = %v, wantErr %v", err, tt.wantErr)
 				return
