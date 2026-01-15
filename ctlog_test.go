@@ -162,6 +162,9 @@ type ccadbRsp struct {
 func newCCADBTestServer(t *testing.T, rsps []ccadbRsp) *httptest.Server {
 	t.Helper()
 
+	if len(rsps) == 0 {
+		rsps = append(rsps, ccadbRsp{code: 404})
+	}
 	i := 0
 	next := func() ccadbRsp {
 		idx := min(i, len(rsps)-1)
