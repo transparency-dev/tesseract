@@ -34,13 +34,15 @@ type IssuersStorage struct {
 
 // NewIssuerStorage creates a new POSIX based issuer storage.
 //
+// If the directory doesn't exists, NewIssuerStorage creates it and its parents.
 // The issuers will be stored in a directory called "issuer" within the provided root directory.
-func NewIssuerStorage(ctx context.Context, dir string) (*IssuersStorage, error) {
-	r := &IssuersStorage{
-		dir: filepath.Join(dir, staticct.IssuersPrefix),
+func NewIssuerStorage(ctx context.Context, root string) (*IssuersStorage, error) {
+	dir := filepath.Join(root, staticct.IssuersPrefix)
+	if err := mkdirAll(dir, dirPerm); err != nil {
+		return nil, fmt.Errorf("failed to make directory structure: %w", err)
 	}
 
-	return r, nil
+	return &IssuersStorage{dir}, nil
 }
 
 // AddIssuers stores Issuers values under their Key if there isn't an object under Key already.

@@ -69,8 +69,14 @@ func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error
 		opts.S3Options = func(_ *s3.Options) {}
 	}
 
+	s3Client := s3.NewFromConfig(sdkConfig, opts.S3Options)
+	// Check that the bucket exists and that we have access to it.
+	if _, err := s3Client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(opts.Bucket)}); err != nil {
+		return nil, fmt.Errorf("error checking S3 bucket %q: %w", opts.Bucket, err)
+	}
+
 	r := &IssuersStorage{
-		s3Client:    s3.NewFromConfig(sdkConfig, opts.S3Options),
+		s3Client:    s3Client,
 		bucket:      opts.Bucket,
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
@@ -79,7 +85,7 @@ func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error
 	return r, nil
 }
 
-// keyToObjName converts bytes to a GCS object name.
+// keyToObjName converts bytes to an S3 object name.
 func (s *IssuersStorage) keyToObjName(key []byte) string {
 	return path.Join(s.prefix, string(key))
 }
