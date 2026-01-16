@@ -131,6 +131,7 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 			rr, err := ccadb.Fetch(ctx, cfg.RootsRemoteFetchURL, []string{ccadb.ColPEM})
 			if err != nil {
 				klog.Errorf("Couldn't fetch roots from %q: %s", cfg.RootsRemoteFetchURL, err)
+				return
 			}
 			pems := make([][]byte, 0, len(rr))
 			for _, r := range rr {

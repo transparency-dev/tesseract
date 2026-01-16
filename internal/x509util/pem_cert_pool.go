@@ -44,7 +44,10 @@ type PEMCertPool struct {
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
 func NewPEMCertPool() *PEMCertPool {
-	return &PEMCertPool{mu: sync.RWMutex{}, fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate), certPool: lax509.NewCertPool()}
+	return &PEMCertPool{
+		mu:                   sync.RWMutex{},
+		fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate),
+		certPool:             lax509.NewCertPool()}
 }
 
 // AddCerts adds certificates to a pool. certs must not be nil.
