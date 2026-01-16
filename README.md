@@ -232,7 +232,7 @@ via direct access to Tessera's log storage system
 ### Why these platforms?
 
 After chatting with various CT log operators, we decided to focus on GCP, AWS,
-and to explore non-cloud-native deloyments. We welcome feedback on these and
+and to explore non-cloud-native deployments. We welcome feedback on these and
 requests for additional backend implementations. If you have any,
 [come and talk to us](#wave-contact)!
 

@@ -12,7 +12,7 @@ This file explains how to configure TesseraCT binaries.
 
 It contains two main parts:
 
- 1. [Chain lifecyle](#life-of-a-chain): with settings impacting how submission
+ 1. [Chain lifecycle](#life-of-a-chain): with settings impacting how submission
  are processed
  2. [Setup](#setup): with instructions on how to setup TesseraCT resources
 
@@ -21,7 +21,7 @@ corresponding subdirectory.
 
 ### Life of a chain
 
-When TesseraCT receives a new chain submssion, it is first
+When TesseraCT receives a new chain submission, it is first
 [filtered](#chain-filtering), and is then sent to the Tessera library where it goes
 through the [process of being added to the log](#adding-to-the-log).
 The chain may be [deduplicated using TesseraCT's and Tessera's antispam features](#antispam).
@@ -70,7 +70,7 @@ at the time of submission.
 Tessera stages entries submitted via `Add`, then [sequences them in a batch](#sequencing-and-batching),
 assigning them with a durable sequence number. Asynchronously from this, entries
 are integrated into the log (i.e durably written into the log together with
-hashes commiting to them), and then [published every checkpoint interval](#checkpoint-publication)
+hashes committing to them), and then [published every checkpoint interval](#checkpoint-publication)
 (i.e a checkpoint which commits to these new entries is published). TesseraCT
 can optionally [wait for the full process to be done](#publication-awaiter)
 before sending responses to clients.
@@ -81,7 +81,7 @@ The `batch_max_age` and `batch_max_size` flags control the maximum age and numbe
 of entries in a single [sequencing batch](https://github.com/transparency-dev/tessera?tab=readme-ov-file#sequencing).
 These flags affect the overall performance of TesseraCT. The correct values for
 these flags depend on multiple factors, such as the driver used, the number
-of TesseraCT servers or their steady QPS rate. Defaults values have been chosen sensibly
+of TesseraCT servers or their steady QPS rate. Default values have been chosen sensibly
 and should be fine to get started with, but we invite you to experiment with values
 tailored to your setup.
 
@@ -115,12 +115,12 @@ The `enable_publication_awaiter` flag enables [Tessera's publication awaiter](ht
 when this flag is on, TesseraCT responds to `add-*` requests only after a
 `checkpoint` committing to that entry has been published. When this flag is off,
 TesseraCT sends responses to `add-*` requests as soon as Tessera has durably
-assigned a sequence number to the corresponding entry. Such entries entries will
+assigned a sequence number to the corresponding entry. Such entries will
 then get integrated and published asynchronously, which may or may not happen
 before TesseraCT responds to the `add-*` request are sent, or after.
 
 While this flag provides stronger guarantees to clients, it will likely lead to a
-lower a log throughput, an increased number of open sockets open, and RAM usage.
+lower log throughput, an increased number of open sockets, and RAM usage.
 Make sure that the `http_deadline` flag leaves enough time for requests
 to be fully processed.
 
@@ -221,7 +221,7 @@ To ensure that garbage collection is cleaning the log faster than it grows,
 `100*256/garbage_collection_interval` must be higher than the log's throughput.
 
 If garbage collection was disabled, and is later re-enabled, it will take
-`(current_log_size - log_size_when_GC_was disabled)/256/100*garbage_collection_interval` for garbage collection to catch
+`(current_log_size - log_size_when_GC_was_disabled)/256/100*garbage_collection_interval` for garbage collection to catch
 up.
 
 ### Setup
@@ -242,7 +242,7 @@ slashes.
 Use your upstream serving infrastructure to make sure that requests to these
 URLs are correctly routed to a TesseraCT server. TesseraCT will serve the
 requests it receives regardless of their `$HOST`. However, it will expect
-requests to be received on `$PATH_PREFIX`, as specifid by the `path_prefix` flag.
+requests to be received on `$PATH_PREFIX`, as specified by the `path_prefix` flag.
 
 #### Memory considerations
 
@@ -254,17 +254,17 @@ are kept in memory
 sequenced in a batch
 - [The number of cached issuers keys](https://github.com/transparency-dev/tesseract/blob/main/storage/storage.go)
 - `enable_publication_awaiter` and `http_deadline`: they impact the number of
-concurent requests, hence the amount of RAM being used
+concurrent requests, hence the amount of RAM being used
 
 #### Frontend redundancy
 
-For added availability multiple TesseraCT instances can run concurently with the
+For added availability multiple TesseraCT instances can run concurrently with the
 same Tessera resources. Adding more instances will not necessarily increase
 performance, the primary goal of concurrency is to allow for better
 availability.
 
-Multiple TesseraCT server can run concurently on AWS or GCP. It is also
-possible to run concurent servers with the POSIX and Vanilla S3 + MySQL
+Multiple TesseraCT server can run concurrently on AWS or GCP. It is also
+possible to run concurrent servers with the POSIX and Vanilla S3 + MySQL
 implementations, **but** this will depend on the underlying storage systems
 being used.
 

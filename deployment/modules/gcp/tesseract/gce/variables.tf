@@ -118,7 +118,7 @@ variable "witness_policy" {
 }
 
 variable "additional_signer_private_key_secret_names" {
-  description = "List of additional private key secret name for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
+  description = "List of additional private key secret names for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
   type        = list(string)
 }
 

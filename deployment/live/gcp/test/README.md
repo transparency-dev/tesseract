@@ -55,7 +55,7 @@ export TESSERA_BASE_NAME={VALUE} # e.g: test-static-ct
 > `TESSERA_BASE_NAME` will be used to prefix the name of various resources, and
 > must be less than 21 characters to avoid hitting naming limits.
 
-Then authenticate via `gcloud` as a principle with sufficient ACLs for
+Then authenticate via `gcloud` as a principal with sufficient ACLs for
 the project:
 
 ```bash
@@ -88,7 +88,7 @@ This section will help you bring a TesseraCT server up using the resources
 created above. [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
 will be served by the TesseraCT server at `http://localhost:6962/${TESSERA_BASE_NAME}`.
 [static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
-will be directly accesible via the GCS bucket, at `https://storage.googleapis.com/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket`.
+will be directly accessible via the GCS bucket, at `https://storage.googleapis.com/${GOOGLE_PROJECT}-${TESSERA_BASE_NAME}-bucket`.
 
 Decide whether to run TesseraCT such that it accepts:
 

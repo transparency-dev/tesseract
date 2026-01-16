@@ -112,7 +112,7 @@ This section will help you bring a TesseraCT server up using the resources
 created above. [static-ct-api submission APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#submission-apis)
 will be served by the TesseraCT server at `http://localhost:6962/${TESSERA_BASE_NAME}`.
 [static-ct-api monitoring APIs](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#monitoring-apis)
-will be directly accesible via the S3 bucket, at `https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com`.
+will be directly accessible via the S3 bucket, at `https://${TESSERACT_BUCKET_NAME}.s3.amazonaws.com`.
 
 Decide whether to run TesseraCT such that it accepts:
 
@@ -212,7 +212,7 @@ First, save the source log URI:
 export SOURCE_LOG_URI=https://ct.googleapis.com/logs/xenon2022
 ```
 
-Then, get fetch the roots the source logs accepts, and edit configs accordingly.
+Then, fetch the roots the source logs accepts, and edit configs accordingly.
 Two roots that TesseraCT cannot load with the [internal/lax509](/internal/lax509/)
 library need to be removed.
 
@@ -280,7 +280,7 @@ W0623 11:57:05.122711    6819 handlers.go:168] test-static-ct: AddPreChain handl
 ## Cleanup
 
 > [!IMPORTANT]  
-> Do not forget to delete all the resources to avoid incuring any further cost
+> Do not forget to delete all the resources to avoid incurring any further cost
 > when you're done using the log.
 
 The easiest way to do this, is to [close the account](https://docs.aws.amazon.com/accounts/latest/reference/manage-acct-closing.html).

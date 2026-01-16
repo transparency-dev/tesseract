@@ -55,7 +55,7 @@ variable "antispam_spanner_db" {
 }
 
 variable "additional_signer_private_key_secret_names" {
-  description = "List of additional private key secret name for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted in note signer format."
+  description = "List of additional private key secret names for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted in note signer format."
   type        = list(string)
 }
 

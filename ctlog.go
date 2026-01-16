@@ -134,7 +134,7 @@ type LogHandlerOpts struct {
 	DedupRL     float64
 }
 
-// NewLogHandler creates a Tessera based CT log pluged into HTTP handlers.
+// NewLogHandler creates a Tessera based CT log plugged into HTTP handlers.
 //
 // HTTP server handlers implement static-ct-api submission APIs:
 // https://c2sp.org/static-ct-api#submission-apis.
