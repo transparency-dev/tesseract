@@ -25,9 +25,11 @@ import (
 	"strings"
 	"time"
 
+	"github.com/transparency-dev/tesseract/internal/ccadb"
 	"github.com/transparency-dev/tesseract/internal/ct"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/tesseract/storage"
+	"k8s.io/klog/v2"
 )
 
 // ChainValidationConfig contains parameters to configure chain validation.
@@ -36,6 +38,11 @@ type ChainValidationConfig struct {
 	// are acceptable to the log. The certs are served through get-roots
 	// endpoint.
 	RootsPEMFile string
+	// RootsRemoteFetchURL configures an endpoint to fetch additional roots from.
+	RootsRemoteFetchURL string
+	// RootsRemoteFetchInterval configures the frequency at which to fetch
+	// roots from RootsRemoteEndpoint.
+	RootsRemoteFetchInterval time.Duration
 	// RejectExpired controls if true then the certificate validity period will be
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
@@ -79,7 +86,7 @@ var sysTimeSource = systemTimeSource{}
 
 // newChainValidator checks that a chain validation config is valid,
 // parses it, and loads resources to validate chains.
-func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
+func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.ChainValidator, error) {
 	// Load the trusted roots.
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
@@ -119,8 +126,43 @@ func newChainValidator(cfg ChainValidationConfig) (ct.ChainValidator, error) {
 		}
 	}
 
+	if cfg.RootsRemoteFetchInterval > 0 && cfg.RootsRemoteFetchURL != "" {
+		fetchAndAppendRemoteRoots := func() {
+			rr, err := ccadb.Fetch(ctx, cfg.RootsRemoteFetchURL, []string{ccadb.ColPEM})
+			if err != nil {
+				klog.Errorf("Couldn't fetch roots from %q: %s", cfg.RootsRemoteFetchURL, err)
+				return
+			}
+			pems := make([][]byte, 0, len(rr))
+			for _, r := range rr {
+				if len(r) < 1 {
+					klog.Errorf("Couldn't parse root from %q: empty row", cfg.RootsRemoteFetchURL)
+					continue
+				}
+				pems = append(pems, r[0])
+			}
+			roots.AppendCertsFromPEMs(pems...)
+		}
+
+		fetchAndAppendRemoteRoots()
+
+		go func() {
+			ticker := time.NewTicker(cfg.RootsRemoteFetchInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				case <-ticker.C:
+					fetchAndAppendRemoteRoots()
+				}
+			}
+		}()
+	}
+
 	cv := ct.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds, cfg.AcceptSHA1)
-	return &cv, nil
+
+	return cv, nil
 }
 
 // NotBeforeRL configures rate limits based on certificate not_before's age.
@@ -144,7 +186,7 @@ type LogHandlerOpts struct {
 // infrastructure directly (GCS over HTTPS for instance), or with an
 // independent serving stack of your choice.
 func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (http.Handler, error) {
-	cv, err := newChainValidator(cfg)
+	cv, err := newChainValidator(ctx, cfg)
 	if err != nil {
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
 	}

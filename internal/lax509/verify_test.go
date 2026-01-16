@@ -221,7 +221,7 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 	if !useSystemRoots {
 		opts.Roots = NewCertPool()
 		for j, root := range test.roots {
-			ok := opts.Roots.AppendCertsFromPEM([]byte(root))
+			ok := opts.Roots.AppendCertsFromPEMs([]byte(root))
 			if !ok {
 				t.Fatalf("failed to parse root #%d", j)
 			}
@@ -229,7 +229,7 @@ func testVerify(t *testing.T, test verifyTest, useSystemRoots bool) {
 	}
 
 	for j, intermediate := range test.intermediates {
-		ok := opts.Intermediates.AppendCertsFromPEM([]byte(intermediate))
+		ok := opts.Intermediates.AppendCertsFromPEMs([]byte(intermediate))
 		if !ok {
 			t.Fatalf("failed to parse intermediate #%d", j)
 		}

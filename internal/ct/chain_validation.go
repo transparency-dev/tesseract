@@ -113,8 +113,8 @@ type chainValidator struct {
 	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) chainValidator {
-	return chainValidator{
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
+	return &chainValidator{
 		trustedRoots:    trustedRoots,
 		rejectExpired:   rejectExpired,
 		rejectUnexpired: rejectUnexpired,
@@ -236,11 +236,9 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 	}
 
 	intermediatePool := x509util.NewPEMCertPool()
-	for i, cert := range chain {
-		// All but the first cert form part of the intermediate pool
-		if i > 0 {
-			intermediatePool.AddCert(cert)
-		}
+	// All but the first cert form part of the intermediate pool
+	if len(chain) > 1 {
+		intermediatePool.AddCerts(chain[1:])
 	}
 
 	// We can now do the verification. Use lax509 with looser verification

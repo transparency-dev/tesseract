@@ -242,16 +242,16 @@ func TestIsPrecertificate(t *testing.T) {
 
 func TestValidate(t *testing.T) {
 	fakeCARoots := x509util.NewPEMCertPool()
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeRootCACertPEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeRootCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.CACertPEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.CACertPEM)) {
 		t.Fatal("failed to load CA root")
 	}
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.RealPrecertIntermediatePEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.RealPrecertIntermediatePEM)) {
 		t.Fatal("failed to load real intermediate")
 	}
 	cv := chainValidator{
@@ -451,7 +451,7 @@ func TestParseChain(t *testing.T) {
 
 func TestNotAfterRange(t *testing.T) {
 	fakeCARoots := x509util.NewPEMCertPool()
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
 	cv := chainValidator{
@@ -520,7 +520,7 @@ func TestNotAfterRange(t *testing.T) {
 func TestRejectExpiredUnexpired(t *testing.T) {
 	fakeCARoots := x509util.NewPEMCertPool()
 	// Validity period: Jul 11, 2016 - Jul 11, 2017.
-	if !fakeCARoots.AppendCertsFromPEM([]byte(testdata.FakeCACertPEM)) {
+	if !fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeCACertPEM)) {
 		t.Fatal("failed to load fake root")
 	}
 	// Validity period: May 13, 2016 - Jul 12, 2019.
@@ -700,7 +700,7 @@ func TestPreIssuedCert(t *testing.T) {
 		testdata.CACertPEM}...)
 
 	roots := x509util.NewPEMCertPool()
-	if ok := roots.AppendCertsFromPEM([]byte(testdata.CACertPEM)); !ok {
+	if ok := roots.AppendCertsFromPEMs([]byte(testdata.CACertPEM)); !ok {
 		t.Fatalf("failed to parse root cert")
 	}
 
