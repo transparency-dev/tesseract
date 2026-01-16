@@ -6,7 +6,7 @@ on:
     - main
 
 # This prevents two workflows from running at the same time.
-# This workflows calls terragrunt, which does not allow concurrent runs.
+# This workflow calls terragrunt, which does not allow concurrent runs.
 concurrency:
   group: aws-conformance-ci
   cancel-in-progress: false

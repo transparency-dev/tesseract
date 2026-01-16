@@ -86,7 +86,7 @@ This [implementation](/cmd/tesseract/gcp) is composed of:
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
  concurrently.
  1. Tessera's backend infrastructure:
-    1. A [GCS](https://cloud.google.com/storage) bucket. TesseraCT re-uses this
+    1. A [GCS](https://cloud.google.com/storage) bucket. TesseraCT reuses this
     bucket to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
     1. A [Spanner](https://cloud.google.com/spanner) database used for
     sequencing entries, and antispam.
@@ -110,7 +110,7 @@ This [implementation](/cmd/tesseract/aws) is composed of:
  1. One or multiple TesseraCT servers. For reliability, multiple servers can run
  concurrently.
  1. Tessera's backend infrastructure:
-    1. An [S3](https://aws.amazon.com/s3/) bucket. TesseraCT re-uses this bucket
+    1. An [S3](https://aws.amazon.com/s3/) bucket. TesseraCT reuses this bucket
     to store [issuer certificates](https://github.com/C2SP/C2SP/blob/main/static-ct-api.md#issuers).
     1. A MySQL [RDS](https://aws.amazon.com/rds/) database used for sequencing
     entries, and antispam.

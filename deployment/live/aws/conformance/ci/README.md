@@ -14,7 +14,7 @@ At a high level, this environment consists of:
 
 ## Manual deployment
 
-Configure an AWS profile on your workstation using your prefered method, (e.g
+Configure an AWS profile on your workstation using your preferred method, (e.g
 [sso](https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-sso.html)
 or [credential
 files](https://docs.aws.amazon.com/cli/v1/userguide/cli-configure-files.html))

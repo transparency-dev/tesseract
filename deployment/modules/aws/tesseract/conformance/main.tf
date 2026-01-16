@@ -56,7 +56,7 @@ data "aws_subnets" "subnets" {
 }
 
 ## Service discovery ###########################################################
-# This will by the hammer to contact multiple conformance tasks with a single
+# This will be used by the hammer to contact multiple conformance tasks with a single
 # dns name.
 resource "aws_service_discovery_private_dns_namespace" "internal" {
   name = "internal"
