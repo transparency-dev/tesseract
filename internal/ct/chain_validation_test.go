@@ -243,10 +243,10 @@ func TestIsPrecertificate(t *testing.T) {
 func TestValidate(t *testing.T) {
 	fakeCARoots := x509util.NewPEMCertPool()
 	if parsed, added := fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeCACertPEM)); parsed <= 0 || parsed != added {
-		t.Fatal("failed to load fake root")
+		t.Fatal("failed to load fake CA root")
 	}
 	if parsed, added := fakeCARoots.AppendCertsFromPEMs([]byte(testdata.FakeRootCACertPEM)); parsed <= 0 || parsed != added {
-		t.Fatal("failed to load fake root")
+		t.Fatal("failed to load fake CA root")
 	}
 	if parsed, added := fakeCARoots.AppendCertsFromPEMs([]byte(testdata.CACertPEM)); parsed <= 0 || parsed != added {
 		t.Fatal("failed to load CA root")
