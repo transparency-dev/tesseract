@@ -886,7 +886,7 @@ func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool 
 	t.Helper()
 	pool := x509util.NewPEMCertPool()
 	for _, cert := range certs {
-		if !pool.AppendCertsFromPEMs([]byte(cert)) {
+		if parsed, added := pool.AppendCertsFromPEMs([]byte(cert)); parsed <= 0 || parsed != added {
 			t.Fatalf("couldn't parse test certs: %v", certs)
 		}
 	}
