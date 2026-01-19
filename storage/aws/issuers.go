@@ -181,6 +181,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 				}
 				return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket, err)
 			}
+			klog.Infof("AddIfNotExist: added %q in bucket %q", objName, s.bucket)
 			return nil
 		})
 	}

@@ -25,6 +25,7 @@ import (
 
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
+	"k8s.io/klog/v2"
 )
 
 // IssuersStorage is a key value store backed by files to store issuer chains.
@@ -108,6 +109,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 			errs = append(errs, err)
 			continue
 		}
+		klog.Infof("AddIfNotExist: added %q in %q", string(kv.K), s.dir)
 	}
 	return errors.Join(errs...)
 }

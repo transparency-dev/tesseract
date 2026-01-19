@@ -157,7 +157,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 						klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
 						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
 					}
-					klog.V(2).Infof("AddIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
+					klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
 					return nil
 				}
 
