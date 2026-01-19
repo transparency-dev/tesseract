@@ -52,8 +52,6 @@ type Options struct {
 }
 
 // NewIssuerStorage creates a new IssuerStorage.
-//
-// The specified bucket must exist or an error will be returned.
 func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error) {
 	var sdkConfig aws.Config
 	if opts.SDKConfig != nil {
@@ -69,14 +67,8 @@ func NewIssuerStorage(ctx context.Context, opts Options) (*IssuersStorage, error
 		opts.S3Options = func(_ *s3.Options) {}
 	}
 
-	s3Client := s3.NewFromConfig(sdkConfig, opts.S3Options)
-	// Check that the bucket exists and that we have access to it.
-	if _, err := s3Client.HeadBucket(ctx, &s3.HeadBucketInput{Bucket: aws.String(opts.Bucket)}); err != nil {
-		return nil, fmt.Errorf("error checking S3 bucket %q: %w", opts.Bucket, err)
-	}
-
 	r := &IssuersStorage{
-		s3Client:    s3Client,
+		s3Client:    s3.NewFromConfig(sdkConfig, opts.S3Options),
 		bucket:      opts.Bucket,
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
