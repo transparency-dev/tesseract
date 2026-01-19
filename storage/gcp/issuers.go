@@ -40,9 +40,7 @@ type IssuersStorage struct {
 	contentType string
 }
 
-// NewIssuerStorage creates a new GCSStorage.
-//
-// The specified bucket must exist or an error will be returned.
+// NewIssuerStorage creates a new GCSStorage and GCS client.
 func NewIssuerStorage(ctx context.Context, bucket string, gcsClient *gcs.Client) (*IssuersStorage, error) {
 	if gcsClient == nil {
 		c, err := gcs.NewClient(ctx, gcs.WithJSONReads())
@@ -52,14 +50,8 @@ func NewIssuerStorage(ctx context.Context, bucket string, gcsClient *gcs.Client)
 		gcsClient = c
 	}
 
-	bkt := gcsClient.Bucket(bucket)
-	// Check that the bucket exists and that we have access to it.
-	if _, err := bkt.Attrs(ctx); err != nil {
-		return nil, fmt.Errorf("error checking GCS bucket %q: %w", bucket, err)
-	}
-
 	r := &IssuersStorage{
-		bucket:      bkt,
+		bucket:      gcsClient.Bucket(bucket),
 		prefix:      staticct.IssuersPrefix,
 		contentType: staticct.IssuersContentType,
 	}
