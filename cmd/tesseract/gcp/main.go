@@ -230,7 +230,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	if *spannerAntispamDB != "" {
 		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, gcp_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
 		if err != nil {
-			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
+			return nil, fmt.Errorf("failed to create new GCP antispam storage: %v", err)
 		}
 	}
 

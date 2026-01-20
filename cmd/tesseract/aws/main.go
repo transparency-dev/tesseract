@@ -216,7 +216,7 @@ func newAWSStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	if *antispamDBName != "" {
 		antispam, err = aws_as.NewAntispam(ctx, antispamMySQLConfig().FormatDSN(), aws_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
 		if err != nil {
-			klog.Exitf("Failed to create new AWS antispam storage: %v", err)
+			return nil, fmt.Errorf("failed to create new AWS antispam storage: %v", err)
 		}
 	}
 
