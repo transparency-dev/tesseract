@@ -34,7 +34,7 @@ import (
 
 var (
 	projectID = flag.String("project_id", os.Getenv("GOOGLE_CLOUD_PROJECT"), "GCP Project ID in which to store the secret key.")
-	keyName   = flag.String("key_name", "", "Name prefix for the created keys, '-secret' and '-public' suffixes will be added to the created Secret Manager resources.")
+	keyName   = flag.String("key_name", "", "Name prefix for the created keys, this should reflect the name of the log. '-secret' and '-public' suffixes will be added to the created Secret Manager resources.")
 )
 
 func main() {
