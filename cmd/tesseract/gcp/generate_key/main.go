@@ -30,7 +30,6 @@ import (
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -43,23 +42,20 @@ func main() {
 	ctx := context.Background()
 
 	if *projectID == "" {
-		fmt.Fprintf(os.Stderr, "--project_id must be provided, or GOOGLE_CLOUD_PROJECT env var set.\n")
-		os.Exit(1)
+		exit("--project_id must be provided, or GOOGLE_CLOUD_PROJECT env var set.")
 	}
 	if *keyName == "" {
-		fmt.Fprintf(os.Stderr, "--key_name must be provided.\n")
-		os.Exit(1)
+		exit("--key_name must be provided.\n")
 	}
 
 	// Create a Secret Manager client.
 	client, err := secretmanager.NewClient(ctx)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "Failed to create Secret Manager client: %v\n", err)
-		os.Exit(1)
+		exit("Failed to create Secret Manager client: %v", err)
 	}
 	defer func() {
 		if err := client.Close(); err != nil {
-			fmt.Fprintf(os.Stderr, "Error closing secret manager client: %v", err)
+			exit("Error closing secret manager client: %v", err)
 		}
 	}()
 
@@ -68,11 +64,11 @@ func main() {
 
 	secKName := fmt.Sprintf("%s-secret", *keyName)
 	if err := createSecret(ctx, *projectID, client, secKName, secPEM); err != nil {
-		klog.Exitf("Failed to create secret %q: %v", secKName, err)
+		exit("Failed to create secret %q: %v", secKName, err)
 	}
 	pubKName := fmt.Sprintf("%s-public", *keyName)
 	if err := createSecret(ctx, *projectID, client, pubKName, pubPEM); err != nil {
-		klog.Exitf("Failed to create secret %q: %v", pubKName, err)
+		exit("Failed to create secret %q: %v", pubKName, err)
 	}
 
 	// All done!
@@ -111,21 +107,26 @@ func createSecret(ctx context.Context, projectID string, client *secretmanager.C
 func genKeypairPEM() ([]byte, []byte) {
 	secK, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
-		klog.Exitf("Failed to generate key pair: %v", err)
+		exit("Failed to generate key pair: %v", err)
 	}
 
 	secEC, err := x509.MarshalECPrivateKey(secK)
 	if err != nil {
-		klog.Exitf("Failed to marshal private key: %v", err)
+		exit("Failed to marshal private key: %v", err)
 	}
 	secPEM := pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: secEC})
 
 	pubK := secK.Public()
 	pubPKIX, err := x509.MarshalPKIXPublicKey(pubK)
 	if err != nil {
-		klog.Exitf("Failed to marshal public key: %v", err)
+		exit("Failed to marshal public key: %v", err)
 	}
 	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubPKIX})
 
 	return secPEM, pubPEM
+}
+
+func exit(m string, args ...any) {
+	fmt.Fprintf(os.Stderr, m+"\n", args...)
+	os.Exit(1)
 }
