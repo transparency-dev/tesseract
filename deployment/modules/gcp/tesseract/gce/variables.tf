@@ -117,6 +117,18 @@ variable "witness_policy" {
   default     = ""
 }
 
+variable "log_public_key_suffix" {
+  description = "Suffix to apply to base_name to create the name of the log public key resource."
+  type        = string
+  default     = "-public"
+}
+
+variable "log_private_key_suffix" {
+  description = "Suffix to apply to base_name to create the name of the log private key resource."
+  type        = string
+  default     = "-secret"
+}
+
 variable "additional_signer_private_key_secret_names" {
   description = "List of additional private key secret names for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
   type        = list(string)

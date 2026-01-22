@@ -16,6 +16,8 @@ locals {
   public_bucket                              = true
   machine_type                               = "n2-standard-8"
   rate_limit_old_not_before                  = "28h:150"
+  log_public_key_suffix                      = "-ecdsa-p256-public-key"  # Legacy key name pattern.
+  log_private_key_suffix                     = "-ecdsa-p256-private-key" # Legacy key name pattern.
   additional_signer_private_key_secret_names = ["projects/781477119959/secrets/arche2025h2-ed25519-private-key/versions/1"]
 }
 

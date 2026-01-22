@@ -16,7 +16,9 @@ module "storage" {
 module "secretmanager" {
   source = "../../secretmanager"
 
-  base_name = var.base_name
+  base_name          = var.base_name
+  public_key_suffix  = var.log_public_key_suffix
+  private_key_suffix = var.log_private_key_suffix
 }
 
 module "gce" {

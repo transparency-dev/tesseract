@@ -89,7 +89,7 @@ resource "google_compute_instance" "preloader" {
   }
 
   labels = {
-    environment  = var.env
+    environment = var.env
   }
 
   # Come back to this: the start_index needs to be manually edited
