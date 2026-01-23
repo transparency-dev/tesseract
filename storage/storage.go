@@ -43,6 +43,7 @@ const (
 	// A CT log references ~15k unique issuer certifiates in 2024, so this gives plenty of space
 	// if we ever run into this limit, we should re-think how it works.
 	maxCachedIssuerKeys = 1 << 20
+	RootsPrefix         = "roots/"
 )
 
 type KV struct {
@@ -52,7 +53,13 @@ type KV struct {
 
 // IssuerStorage issuer certificates under their hex encoded sha256.
 type IssuerStorage interface {
-	AddIssuersIfNotExist(ctx context.Context, kv []KV) error
+	AddIfNotExist(ctx context.Context, kv []KV) error
+}
+
+// RootsStorage stores root certificates under their hex encoded sha256.
+type RootsStorage interface {
+	AddIfNotExist(ctx context.Context, kv []KV) error
+	LoadAll(ctx context.Context) ([]KV, error)
 }
 
 type CTStorageOptions struct {
@@ -181,8 +188,8 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 			}
 			req = append(req, kv)
 		}
-		if err := s.AddIssuersIfNotExist(ctx, req); err != nil {
-			return fmt.Errorf("AddIssuersIfNotExist()s: error storing issuer data in the underlying IssuerStorage: %v", err)
+		if err := s.AddIfNotExist(ctx, req); err != nil {
+			return fmt.Errorf("issuerStorage.AddIfNotExist(): error storing issuer data in the underlying IssuerStorage: %v", err)
 		}
 		for _, kv := range req {
 			if len(m) >= maxCachedIssuerKeys {

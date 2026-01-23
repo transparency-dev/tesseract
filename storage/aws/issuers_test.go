@@ -15,6 +15,7 @@
 package aws
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"io"
@@ -100,7 +101,115 @@ func TestNewIssuerStorage(t *testing.T) {
 	}
 }
 
-func TestAddIssuersIfNotExist(t *testing.T) {
+func TestNewRootsStorage(t *testing.T) {
+	tests := []struct {
+		name    string
+		bucket  string
+		wantErr bool
+	}{
+		{
+			name:   "valid bucket",
+			bucket: testBucket,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, opts, done := newTestStorage(t, testBucket)
+			defer done()
+
+			_, err := NewRootsStorage(t.Context(), Options{Bucket: tt.bucket, SDKConfig: cfg, S3Options: opts})
+			if err != nil {
+				t.Errorf("NewRootsStorage() error = %v", err)
+				return
+			}
+		})
+	}
+}
+
+func TestLoadAll(t *testing.T) {
+	tests := []struct {
+		name    string
+		isRoots bool // false = Issuers, true = RemoteRoots
+		data    []storage.KV
+		wantErr bool
+	}{
+		{
+			name:    "Load issuers (single)",
+			isRoots: false,
+			data: []storage.KV{
+				{K: []byte("issuer1"), V: []byte("data1")},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Load roots (multiple)",
+			isRoots: true,
+			data: []storage.KV{
+				{K: []byte("root1"), V: []byte("root_data1")},
+				{K: []byte("root2"), V: []byte("root_data2")},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Load empty bucket",
+			isRoots: false,
+			data:    []storage.KV{},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg, opts, done := newTestStorage(t, testBucket)
+			defer done()
+
+			var s *IssuersStorage
+			var err error
+
+			if tt.isRoots {
+				s, err = NewRootsStorage(t.Context(), Options{Bucket: testBucket, SDKConfig: cfg, S3Options: opts})
+			} else {
+				s, err = NewIssuerStorage(t.Context(), Options{Bucket: testBucket, SDKConfig: cfg, S3Options: opts})
+			}
+			if err != nil {
+				t.Fatalf("Storage creation failed: %v", err)
+			}
+
+			if len(tt.data) > 0 {
+				if err := s.AddIfNotExist(t.Context(), tt.data); err != nil {
+					t.Fatalf("Failed to setup test data: %v", err)
+				}
+			}
+
+			gotKVs, err := s.LoadAll(t.Context())
+			if (err != nil) != tt.wantErr {
+				t.Errorf("LoadAll() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+
+			if len(gotKVs) != len(tt.data) {
+				t.Errorf("LoadAll() returned %d items, want %d", len(gotKVs), len(tt.data))
+			}
+
+			wKV := map[string][]byte{}
+			for _, kv := range tt.data {
+				wKV[string(kv.K)] = kv.V
+			}
+			for _, gKV := range gotKVs {
+				wV, ok := wKV[string(gKV.K)]
+				if !ok {
+					t.Errorf("LoadAll() returned unexpected key %q", gKV.K)
+				}
+				if !bytes.Equal(gKV.V, wV) {
+					t.Errorf("LoadAll() key %q = %s, want %s", gKV.K, gKV.V, wV)
+				}
+			}
+		})
+	}
+}
+
+func TestAddIfNotExist(t *testing.T) {
 	tests := []struct {
 		name    string
 		kv      []storage.KV
@@ -166,9 +275,9 @@ func TestAddIssuersIfNotExist(t *testing.T) {
 			}
 
 			// Apply KV updates.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			err = s.AddIfNotExist(context.Background(), tt.kv)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("AddIssuersIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("AddIfNotExist() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
@@ -246,16 +355,16 @@ func TestAllKVAreWritten(t *testing.T) {
 				t.Fatalf("NewIssuerStorage() failed: %v", err)
 			}
 			// Create test env with pre-existing entries.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.setup)
+			err = s.AddIfNotExist(context.Background(), tt.setup)
 			if err != nil {
-				t.Errorf("Setup: AddIssuersIfNotExist() error = %v", err)
+				t.Errorf("Setup: AddIfNotExist() error = %v", err)
 				return
 			}
 
 			// Apply KV updates.
-			err = s.AddIssuersIfNotExist(context.Background(), tt.kv)
+			err = s.AddIfNotExist(context.Background(), tt.kv)
 			if gotErr := err != nil; gotErr != tt.wantErr {
-				t.Fatalf("AddIssuersIfNotExist = %v, want err %t", err, tt.wantErr)
+				t.Fatalf("AddIfNotExist = %v, want err %t", err, tt.wantErr)
 			}
 			if tt.wantErr {
 				return

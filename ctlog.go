@@ -17,8 +17,10 @@ package tesseract
 import (
 	"context"
 	"crypto"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
@@ -43,6 +45,9 @@ type ChainValidationConfig struct {
 	// RootsRemoteFetchInterval configures the frequency at which to fetch
 	// roots from RootsRemoteEndpoint.
 	RootsRemoteFetchInterval time.Duration
+	// RootsRemoteFetchBackup is a persistent backup storage for roots fetched
+	// remotely.
+	RootsRemoteFetchBackup storage.RootsStorage
 	// RejectExpired controls if true then the certificate validity period will be
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
@@ -126,6 +131,19 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 		}
 	}
 
+	if cfg.RootsRemoteFetchBackup != nil {
+		kvs, err := cfg.RootsRemoteFetchBackup.LoadAll(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("failed to load previously remotely fetched root from remote root backup storage: %v", err)
+		}
+		certs := make([][]byte, 0, len(kvs))
+		for _, kv := range kvs {
+			certs = append(certs, kv.V)
+		}
+		parsed, added := roots.AppendCertsFromPEMs(certs...)
+		klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from remote root backup storage", len(certs), parsed, added)
+	}
+
 	if cfg.RootsRemoteFetchInterval > 0 && cfg.RootsRemoteFetchURL != "" {
 		fetchAndAppendRemoteRoots := func() {
 			rr, err := ccadb.Fetch(ctx, cfg.RootsRemoteFetchURL, []string{ccadb.ColPEM})
@@ -140,9 +158,17 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 					continue
 				}
 				pems = append(pems, r[0])
+				sha := sha256.Sum256(r[0])
+				key := []byte(hex.EncodeToString(sha[:]))
+				if cfg.RootsRemoteFetchBackup != nil {
+					if err := cfg.RootsRemoteFetchBackup.AddIfNotExist(ctx, []storage.KV{{K: key, V: r[0]}}); err != nil {
+						klog.Errorf("Couldn't store roots %q: %v", string(key), err)
+						continue
+					}
+				}
 			}
 			parsed, added := roots.AppendCertsFromPEMs(pems...)
-			klog.Infof("Fetched %d roots, parsed %d, and added %d from %q", len(pems), parsed, added, cfg.RootsRemoteFetchURL)
+			klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from %q", len(pems), parsed, added, cfg.RootsRemoteFetchURL)
 		}
 
 		fetchAndAppendRemoteRoots()

@@ -114,10 +114,20 @@ func main() {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
 
+	gcsClient, err := gcs.NewGRPCClient(ctx)
+	if err != nil {
+		klog.Exitf("failed to create GCS client: %v", err)
+	}
+	fetchedRootsBackupStorage, err := gcp.NewRootsStorage(ctx, *bucket, gcsClient)
+	if err != nil {
+		klog.Exitf("failed to initialize GCS backup storage for remotely fetched roots: %v", err)
+	}
+
 	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:             *rootsPemFile,
 		RootsRemoteFetchURL:      *rootsRemoteFetchURL,
 		RootsRemoteFetchInterval: *rootsRemoteFetchInterval,
+		RootsRemoteFetchBackup:   fetchedRootsBackupStorage,
 		RejectExpired:            *rejectExpired,
 		RejectUnexpired:          *rejectUnexpired,
 		ExtKeyUsages:             *extKeyUsages,
