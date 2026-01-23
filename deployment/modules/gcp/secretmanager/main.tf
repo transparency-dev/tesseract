@@ -38,13 +38,15 @@ resource "google_secret_manager_secret" "tesseract_ecdsa_p256_public_key" {
     auto {}
   }
 
-  depends_on = [google_project_service.secretmanager_googleapis_com]
+  deletion_protection = !var.ephemeral
+  depends_on          = [google_project_service.secretmanager_googleapis_com]
 }
 
 resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_public_key" {
   secret = google_secret_manager_secret.tesseract_ecdsa_p256_public_key.id
 
-  secret_data = tls_private_key.tesseract_ecdsa_p256.public_key_pem
+  secret_data         = tls_private_key.tesseract_ecdsa_p256.public_key_pem
+  deletion_policy = var.ephemeral ? "DELETE" : "ABANDON" # Never automatically delete the key for non-ephemeral logs.
 }
 
 resource "google_secret_manager_secret" "tesseract_ecdsa_p256_private_key" {
@@ -58,11 +60,13 @@ resource "google_secret_manager_secret" "tesseract_ecdsa_p256_private_key" {
     auto {}
   }
 
-  depends_on = [google_project_service.secretmanager_googleapis_com]
+  deletion_protection = !var.ephemeral
+  depends_on          = [google_project_service.secretmanager_googleapis_com]
 }
 
 resource "google_secret_manager_secret_version" "tesseract_ecdsa_p256_private_key" {
   secret = google_secret_manager_secret.tesseract_ecdsa_p256_private_key.id
 
-  secret_data = tls_private_key.tesseract_ecdsa_p256.private_key_pem
+  secret_data         = tls_private_key.tesseract_ecdsa_p256.private_key_pem
+  deletion_policy = var.ephemeral ? "DELETE" : "ABANDON" # Never automatically delete the key for non-ephemeral logs.
 }
