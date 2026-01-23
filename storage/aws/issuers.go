@@ -128,8 +128,9 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 			}
 
 			data, err := io.ReadAll(resp.Body)
-			_ = resp.Body.Close()
-
+			if errC := resp.Body.Close(); errC != nil {
+				klog.Errorf("resp.Body.Close(): %v", errC)
+			}
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to read object body %q: %w", *obj.Key, err))
 				continue

@@ -48,10 +48,10 @@ func NewIssuerStorage(ctx context.Context, root string) (*IssuersStorage, error)
 
 // NewRootsStorage creates a new POSIX based root storage.
 //
-// If the directory doesn't exists, NewRootsStorage creates it and its parents.
+// If the directory doesn't exist, NewRootsStorage creates it and its parents.
 // Root certs will be stored in a directory called "roots" within the provided root directory.
-func NewRootsStorage(ctx context.Context, root string) (*IssuersStorage, error) {
-	dir := filepath.Join(root, storage.RootsPrefix)
+func NewRootsStorage(ctx context.Context, parent string) (*IssuersStorage, error) {
+	dir := filepath.Join(parent, storage.RootsPrefix)
 	if err := mkdirAll(dir, dirPerm); err != nil {
 		return nil, fmt.Errorf("failed to make directory structure: %w", err)
 	}

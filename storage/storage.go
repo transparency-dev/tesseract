@@ -189,7 +189,7 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 			req = append(req, kv)
 		}
 		if err := s.AddIfNotExist(ctx, req); err != nil {
-			return fmt.Errorf("issuerStorage.AddIfNotExist()s: error storing issuer data in the underlying IssuerStorage: %v", err)
+			return fmt.Errorf("issuerStorage.AddIfNotExist(): error storing issuer data in the underlying IssuerStorage: %v", err)
 		}
 		for _, kv := range req {
 			if len(m) >= maxCachedIssuerKeys {

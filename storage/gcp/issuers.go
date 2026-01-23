@@ -105,7 +105,9 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 		}
 
 		root, err := io.ReadAll(r)
-		_ = r.Close()
+		if errC := r.Close(); errC != nil {
+			klog.Errorf("r.Close(): %v", errC)
+		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to read object %q: %v", attr.Name, err))
 			continue
