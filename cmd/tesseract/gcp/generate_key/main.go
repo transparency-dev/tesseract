@@ -27,14 +27,22 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
+	"golang.org/x/mod/sumdb/note"
+)
+
+const (
+	kuLog     = "log"
+	kuWitness = "witness"
 )
 
 var (
 	projectID = flag.String("project_id", os.Getenv("GOOGLE_CLOUD_PROJECT"), "GCP Project ID in which to store the secret key.")
-	keyName   = flag.String("key_name", "", "Name prefix for the created keys, this should reflect the name of the log. '-secret' and '-public' suffixes will be added to the created Secret Manager resources.")
+	origin    = flag.String("log_origin", "", "The origin of the log this key will be used with. The Secret Manager resource names will be derived from thiss tring, and have '{key_usage}-secret' and '{key_usage}-public' suffixes added.")
+	keyUsage  = flag.String("key_usage", kuLog, "Type of key to create: '"+kuLog+"' or '"+kuWitness+"'. The created key names will include the key usage.")
 )
 
 func main() {
@@ -44,8 +52,8 @@ func main() {
 	if *projectID == "" {
 		exit("--project_id must be provided, or GOOGLE_CLOUD_PROJECT env var set.")
 	}
-	if *keyName == "" {
-		exit("--key_name must be provided.\n")
+	if *origin == "" {
+		exit("--log_origin must be provided.\n")
 	}
 
 	// Create a Secret Manager client.
@@ -59,23 +67,42 @@ func main() {
 		}
 	}()
 
-	// Create the key pair to store, and then store them.
-	secPEM, pubPEM := genKeypairPEM()
+	var sec, pub string
 
-	secKName := fmt.Sprintf("%s-secret", *keyName)
-	if err := createSecret(ctx, *projectID, client, secKName, secPEM); err != nil {
-		exit("Failed to create secret %q: %v", secKName, err)
+	switch ku := strings.ToLower(*keyUsage); ku {
+	case kuLog:
+		sec, pub = genECDSAKeypairPEM()
+	case kuWitness:
+		sec, pub = genEd25519KeypairNote()
 	}
-	pubKName := fmt.Sprintf("%s-public", *keyName)
-	if err := createSecret(ctx, *projectID, client, pubKName, pubPEM); err != nil {
+
+	pubKName := fmt.Sprintf("%s-%s-public", *keyUsage, resourceFromOrigin(*origin))
+	if err := createSecret(ctx, *projectID, client, pubKName, pub); err != nil {
 		exit("Failed to create secret %q: %v", pubKName, err)
+	}
+	secKName := fmt.Sprintf("%s-%s-secret", *keyUsage, resourceFromOrigin(*origin))
+	if err := createSecret(ctx, *projectID, client, secKName, sec); err != nil {
+		exit("Failed to create secret %q: %v", secKName, err)
 	}
 
 	// All done!
-	fmt.Printf("Created new ECDSA keypair:\n  Secret name: %s\n  Public name: %v\n\nPublic Key:\n%s\n", secKName, pubKName, pubPEM)
+	fmt.Printf("Created new %s keypair:\n  Secret name: %s\n  Public name: %v\n\nPublic Key:\n%s\n", *keyUsage, secKName, pubKName, pub)
 }
 
-func createSecret(ctx context.Context, projectID string, client *secretmanager.Client, name string, value []byte) error {
+// resourceFromOrigin attempts to derive a safe GCP resource name from the provided origin string.
+func resourceFromOrigin(o string) string {
+	return strings.Map(func(r rune) rune {
+		if (r >= '0' && r <= '9') ||
+			(r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			r == '-' {
+			return r
+		}
+		return '-'
+	}, o)
+}
+
+func createSecret(ctx context.Context, projectID string, client *secretmanager.Client, name string, value string) error {
 	createSecretReq := &secretmanagerpb.CreateSecretRequest{
 		Parent:   fmt.Sprintf("projects/%s", projectID),
 		SecretId: name,
@@ -95,16 +122,16 @@ func createSecret(ctx context.Context, projectID string, client *secretmanager.C
 	addSecretVersionReq := &secretmanagerpb.AddSecretVersionRequest{
 		Parent: secret.Name,
 		Payload: &secretmanagerpb.SecretPayload{
-			Data: value,
+			Data: []byte(value),
 		},
 	}
 	_, err = client.AddSecretVersion(ctx, addSecretVersionReq)
 	return err
 }
 
-// genKeypairPEM generates an ECDSA key pair and returns PEM representations of
+// genECDSAKeypairPEM generates an ECDSA key pair and returns PEM representations of
 // the private and public keys encoded as ECPrivateKey and PKIX Public Key respectively.
-func genKeypairPEM() ([]byte, []byte) {
+func genECDSAKeypairPEM() (string, string) {
 	secK, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
 		exit("Failed to generate key pair: %v", err)
@@ -123,7 +150,17 @@ func genKeypairPEM() ([]byte, []byte) {
 	}
 	pubPEM := pem.EncodeToMemory(&pem.Block{Type: "PUBLIC KEY", Bytes: pubPKIX})
 
-	return secPEM, pubPEM
+	return string(secPEM), string(pubPEM)
+}
+
+// genEd25519KeypairNote generates an Ed25519 key pair and returns note vkey representations of
+// the private and public keys respectively.
+func genEd25519KeypairNote() (string, string) {
+	skey, vkey, err := note.GenerateKey(rand.Reader, *origin)
+	if err != nil {
+		exit("Unable to create key: %q", err)
+	}
+	return skey, vkey
 }
 
 func exit(m string, args ...any) {

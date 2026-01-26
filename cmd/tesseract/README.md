@@ -138,7 +138,7 @@ the configured witnesses for each checkpoint it publishes.
 
 To enable witnessing:
 1. Generate an Ed25519 note signer key, you can use `go run github.com/transparency-dev/serverless-log/cmd/generate_keys@HEAD` to do this.
-   Note that the `key_name` you provide SHOULD match the `origin` for your log.
+   Note that the `log_origin` you provide SHOULD match the `origin` for your log.
 2. Register your newly generated key with the public witness network by adding it to the config here: 
    https://github.com/transparency-dev/witness-network/blob/main/site/static/testing/log-list.1 .
 3. Set an `additional_signer` flag on your TesseraCT binary to pass your new key (the exact flag name and

@@ -130,7 +130,7 @@ log which will use this key, and `${TESSERA_BASE_NAME}` SHOULD be set to whateve
 
 ```bash
 go run github.com/transparency-dev/serverless-log/cmd/generate_keys@HEAD \
-   --key_name="${LOG_ORIGIN}" \
+   --log_origin="${LOG_ORIGIN}" \
    --print | 
    tee >(grep -v PRIVATE | gcloud secrets create ${TESSERA_BASE_NAME}-ed25519-public-key --data-file=-) |
    grep PRIVATE | gcloud secrets create ${TESSERA_BASE_NAME}-ed25519-private-key --data-file=-
