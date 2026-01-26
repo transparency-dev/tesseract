@@ -12,12 +12,6 @@ module "storage" {
   spanner_pu = var.spanner_pu
 }
 
-module "secretmanager" {
-  source = "../../secretmanager"
-
-  base_name = var.base_name
-}
-
 module "cloudrun" {
   source = "../../cloudrun"
 
@@ -33,14 +27,13 @@ module "cloudrun" {
   log_spanner_instance           = module.storage.log_spanner_instance.name
   log_spanner_db                 = module.storage.log_spanner_db.name
   antispam_spanner_db            = module.storage.antispam_spanner_db.name
-  signer_public_key_secret_name  = module.secretmanager.ecdsa_p256_public_key_id
-  signer_private_key_secret_name = module.secretmanager.ecdsa_p256_private_key_id
+  signer_public_key_secret_name  = var.log_public_key_secret_name
+  signer_private_key_secret_name = var.log_private_key_secret_name
   trace_fraction                 = var.trace_fraction
   batch_max_age                  = var.batch_max_age
   batch_max_size                 = var.batch_max_size
 
   depends_on = [
-    module.secretmanager,
     module.storage
   ]
 }

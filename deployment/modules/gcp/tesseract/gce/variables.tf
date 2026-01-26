@@ -117,6 +117,17 @@ variable "witness_policy" {
   default     = ""
 }
 
+variable "log_public_key_secret_name" {
+  description = "Secret manager secret version resource for the log public key. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
+  type        = string
+}
+
+variable "log_private_key_secret_name" {
+  description = "Secret manager secret version resource for the log private key. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
+  type        = string
+  default     = "-secret"
+}
+
 variable "additional_signer_private_key_secret_names" {
   description = "List of additional private key secret names for checkpoint secondary signers. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}. These secrets MUST be formatted as serialised note signers."
   type        = list(string)

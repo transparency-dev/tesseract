@@ -62,10 +62,27 @@ the project:
 gcloud auth application-default login --project=$GOOGLE_PROJECT
 ```
 
+Next, you need to create an ECDSA P-256 keypair specifically for exclusive use with your new log.
+This keypair will be used to sign/verify the `SCT`s and `Checkpoint`s from your log, and should be stored
+in Secret Manager using the names "${TESSERA_BASE_NAME}-secret" and "${TESSERA_BASE_NAME}-public" for
+the private and public keys, respectively. 
+
+You can use the steps below to create this key:
+
+1. Ensure you have enabled the
+   [GCP Secret Manager API](https://cloud.google.com/security/products/secret-manager?hl=en)
+2. Use the `cmd/tesseract/gcp/generate_key` tool to create and store a new key:
+   ```sh
+   go run github.com/transparency-dev/tesseract/cmd/tesseract/gcp/generate_key@main \
+      --project_id="${GOOGLE_PROJECT}" \
+      --key_name="${TESSERA_BASE_NAME}"
+   ```
+
+
 Apply the Terragrunt config to deploy resources:
 
 ```sh
-terragrunt apply --working_dir=deployment/live/gcp/test
+terragrunt apply -working-dir=deployment/live/gcp/test
 ```
 
 > [!NOTE]

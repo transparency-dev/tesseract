@@ -10,9 +10,3 @@ module "storage" {
   location   = var.location
   ephemeral  = true
 }
-
-module "secretmanager" {
-  source = "../../secretmanager"
-
-  base_name = var.base_name
-}

@@ -74,3 +74,17 @@ variable "trace_fraction" {
   default     = 0
   type        = number
 }
+
+variable "log_public_key_suffix" {
+  description = "Suffix to apply to base_name to create the name of the log public key resource."
+  type        = string
+  default     = "-public"
+}
+
+variable "log_private_key_suffix" {
+  description = "Suffix to apply to base_name to create the name of the log private key resource."
+  type        = string
+  default     = "-secret"
+}
+
+
