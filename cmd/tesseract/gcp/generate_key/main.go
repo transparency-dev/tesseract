@@ -76,11 +76,11 @@ func main() {
 		sec, pub = genEd25519KeypairNote()
 	}
 
-	pubKName := fmt.Sprintf("%s-%s-public", *keyUsage, resourceFromOrigin(*origin))
+	pubKName := fmt.Sprintf("%s-%s-public", resourceFromOrigin(*origin), *keyUsage)
 	if err := createSecret(ctx, *projectID, client, pubKName, pub); err != nil {
 		exit("Failed to create secret %q: %v", pubKName, err)
 	}
-	secKName := fmt.Sprintf("%s-%s-secret", *keyUsage, resourceFromOrigin(*origin))
+	secKName := fmt.Sprintf("%s-%s-secret", resourceFromOrigin(*origin), *keyUsage)
 	if err := createSecret(ctx, *projectID, client, secKName, sec); err != nil {
 		exit("Failed to create secret %q: %v", secKName, err)
 	}
