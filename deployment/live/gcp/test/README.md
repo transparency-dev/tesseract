@@ -75,7 +75,7 @@ You can use the steps below to create this key:
    ```sh
    go run github.com/transparency-dev/tesseract/cmd/tesseract/gcp/generate_key@main \
       --project_id="${GOOGLE_PROJECT}" \
-      --key_name="${TESSERA_BASE_NAME}"
+      --log_origin="${TESSERA_BASE_NAME}"
    ```
 
 
