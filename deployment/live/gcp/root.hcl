@@ -4,8 +4,8 @@ locals {
   location                    = get_env("GOOGLE_REGION", "us-central1")
   base_name                   = get_env("TESSERA_BASE_NAME", "${local.env}-static-ct")
   origin_suffix               = get_env("TESSERA_ORIGIN_SUFFIX", "")
-  log_private_key_secret_name = "projects/${local.project_id}/secrets/${var.base_name}-secret/versions/1"
-  log_public_key_secret_name  = "projects/${local.project_id}/secrets/${var.base_name}-public/versions/1"
+  log_private_key_secret_name = "projects/${local.project_id}/secrets/${var.base_name}-log-secret/versions/1"
+  log_public_key_secret_name  = "projects/${local.project_id}/secrets/${var.base_name}-log-public/versions/1"
 }
 
 remote_state {
