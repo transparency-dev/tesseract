@@ -177,7 +177,7 @@ resource "google_compute_region_instance_template" "tesseract" {
 }
 
 resource "google_compute_health_check" "healthz" {
-  count               = var.health_checks ? 1: 0
+  count               = var.health_checks ? 1 : 0
   name                = "${var.base_name}-mig-hc-http"
   timeout_sec         = 10
   check_interval_sec  = 10
