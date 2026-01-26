@@ -46,7 +46,7 @@ locals {
     "-spanner_db_path=${local.spanner_log_db_path}",
     "-spanner_antispam_db_path=${local.spanner_antispam_db_path}",
     format("-roots_pem_file=%s", var.accepted_roots == "" ? "/bin/test_root_ca_cert.pem" : local.accepted_roots_file),
-    "-origin=${var.base_name}${var.origin_suffix}",
+    "-origin=${var.origin}",
     "-signer_public_key_secret_name=${var.signer_public_key_secret_name}",
     "-signer_private_key_secret_name=${var.signer_private_key_secret_name}",
     "-inmemory_antispam_cache_size=256k",

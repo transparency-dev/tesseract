@@ -8,8 +8,8 @@ variable "base_name" {
   type        = string
 }
 
-variable "origin_suffix" {
-  description = "Origin suffix, appended to base_name"
+variable "origin" {
+  description = "Log origin"
   type        = string
 }
 

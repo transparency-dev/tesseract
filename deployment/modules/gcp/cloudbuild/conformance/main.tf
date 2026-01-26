@@ -24,6 +24,8 @@ locals {
   cloudbuild_service_account   = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
   artifact_repo                = "${var.location}-docker.pkg.dev/${var.project_id}/${module.artifactregistry.docker.name}"
   conformance_gcp_docker_image = "${local.artifact_repo}/conformance-gcp"
+  origin                       = "static-ct-${var.env}"
+  safe_origin                 = replace("${local.origin}", "/[^-a-zA-Z0-9]/", "-")
 }
 
 resource "google_project_service" "cloudbuild_api" {
