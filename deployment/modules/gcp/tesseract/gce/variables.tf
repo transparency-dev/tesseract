@@ -125,7 +125,6 @@ variable "log_public_key_secret_name" {
 variable "log_private_key_secret_name" {
   description = "Secret manager secret version resource for the log private key. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
   type        = string
-  default     = "-secret"
 }
 
 variable "additional_signer_private_key_secret_names" {

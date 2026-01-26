@@ -75,16 +75,14 @@ variable "trace_fraction" {
   type        = number
 }
 
-variable "log_public_key_suffix" {
-  description = "Suffix to apply to base_name to create the name of the log public key resource."
+variable "log_public_key_secret_name" {
+  description = "Secret manager secret version resource for the log public key. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
   type        = string
-  default     = "-public"
 }
 
-variable "log_private_key_suffix" {
-  description = "Suffix to apply to base_name to create the name of the log private key resource."
+variable "log_private_key_secret_name" {
+  description = "Secret manager secret version resource for the log private key. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}."
   type        = string
-  default     = "-secret"
 }
 
 variable "roots_remote_fetch_url" {
