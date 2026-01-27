@@ -175,6 +175,8 @@ resource "aws_ecs_task_definition" "conformance" {
       "--antispam_db_name=${var.antispam_database_name}",
       "--inmemory_antispam_cache_size=256k",
       "--enable_publication_awaiter=true",
+      "--roots_remote_fetch_url=${var.roots_remote_fetch_url}",
+      "--roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
       "-v=2"
     ],
     "logConfiguration" : {

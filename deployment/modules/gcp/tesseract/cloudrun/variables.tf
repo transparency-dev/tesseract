@@ -87,4 +87,14 @@ variable "log_private_key_suffix" {
   default     = "-secret"
 }
 
+variable "roots_remote_fetch_url" {
+  description = "URL to fetch trusted roots from."
+  type        = string
+  default     = "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV"
+}
 
+variable "roots_remote_fetch_interval" {
+  description = "Interval between two fetches from roots_fetch_url, e.g. \"1h\"."
+  type        = string
+  default     = "0s"
+}

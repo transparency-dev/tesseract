@@ -41,6 +41,8 @@ module "gce" {
   witness_policy                             = var.witness_policy
   accepted_roots                             = var.accepted_roots
   health_checks                              = var.gce_health_checks
+  roots_remote_fetch_url                     = var.roots_remote_fetch_url
+  roots_remote_fetch_interval                = var.roots_remote_fetch_interval
 
   depends_on = [
     module.storage

@@ -32,6 +32,8 @@ module "cloudrun" {
   trace_fraction                 = var.trace_fraction
   batch_max_age                  = var.batch_max_age
   batch_max_size                 = var.batch_max_size
+  roots_remote_fetch_url         = var.roots_remote_fetch_url
+  roots_remote_fetch_interval    = var.roots_remote_fetch_interval
 
   depends_on = [
     module.storage
