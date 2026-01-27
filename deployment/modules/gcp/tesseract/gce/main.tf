@@ -6,6 +6,7 @@ module "storage" {
   source = "../../storage"
 
   project_id    = var.project_id
+  bucket_name   = "${var.base_name}${var.origin_suffix}"
   base_name     = var.base_name
   location      = var.location
   ephemeral     = var.ephemeral

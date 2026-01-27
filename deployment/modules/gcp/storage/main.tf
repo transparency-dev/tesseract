@@ -31,7 +31,7 @@ resource "google_project_service" "storage_googleapis_com" {
 # Buckets
 
 resource "google_storage_bucket" "log_bucket" {
-  name                        = "${var.project_id}-${var.base_name}-bucket"
+  name                        = var.bucket_name
   location                    = var.location
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
