@@ -2,11 +2,17 @@ terraform {
   backend "gcs" {}
 }
 
+locals {
+  # If bucket_name is provided, use it. 
+  # Otherwise, default to the origin.
+  bucket_name = var.bucket_name != null ? var.bucket_name: var.origin
+}
+
 module "storage" {
   source = "../../storage"
 
   project_id    = var.project_id
-  bucket_name   = "${var.base_name}${var.origin_suffix}"
+  bucket_name   = local.bucket_name
   base_name     = var.base_name
   location      = var.location
   ephemeral     = var.ephemeral

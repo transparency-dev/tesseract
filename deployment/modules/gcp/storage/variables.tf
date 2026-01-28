@@ -3,14 +3,15 @@ variable "project_id" {
   type        = string
 }
 
-variable "bucket_name" {
-  description = "Name of the bucket to be created. SHOULD be the log's origin."
-  type        = string
-}
-
 variable "base_name" {
   description = "Base name to use when naming resources"
   type        = string
+}
+
+variable "bucket_name" {
+  description = "Name of the GCS bucket. Defaults to '{var.project_id}-{var.base_name}-bucket if unspecicfied"
+  type        = string
+  default     = null
 }
 
 variable "location" {

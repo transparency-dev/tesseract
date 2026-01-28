@@ -30,8 +30,14 @@ resource "google_project_service" "storage_googleapis_com" {
 
 # Buckets
 
+locals {
+  # If bucket_name is provided, use it. 
+  # Otherwise, default to the origin.
+  bucket_name = var.bucket_name != null ? var.bucket_name: "${var.project_id}-${var.base_name}-bucket"
+}
+
 resource "google_storage_bucket" "log_bucket" {
-  name                        = var.bucket_name
+  name                        = local.bucket_name
   location                    = var.location
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
