@@ -74,7 +74,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
     }
 
-    ## Destroy any pre-existing infrastructure.
+    ## Clean-up: Destroy any pre-existing infrastructure.
     ## This might happen if a previous cloud build failed for some reason.
     step {
       id     = "preclean_env"
@@ -92,9 +92,10 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["prepare_terragrunt_opentofu_container"]
     }
 
-    ## Destroy test log keys
+    ## Clean-up: Destroy test log keys.
+    ## This might happen if a previous cloud build failed for some reason.
     step {
-      id       = "destroy_test_keys"
+      id       = "preclean_destroy_test_keys"
       name     = "gcr.io/cloud-builders/gcloud"
       script   = <<EOT
         # The generate_key tool creates two keys based on the provided origin string, adding "-log-public" and "-log-secret" suffixes.
@@ -114,7 +115,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script   = <<EOT
       go run ./cmd/tesseract/gcp/generate_key --project_id ${var.project_id} --log_origin ${local.origin} | sed -e '1,/Public Key:/d' | tee /workspace/conformance_log_public_key.pem
     EOT
-      wait_for = ["destroy_test_keys"]
+      wait_for = ["preclean_destroy_test_keys"]
     }
 
     ## Build TesseraCT GCP Docker image.
@@ -236,7 +237,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["bearer_token"]
     }
 
-    ## Destroy the terragrunt config.
+    ## Clean-up: Destroy the terragrunt config.
     ## This will tear down the conformance infrastructure we brought up
     ## above.
     step {
@@ -255,11 +256,26 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["ct_hammer"]
     }
 
+    ## Clean-up: Destroy test log keys.
+    ## Remove test-log keys.
+    step {
+      id       = "postclean_destroy_test_keys"
+      name     = "gcr.io/cloud-builders/gcloud"
+      script   = <<EOT
+        # The generate_key tool creates two keys based on the provided origin string, adding "-log-public" and "-log-secret" suffixes.
+        # Delete both of these as we'll recretate them in the next build step.
+        gcloud secrets delete --quiet "${local.safe_origin}-log-public"
+        gcloud secrets delete --quiet "${local.safe_origin}-log-secret"
+      EOT
+      wait_for = ["ct_hammer"]
+    }
+
     options {
       logging      = "CLOUD_LOGGING_ONLY"
       machine_type = "E2_HIGHCPU_8"
     }
   }
+
 
   depends_on = [
     module.artifactregistry
