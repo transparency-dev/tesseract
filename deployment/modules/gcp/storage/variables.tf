@@ -8,6 +8,12 @@ variable "base_name" {
   type        = string
 }
 
+variable "bucket_name" {
+  description = "Name of the GCS bucket. Defaults to '{var.project_id}-{var.base_name}-bucket if unspecicfied"
+  type        = string
+  default     = null
+}
+
 variable "location" {
   description = "Location in which to create resources"
   type        = string

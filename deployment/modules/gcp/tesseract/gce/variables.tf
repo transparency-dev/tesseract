@@ -13,6 +13,12 @@ variable "origin" {
   type        = string
 }
 
+variable "bucket_name" {
+  description = "Log bucket name. Defaults to `origin` if unspecified." 
+  type        = string
+  default     = null
+}
+
 variable "not_after_start" {
   description = "Start of the range of acceptable NotAfter values, inclusive. Leaving this empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z."
   default     = ""
