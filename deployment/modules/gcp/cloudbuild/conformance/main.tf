@@ -24,6 +24,8 @@ locals {
   cloudbuild_service_account   = "cloudbuild-${var.env}-sa@${var.project_id}.iam.gserviceaccount.com"
   artifact_repo                = "${var.location}-docker.pkg.dev/${var.project_id}/${module.artifactregistry.docker.name}"
   conformance_gcp_docker_image = "${local.artifact_repo}/conformance-gcp"
+  origin                       = "${var.env}-conformance.ct.transparency.dev" # Must match the origin in the deplyment/gcp/static-ct-ci/logs/ci/terragrunt.hcl file.
+  safe_origin                 = replace("${local.origin}", "/[^-a-zA-Z0-9]/", "-")
 }
 
 resource "google_project_service" "cloudbuild_api" {
@@ -72,7 +74,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       ]
     }
 
-    ## Destroy any pre-existing infrastructure.
+    ## Clean-up: Destroy any pre-existing infrastructure.
     ## This might happen if a previous cloud build failed for some reason.
     step {
       id     = "preclean_env"
@@ -88,6 +90,32 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_VAR_project_id=${var.project_id}"
       ]
       wait_for = ["prepare_terragrunt_opentofu_container"]
+    }
+
+    ## Clean-up: Destroy test log keys.
+    ## This might happen if a previous cloud build failed for some reason.
+    step {
+      id       = "preclean_destroy_test_keys"
+      name     = "gcr.io/cloud-builders/gcloud"
+      script   = <<EOT
+        # The generate_key tool creates two keys based on the provided origin string, adding "-log-public" and "-log-secret" suffixes.
+        # Delete both of these as we'll recretate them in the next build step.
+        gcloud secrets delete --quiet "${local.safe_origin}-log-public"
+        gcloud secrets delete --quiet "${local.safe_origin}-log-secret"
+      EOT
+      # Don't get upset if the key doesn't exist.
+      allow_failure = true
+      wait_for = ["prepare_terragrunt_opentofu_container"]
+    }
+
+    ## Create new test log keys
+    step {
+      id       = "create_test_keys"
+      name     = "golang"
+      script   = <<EOT
+      go run ./cmd/tesseract/gcp/generate_key --project_id ${var.project_id} --log_origin ${local.origin} | sed -e '1,/Public Key:/d' | tee /workspace/conformance_log_public_key.pem
+    EOT
+      wait_for = ["preclean_destroy_test_keys"]
     }
 
     ## Build TesseraCT GCP Docker image.
@@ -147,7 +175,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         "TF_INPUT=false",
         "TF_VAR_project_id=${var.project_id}"
       ]
-      wait_for = ["preclean_env", "docker_push_conformance_gcp"]
+      wait_for = ["preclean_env", "create_test_keys", "docker_push_conformance_gcp"]
     }
 
     ## Print Terragrunt output to files.
@@ -157,7 +185,6 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       script = <<EOT
         terragrunt --terragrunt-no-color output --raw tesseract_url -no-color > /workspace/conformance_url
         terragrunt --terragrunt-no-color output --raw tesseract_bucket_name -no-color > /workspace/conformance_bucket_name
-        terragrunt --terragrunt-no-color output --raw ecdsa_p256_public_key_data -no-color > /workspace/conformance_log_public_key.pem
       EOT
       dir    = var.log_terragrunt
       env = [
@@ -193,10 +220,10 @@ resource "google_cloudbuild_trigger" "build_trigger" {
         base64 -w 0 /workspace/conformance_log_public_key.der > /workspace/conformance_log_public_key
 
         retry -t 5 -d 15 --until=success go run ./internal/hammer \
-          --origin="ci-static-ct-ci" \
+          --origin="${local.origin}" \
           --log_public_key="$(cat /workspace/conformance_log_public_key)" \
           --log_url="https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)/" \
-          --write_log_url="$(cat /workspace/conformance_url)/ci-static-ct-ci" \
+          --write_log_url="$(cat /workspace/conformance_url)/${local.origin}" \
           -v=1 \
           --show_ui=false \
           --bearer_token="$(cat /workspace/cb_access)" \
@@ -210,7 +237,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["bearer_token"]
     }
 
-    ## Destroy the terragrunt config.
+    ## Clean-up: Destroy the terragrunt config.
     ## This will tear down the conformance infrastructure we brought up
     ## above.
     step {
@@ -229,11 +256,26 @@ resource "google_cloudbuild_trigger" "build_trigger" {
       wait_for = ["ct_hammer"]
     }
 
+    ## Clean-up: Destroy test log keys.
+    ## Remove test-log keys.
+    step {
+      id       = "postclean_destroy_test_keys"
+      name     = "gcr.io/cloud-builders/gcloud"
+      script   = <<EOT
+        # The generate_key tool creates two keys based on the provided origin string, adding "-log-public" and "-log-secret" suffixes.
+        # Delete both of these as we'll recretate them in the next build step.
+        gcloud secrets delete --quiet "${local.safe_origin}-log-public"
+        gcloud secrets delete --quiet "${local.safe_origin}-log-secret"
+      EOT
+      wait_for = ["ct_hammer"]
+    }
+
     options {
       logging      = "CLOUD_LOGGING_ONLY"
       machine_type = "E2_HIGHCPU_8"
     }
   }
+
 
   depends_on = [
     module.artifactregistry

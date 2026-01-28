@@ -19,7 +19,7 @@ module "gce" {
   env                                        = var.env
   project_id                                 = var.project_id
   base_name                                  = var.base_name
-  origin_suffix                              = var.origin_suffix
+  origin                                     = var.origin
   location                                   = var.location
   server_docker_image                        = var.server_docker_image
   machine_type                               = var.machine_type
