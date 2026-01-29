@@ -134,17 +134,6 @@ module "cloud_armor" {
   type                                 = "CLOUD_ARMOR"
   layer_7_ddos_defense_enable          = true
   layer_7_ddos_defense_rule_visibility = "STANDARD"
-
-  # Threat Intelligence Rules
-  threat_intelligence_rules = {
-    deny_malicious_ips = {
-      action      = "deny(502)"
-      priority    = 200
-      description = "Deny IP addresses known to attack web applications"
-      preview     = false
-      feed        = "iplist-known-malicious-ips"
-    }
-  }
 }
 
 
