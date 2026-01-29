@@ -17,3 +17,9 @@ variable "log_location" {
   description = "Location in which log resources are."
   type        = string
 }
+
+variable "enable_cloud_armor" {
+  description = "Whether or not to enable Cloud Armor for the load balancer."
+  type        = bool
+  default     = false
+}

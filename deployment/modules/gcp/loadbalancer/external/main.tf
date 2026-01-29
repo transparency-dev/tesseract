@@ -27,6 +27,9 @@ module "gce-lb-http" {
   create_url_map = false
   url_map        = google_compute_url_map.url_map.id
 
+  // Use the Cloud Armor policy, if it's enabled.
+  security_policy = one(module.cloud_armor[*].policy.self_link)
+
   backends = { for log_name in var.log_names :
     "${log_name}-backend" => {
       protocol    = "HTTP"
@@ -118,3 +121,19 @@ resource "google_compute_url_map" "url_map" {
     }
   }
 }
+
+module "cloud_armor" {
+  source  = "GoogleCloudPlatform/cloud-armor/google"
+  version = "~> 6.0"
+
+  count                                = var.enable_cloud_armor ? 1 : 0
+  project_id                           = var.project_id
+  name                                 = "tesseract-security-policy"
+  description                          = "TesseraCT LB Security Policy"
+  default_rule_action                  = "allow"
+  type                                 = "CLOUD_ARMOR"
+  layer_7_ddos_defense_enable          = true
+  layer_7_ddos_defense_rule_visibility = "STANDARD"
+}
+
+
