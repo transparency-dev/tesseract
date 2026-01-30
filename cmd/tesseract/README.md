@@ -29,11 +29,27 @@ The chain may be [deduplicated using TesseraCT's and Tessera's antispam features
 #### Chain filtering
 
 Which chains will be accepted by TesseraCT can be controlled by setting the
-following flags to filter submissions:
+following flags to filter submissions.
 
-- `root_pem_file`: Path to a file containing root certificates that are
-acceptable to the log. Chains not originating from one of the roots included in
-this file will be rejected.
+##### Roots
+
+TesseraCT MUST be configured with a set of roots that it trusts, and will only
+accept certificates that chain up to one of these roots. There are two
+mechanisms to set these roots:
+
+1. Manually, via a PEM file. Use the `root_pem_file` flag to configure its path.
+Roots from this file are read once at startup, and remain trusted thereafter.
+2. Automatically, from a remote endpoint like [CCADB's](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV).
+The URL of that endpoint is set via `roots_remote_fetch_url`. Roots are first
+fetched at startup, and then every `roots_remote_fetch_interval`. Each time
+roots are fetched from this remote endpoint, newly found roots become trusted.
+Newly found roots are backed up in the log's storage, under `roots/`. Roots are
+never removed from this directory. Roots in the `roots/` directory are loaded
+once at startup, and remain trusted thereafter. This backup mechanism ensures
+that the log can start with all its roots, even if the remote endpoint is down.
+
+##### Other filtering
+
 - `reject_expired`: If true, TesseraCT rejects expired certificates.
 - `reject_unexpired`: If true, TesseraCT rejects certificates that are either
 currently valid or not yet valid.
