@@ -46,6 +46,7 @@ func init() {
 	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset or empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset or empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&additionalSigners, "additional_signer_private_key_secret_name", "Private key secret name for additional Ed25519 checkpoint signatures, may be supplied multiple times. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
+	flag.Var(&rootsRejectFingerprints, "roots_reject_fingerprints", "Hex-encoded SHA-256 fingerprint of a root certificate to reject. May be specified multiple times.")
 	flag.Float64Var(&dedupRL, "rate_limit_dedup", 100, "Rate limit for resolving duplicate submissions, in requests per second - i.e. duplicate requests for already integrated entries, which need to be fetched from the log storage by TesseraCT to extract their timestamp. When 0, all duplicate submissions are rejected. When negative, no rate limit is applied.")
 	// DEPRECATED: will be removed shortly
 	flag.Float64Var(&dedupRL, "pushback_max_dedupe_in_flight", 100, "DEPRECATED: use rate_limit_dedup. Maximum number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
@@ -66,6 +67,7 @@ var (
 	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log.")
 	rootsRemoteFetchURL      = flag.String("roots_remote_fetch_url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch additional trusted roots from.")
 	rootsRemoteFetchInterval = flag.Duration("roots_remote_fetch_interval", time.Duration(0), "Interval between two fetches from roots_fetch_url, e.g. \"1h\".")
+	rootsRejectFingerprints  multiStringFlag
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
 	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
@@ -135,6 +137,7 @@ func main() {
 		NotAfterStart:            notAfterStart.t,
 		NotAfterLimit:            notAfterLimit.t,
 		AcceptSHA1:               *acceptSHA1,
+		RejectRoots:              rootsRejectFingerprints,
 	}
 	if *acceptSHA1 {
 		klog.Info(`**** WARNING **** This server will accept chains signed

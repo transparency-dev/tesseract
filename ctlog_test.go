@@ -15,8 +15,11 @@
 package tesseract
 
 import (
+	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/csv"
+	"encoding/hex"
 	"encoding/pem"
 	"net/http"
 	"net/http/httptest"
@@ -26,6 +29,7 @@ import (
 
 	"github.com/transparency-dev/tesseract/internal/ccadb"
 	"github.com/transparency-dev/tesseract/internal/testdata"
+	"github.com/transparency-dev/tesseract/storage"
 )
 
 func TestNewCertValidationOpts(t *testing.T) {
@@ -136,6 +140,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 				RootsPEMFile:  "./internal/testdata/fake-ca.cert",
 				NotAfterStart: &t100,
 				NotAfterLimit: &t200,
+			},
+		},
+		{
+			desc:    "invalid-reject-roots",
+			wantErr: "failed to create roots pool",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile: "./internal/testdata/fake-ca.cert",
+				RejectRoots:  []string{"invalid-hex"},
 			},
 		},
 	} {
@@ -334,4 +346,135 @@ func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
 		t.Fatalf("Failed to parse PEM certificate: %v", err)
 	}
 	return cert
+}
+
+type memoryRootsStorage struct {
+	kvs []storage.KV
+}
+
+func (m *memoryRootsStorage) AddIfNotExist(ctx context.Context, kvs []storage.KV) error {
+	m.kvs = append(m.kvs, kvs...)
+	return nil
+}
+
+func (m *memoryRootsStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
+	return m.kvs, nil
+}
+
+func TestNewChainValidatorRootsFiltering(t *testing.T) {
+	fetchInterval := 20 * time.Millisecond
+	fakeRoot := parsePEM(t, testdata.FakeRootCACertPEM)
+	fakeRootDER := fakeRoot.Raw
+	fakeRootSHA256 := sha256.Sum256(fakeRootDER)
+	fakeRootFingerprint := hex.EncodeToString(fakeRootSHA256[:])
+
+	caRoot := parsePEM(t, testdata.CACertPEM)
+	caRootDER := caRoot.Raw
+	caRootSHA256 := sha256.Sum256(caRootDER)
+	caRootFingerprint := hex.EncodeToString(caRootSHA256[:])
+
+	for _, tc := range []struct {
+		desc        string
+		cvCfg       ChainValidationConfig
+		rsps        []ccadbRsp
+		backupRoots []storage.KV
+		wantNRoots  int
+		wantRootsFP []string // Fingerprints we expect to be present
+	}{
+		{
+			desc: "reject-local-root",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile: "./internal/testdata/fake-ca.cert", // Contains FakeRootCACertPEM
+				RejectRoots:  []string{fakeRootFingerprint},
+			},
+			wantNRoots:  0,
+			wantRootsFP: []string{},
+		},
+		{
+			desc: "reject-remote-root",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchInterval: fetchInterval,
+				RejectRoots:              []string{caRootFingerprint}, // Reject the remote one, accept local
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM, // This is the remote one
+					},
+				},
+			},
+			wantNRoots:  1, // Only local FakeRootCACertPEM
+			wantRootsFP: []string{fakeRootFingerprint},
+		},
+		{
+			desc: "reject-both-roots",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchInterval: fetchInterval,
+				RejectRoots:              []string{fakeRootFingerprint, caRootFingerprint},
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM,
+					},
+				},
+			},
+			wantNRoots:  0,
+			wantRootsFP: []string{},
+		},
+		{
+			desc: "reject-backup-root",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/test_root_ca_cert.pem", // Just to satisfy non-empty check
+				RootsRemoteFetchInterval: fetchInterval,
+				RejectRoots:              []string{fakeRootFingerprint},
+			},
+			backupRoots: []storage.KV{
+				{
+					K: []byte("fake-root-key"),
+					V: []byte(testdata.FakeRootCACertPEM),
+				},
+			},
+			wantNRoots:  1,                         // Only CACertPEM from file
+			wantRootsFP: []string{caRootFingerprint}, // CACertPEM fingerprint
+		},
+	} {
+		t.Run(tc.desc, func(t *testing.T) {
+			ts := newCCADBTestServer(t, tc.rsps)
+			ts.Start()
+			defer ts.Close()
+			tc.cvCfg.RootsRemoteFetchURL = ts.URL
+			if tc.backupRoots != nil {
+				tc.cvCfg.RootsRemoteFetchBackup = &memoryRootsStorage{kvs: tc.backupRoots}
+			}
+			cv, err := newChainValidator(t.Context(), tc.cvCfg)
+			if err != nil {
+				t.Fatalf("newChainValidator()=%v", err)
+			}
+			time.Sleep(10 * fetchInterval)
+
+			roots := cv.Roots()
+			if got := len(roots); got != tc.wantNRoots {
+				t.Errorf("ChainValidator has %d roots, want %d", got, tc.wantNRoots)
+			}
+			// Verify presence of expected roots
+			for _, wantFP := range tc.wantRootsFP {
+				found := false
+				for _, r := range roots {
+					sha := sha256.Sum256(r.Raw)
+					if hex.EncodeToString(sha[:]) == wantFP {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("ChainValidator missing root with fingerprint %s", wantFP)
+				}
+			}
+		})
+	}
 }

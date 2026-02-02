@@ -15,19 +15,77 @@
 package x509util_test
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/pem"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
-func TestAppendCertsFromPEMs(t *testing.T) {
+func TestNewPEMCertPool(t *testing.T) {
 	tests := []struct {
-		name       string
-		pems       [][]byte
-		wantParsed int
-		wantAdded  int
+		name    string
+		fps     []string
+		wantErr string
+	}{
+		{
+			name: "valid-empty",
+			fps:  []string{},
+		},
+		{
+			name: "valid-filter",
+			fps:  []string{"0000000000000000000000000000000000000000000000000000000000000000"},
+		},
+		{
+			name:    "invalid-hex",
+			fps:     []string{"not-hex"},
+			wantErr: "invalid",
+		},
+		{
+			name:    "too-short",
+			fps:     []string{"001122"},
+			wantErr: "length",
+		},
+		{
+			name:    "too-long",
+			fps:     []string{fmt.Sprintf("%x", make([]byte, sha256.Size+1))},
+			wantErr: "length",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := x509util.NewPEMCertPool(tt.fps...)
+			if len(tt.wantErr) == 0 {
+				if err != nil {
+					t.Errorf("NewPEMCertPool() err=%v, want nil", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("NewPEMCertPool(%v) expected error, got nil", tt.fps)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("NewPEMCertPool(%v) err=%v, want err containing %q", tt.fps, err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestAppendCertsFromPEMs(t *testing.T) {
+	cert := parsePEM(t, pemCACert)
+	fingerprint := sha256.Sum256(cert.Raw)
+	fingerprintHex := fmt.Sprintf("%x", fingerprint)
+
+	tests := []struct {
+		name                 string
+		rejectedFingerprints []string
+		pems                 [][]byte
+		wantParsed           int
+		wantAdded            int
 	}{
 		{
 			name:       "single-cert-from-pem",
@@ -77,10 +135,28 @@ func TestAppendCertsFromPEMs(t *testing.T) {
 			wantParsed: 1,
 			wantAdded:  1,
 		},
+		{
+			name:                 "filter-match",
+			rejectedFingerprints: []string{fingerprintHex},
+			pems:                 [][]byte{[]byte(pemCACert)},
+			wantParsed:           1,
+			wantAdded:            0,
+		},
+		{
+			name:                 "filter-no-match",
+			rejectedFingerprints: []string{"0000000000000000000000000000000000000000000000000000000000000000"},
+			pems:                 [][]byte{[]byte(pemCACert)},
+			wantParsed:           1,
+			wantAdded:            1,
+		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := x509util.NewPEMCertPool()
+			p, err := x509util.NewPEMCertPool(tt.rejectedFingerprints...)
+			if err != nil {
+				t.Fatalf("NewPEMCertPool() err=%v", err)
+			}
 			gotParsed, gotAdded := p.AppendCertsFromPEMs(tt.pems...)
 			poolLen := len(p.Subjects())
 			if gotParsed != tt.wantParsed || gotAdded != tt.wantAdded {
@@ -111,7 +187,10 @@ func TestIncluded(t *testing.T) {
 		{cert: certs[1], want: [2]bool{true, true}},
 	}
 
-	pool := x509util.NewPEMCertPool()
+	pool, err := x509util.NewPEMCertPool()
+	if err != nil {
+		t.Fatalf("NewPEMCertPool() err=%v", err)
+	}
 	for _, test := range tests {
 		if test.cert != nil {
 			pool.AddCerts([]*x509.Certificate{test.cert})

@@ -17,6 +17,7 @@ package x509util
 import (
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -39,14 +40,33 @@ type PEMCertPool struct {
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
 	certPool             *lax509.CertPool
+	rejectedFingerprints map[[sha256.Size]byte]bool
 }
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
-func NewPEMCertPool() *PEMCertPool {
+// rejectedFingerprints is an optional list of hex-encoded SHA-256 root
+// fingerprints that should be rejected by the pool.
+func NewPEMCertPool(rejectedFingerprints ...string) (*PEMCertPool, error) {
+	rejected := make(map[[sha256.Size]byte]bool)
+	for _, f := range rejectedFingerprints {
+		b, err := hex.DecodeString(f)
+		if err != nil {
+			return nil, fmt.Errorf("invalid rejected fingerprint %q: %v", f, err)
+		}
+		if len(b) != sha256.Size {
+			return nil, fmt.Errorf("invalid rejected fingerprint length %q: expected %d bytes, got %d", f, sha256.Size, len(b))
+		}
+		var fingerprint [sha256.Size]byte
+		copy(fingerprint[:], b)
+		rejected[fingerprint] = true
+	}
+
 	return &PEMCertPool{
 		mu:                   sync.RWMutex{},
 		fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate),
-		certPool:             lax509.NewCertPool()}
+		certPool:             lax509.NewCertPool(),
+		rejectedFingerprints: rejected,
+	}, nil
 }
 
 // AddCerts adds certificates to a pool. certs must not be nil.
@@ -61,6 +81,10 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) int {
 	newCerts := make(map[[sha256.Size]byte]*x509.Certificate)
 	for _, cert := range certs {
 		fingerprint := sha256.Sum256(cert.Raw)
+		if p.rejectedFingerprints[fingerprint] {
+			klog.Warningf("Rejecting certificate with fingerprint %x", fingerprint)
+			continue
+		}
 		_, ok := p.fingerprintToCertMap[fingerprint]
 
 		if !ok {
