@@ -34,6 +34,7 @@ module "cloudrun" {
   batch_max_size                 = var.batch_max_size
   roots_remote_fetch_url         = var.roots_remote_fetch_url
   roots_remote_fetch_interval    = var.roots_remote_fetch_interval
+  roots_reject_fingerprints      = var.roots_reject_fingerprints
 
   depends_on = [
     module.storage

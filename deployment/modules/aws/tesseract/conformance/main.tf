@@ -159,9 +159,10 @@ resource "aws_ecs_task_definition" "conformance" {
       "appProtocol" : "http"
     }],
     "essential" : true,
-    "command" : [
+    "command" : flatten([
       "--http_endpoint=:${local.port}",
       "--roots_pem_file=/bin/test_root_ca_cert.pem",
+      formatlist("--roots_reject_fingerprints=%s", var.roots_reject_fingerprints),
       "--origin=ci-static-ct",
       "--path_prefix=ci-static-ct",
       "--bucket=${module.storage.s3_bucket_name}",
@@ -177,8 +178,8 @@ resource "aws_ecs_task_definition" "conformance" {
       "--enable_publication_awaiter=true",
       "--roots_remote_fetch_url=${var.roots_remote_fetch_url}",
       "--roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
-      "-v=2"
-    ],
+      "-v=2",
+    ]),
     "logConfiguration" : {
       "logDriver" : "awslogs",
       "options" : {
