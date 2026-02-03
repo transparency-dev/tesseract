@@ -74,6 +74,10 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 		}
 	}()
 
+	if strings.HasSuffix(privateKeySecretName, "/latest") {
+		klog.Warning("Secret version configured to use 'latest' alias; log key will change if a newer version is created.")
+	}
+
 	// Public Key
 	var publicKey crypto.PublicKey
 	pemBlock, err := secretPEM(ctx, client, publicKeySecretName)
@@ -128,9 +132,6 @@ func secret(ctx context.Context, client *secretmanager.Client, secretName string
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to access secret version: %w", err)
-	}
-	if resp.Name != secretName {
-		return nil, errors.New("request corrupted in-transit")
 	}
 	// Verify the data checksum.
 	crc32c := crc32.MakeTable(crc32.Castagnoli)
