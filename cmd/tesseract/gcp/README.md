@@ -12,6 +12,21 @@ You can find more information about TesseraCT in general in the
 [architecture design doc](/docs/architecture.md), and in TesseraCT's
 [configuration guide](../).
 
+## Keys and Secret Manager
+
+Log private and public keys are stored as secrets in Secret Manager, and the full secret version resource
+names passed to 
+`--signer_private_key_secret_name` and `--signer_public_key_secret_name` respectively.
+
+> [!WARNING]
+> While the `latest` version alias is supported, unless you are sure you know what you are doing, we 
+> strongly recommend the use of specific version IDs instead.
+>
+> Using `latest` will cause the log's key to be updated without warning if a new secret version is
+> created. Since CT for the WebPKI currently does not support log key rotation, other than through
+> retiring log shards and bringing up new ones, automatic rotation of the log key, inadvertant or 
+> otherwise, will therefore almost certainly result in an unplanned outage.
+
 ## Witnessing
 
 > [!WARNING]
