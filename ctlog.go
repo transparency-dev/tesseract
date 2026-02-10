@@ -48,6 +48,9 @@ type ChainValidationConfig struct {
 	// RootsRemoteFetchBackup is a persistent backup storage for roots fetched
 	// remotely.
 	RootsRemoteFetchBackup storage.RootsStorage
+	// RejectRoots is a list of hex-encoded SHA-256 fingerprints of ASN.1 DER
+	// encoded root certificates that should never be trusted.
+	RejectRoots []string
 	// RejectExpired controls if true then the certificate validity period will be
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
@@ -96,9 +99,13 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 	if cfg.RootsPEMFile == "" {
 		return nil, errors.New("empty rootsPemFile")
 	}
-	roots := x509util.NewPEMCertPool()
+
+	roots, err := x509util.NewPEMCertPool(cfg.RejectRoots)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create roots pool: %v", err)
+	}
 	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
-		return nil, fmt.Errorf("failed to read trusted roots: %v", err)
+		return nil, fmt.Errorf("failed to read trusted roots from %q: %v", cfg.RootsPEMFile, err)
 	}
 
 	if cfg.RejectExpired && cfg.RejectUnexpired {
@@ -110,7 +117,6 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 		return nil, fmt.Errorf("'Not After' limit %q before start %q", cfg.NotAfterLimit.Format(time.RFC3339), cfg.NotAfterStart.Format(time.RFC3339))
 	}
 
-	var err error
 	var extKeyUsages []x509.ExtKeyUsage
 	// Filter which extended key usages are allowed.
 	if cfg.ExtKeyUsages != "" {

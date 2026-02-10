@@ -35,18 +35,23 @@ following flags to filter submissions.
 
 TesseraCT MUST be configured with a set of roots that it trusts, and will only
 accept certificates that chain up to one of these roots. There are two
-mechanisms to set these roots:
+mechanisms to add roots, and one to reject roots:
 
 1. Manually, via a PEM file. Use the `root_pem_file` flag to configure its path.
 Roots from this file are read once at startup, and remain trusted thereafter.
 2. Automatically, from a remote endpoint like [CCADB's](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV).
 The URL of that endpoint is set via `roots_remote_fetch_url`. Roots are first
 fetched at startup, and then every `roots_remote_fetch_interval`. Each time
-roots are fetched from this remote endpoint, newly found roots become trusted.
+roots are fetched from this remote endpoint, newly found roots become trusted,
+if not rejected with `roots_reject_fingerprints`.
 Newly found roots are backed up in the log's storage, under `roots/`. Roots are
 never removed from this directory. Roots in the `roots/` directory are loaded
-once at startup, and remain trusted thereafter. This backup mechanism ensures
-that the log can start with all its roots, even if the remote endpoint is down.
+once at startup, and remain trusted thereafter unless rejected with
+`roots_reject_fingerprints`. This backup mechanism ensures that the log can start
+with all its roots, even if the remote endpoint is down.
+
+Roots which hex-encoded SHA256 is mentioned in `roots_reject_finterprints` will
+never be trusted. This flag can be specified multiple time.
 
 ##### Other filtering
 

@@ -29,7 +29,10 @@ func TestNewLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate RSA key: %v", err)
 	}
-	roots := x509util.NewPEMCertPool()
+	roots, err := x509util.NewPEMCertPool(nil)
+	if err != nil {
+		t.Fatalf("NewPEMCertPool() err=%v", err)
+	}
 	if err := roots.AppendCertsFromPEMFile("../testdata/fake-ca.cert"); err != nil {
 		t.Fatalf("Can't open roots: %v", err)
 	}

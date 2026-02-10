@@ -115,7 +115,10 @@ func setupTestLog(t *testing.T) (*log, string) {
 		t.Fatalf("Failed to create test signer: %v", err)
 	}
 
-	roots := x509util.NewPEMCertPool()
+	roots, err := x509util.NewPEMCertPool(nil)
+	if err != nil {
+		t.Fatalf("NewPEMCertPool() err=%v", err)
+	}
 	if err := roots.AppendCertsFromPEMFile(testRootPath); err != nil {
 		t.Fatalf("Failed to read trusted roots: %v", err)
 	}
@@ -884,7 +887,10 @@ func createJSONChain(t *testing.T, p *x509util.PEMCertPool) io.Reader {
 
 func loadCertsIntoPoolOrDie(t *testing.T, certs []string) *x509util.PEMCertPool {
 	t.Helper()
-	pool := x509util.NewPEMCertPool()
+	pool, err := x509util.NewPEMCertPool(nil)
+	if err != nil {
+		t.Fatalf("NewPEMCertPool() err=%v", err)
+	}
 	for _, cert := range certs {
 		if parsed, added := pool.AppendCertsFromPEMs([]byte(cert)); parsed <= 0 || parsed != added {
 			t.Fatalf("couldn't parse test certs: %v", certs)
@@ -927,7 +933,10 @@ func BenchmarkValidateChain(b *testing.B) {
 	if err != nil {
 		b.Fatalf("parseChain: %v", err)
 	}
-	r := x509util.NewPEMCertPool()
+	r, err := x509util.NewPEMCertPool(nil)
+	if err != nil {
+		b.Fatalf("NewPEMCertPool() err=%v", err)
+	}
 	r.AddCerts([]*x509.Certificate{chain[2]})
 	cv := chainValidator{
 		trustedRoots: r,
