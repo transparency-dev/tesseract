@@ -58,7 +58,7 @@ func TestNewPEMCertPool(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := x509util.NewPEMCertPool(tt.fps...)
+			_, err := x509util.NewPEMCertPool(tt.fps)
 			if len(tt.wantErr) == 0 {
 				if err != nil {
 					t.Errorf("NewPEMCertPool() err=%v, want nil", err)
@@ -153,7 +153,7 @@ func TestAppendCertsFromPEMs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p, err := x509util.NewPEMCertPool(tt.rejectedFingerprints...)
+			p, err := x509util.NewPEMCertPool(tt.rejectedFingerprints)
 			if err != nil {
 				t.Fatalf("NewPEMCertPool() err=%v", err)
 			}
@@ -187,7 +187,7 @@ func TestIncluded(t *testing.T) {
 		{cert: certs[1], want: [2]bool{true, true}},
 	}
 
-	pool, err := x509util.NewPEMCertPool()
+	pool, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}

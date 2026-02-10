@@ -100,7 +100,7 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 		return nil, errors.New("empty rootsPemFile")
 	}
 
-	roots, err := x509util.NewPEMCertPool(cfg.RejectRoots...)
+	roots, err := x509util.NewPEMCertPool(cfg.RejectRoots)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create roots pool: %v", err)
 	}

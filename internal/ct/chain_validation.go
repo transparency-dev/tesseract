@@ -235,7 +235,7 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		}
 	}
 
-	intermediatePool, err := x509util.NewPEMCertPool()
+	intermediatePool, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create intermediate pool: %v", err)
 	}

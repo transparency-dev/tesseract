@@ -241,7 +241,7 @@ func TestIsPrecertificate(t *testing.T) {
 }
 
 func TestValidate(t *testing.T) {
-	fakeCARoots, err := x509util.NewPEMCertPool()
+	fakeCARoots, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}
@@ -453,7 +453,7 @@ func TestParseChain(t *testing.T) {
 }
 
 func TestNotAfterRange(t *testing.T) {
-	fakeCARoots, err := x509util.NewPEMCertPool()
+	fakeCARoots, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}
@@ -524,7 +524,7 @@ func TestNotAfterRange(t *testing.T) {
 }
 
 func TestRejectExpiredUnexpired(t *testing.T) {
-	fakeCARoots, err := x509util.NewPEMCertPool()
+	fakeCARoots, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}
@@ -708,7 +708,7 @@ func TestPreIssuedCert(t *testing.T) {
 		testdata.PreIntermediateFromRoot,
 		testdata.CACertPEM}...)
 
-	roots, err := x509util.NewPEMCertPool()
+	roots, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}

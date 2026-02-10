@@ -29,7 +29,7 @@ func TestNewLog(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to generate RSA key: %v", err)
 	}
-	roots, err := x509util.NewPEMCertPool()
+	roots, err := x509util.NewPEMCertPool(nil)
 	if err != nil {
 		t.Fatalf("NewPEMCertPool() err=%v", err)
 	}

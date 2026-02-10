@@ -44,9 +44,9 @@ type PEMCertPool struct {
 }
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
-// rejectedFingerprints is an optional list of hex-encoded SHA-256 root
-// fingerprints that should be rejected by the pool.
-func NewPEMCertPool(rejectedFingerprints ...string) (*PEMCertPool, error) {
+// rejectedFingerprints is a list of hex-encoded SHA-256 root fingerprints
+// that should be rejected by the pool. Set to nil to accept all certs.
+func NewPEMCertPool(rejectedFingerprints []string) (*PEMCertPool, error) {
 	rejected := make(map[[sha256.Size]byte]struct{})
 	for _, f := range rejectedFingerprints {
 		b, err := hex.DecodeString(f)
