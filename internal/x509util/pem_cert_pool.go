@@ -40,14 +40,14 @@ type PEMCertPool struct {
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
 	certPool             *lax509.CertPool
-	rejectedFingerprints map[[sha256.Size]byte]bool
+	rejectedFingerprints map[[sha256.Size]byte]struct{}
 }
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
 // rejectedFingerprints is an optional list of hex-encoded SHA-256 root
 // fingerprints that should be rejected by the pool.
 func NewPEMCertPool(rejectedFingerprints ...string) (*PEMCertPool, error) {
-	rejected := make(map[[sha256.Size]byte]bool)
+	rejected := make(map[[sha256.Size]byte]struct{})
 	for _, f := range rejectedFingerprints {
 		b, err := hex.DecodeString(f)
 		if err != nil {
@@ -58,7 +58,7 @@ func NewPEMCertPool(rejectedFingerprints ...string) (*PEMCertPool, error) {
 		}
 		var fingerprint [sha256.Size]byte
 		copy(fingerprint[:], b)
-		rejected[fingerprint] = true
+		rejected[fingerprint] = struct{}{}
 	}
 
 	return &PEMCertPool{
@@ -81,7 +81,7 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) int {
 	newCerts := make(map[[sha256.Size]byte]*x509.Certificate)
 	for _, cert := range certs {
 		fingerprint := sha256.Sum256(cert.Raw)
-		if p.rejectedFingerprints[fingerprint] {
+		if _, exists := p.rejectedFingerprints[fingerprint]; exists {
 			klog.Warningf("Rejecting certificate with fingerprint %x", fingerprint)
 			continue
 		}
