@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"errors"
+	"os"
 
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
@@ -27,6 +28,7 @@ import (
 
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+	"github.com/google/uuid"
 	"k8s.io/klog/v2"
 )
 
@@ -49,13 +51,19 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		}
 	}
 
+	instanceID, err := os.Hostname()
+	if err != nil {
+		klog.Errorf("os.Hostname() failed, setting OTel service instance ID to UUID. Error: %v", err)
+		instanceID = uuid.NewString()
+	}
 	resources, err := resource.New(ctx,
 		resource.WithTelemetrySDK(),
 		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		// Add your own custom attributes to identify your application
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String(origin),
 			semconv.ServiceNamespaceKey.String("tesseract"),
+			semconv.ServiceNameKey.String(origin),
+			semconv.ServiceInstanceIDKey.String(instanceID),
 		),
 		resource.WithDetectors(gcp.NewDetector()),
 	)
