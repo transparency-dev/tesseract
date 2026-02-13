@@ -21,6 +21,7 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/hex"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"net/http"
@@ -164,9 +165,14 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 					continue
 				}
 				pems = append(pems, r[0])
-				sha := sha256.Sum256(r[0])
-				key := []byte(hex.EncodeToString(sha[:]))
 				if cfg.RootsRemoteFetchBackup != nil {
+					block, _ := pem.Decode(r[0])
+					if block == nil {
+						klog.Errorf("Failed to decode PEM block in data fetched from %q", cfg.RootsRemoteFetchURL)
+						continue
+					}
+					sha := sha256.Sum256(block.Bytes)
+					key := []byte(hex.EncodeToString(sha[:]))
 					if err := cfg.RootsRemoteFetchBackup.AddIfNotExist(ctx, []storage.KV{{K: key, V: r[0]}}); err != nil {
 						klog.Errorf("Couldn't store roots %q: %v", string(key), err)
 						continue
