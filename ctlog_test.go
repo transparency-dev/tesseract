@@ -21,8 +21,10 @@ import (
 	"encoding/csv"
 	"encoding/hex"
 	"encoding/pem"
+	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -349,16 +351,22 @@ func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
 }
 
 type memoryRootsStorage struct {
-	kvs []storage.KV
+	m map[string][]byte
 }
 
 func (m *memoryRootsStorage) AddIfNotExist(ctx context.Context, kvs []storage.KV) error {
-	m.kvs = append(m.kvs, kvs...)
+	for _, kv := range kvs {
+		m.m[string(kv.K)] = kv.V
+	}
 	return nil
 }
 
 func (m *memoryRootsStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
-	return m.kvs, nil
+	kvs := make([]storage.KV, 0, len(m.m))
+	for k, v := range m.m {
+		kvs = append(kvs, storage.KV{K: []byte(k), V: v})
+	}
+	return kvs, nil
 }
 
 func TestNewChainValidatorRootsFiltering(t *testing.T) {
@@ -374,12 +382,13 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 	caRootFingerprint := hex.EncodeToString(caRootSHA256[:])
 
 	for _, tc := range []struct {
-		desc        string
-		cvCfg       ChainValidationConfig
-		rsps        []ccadbRsp
-		backupRoots []storage.KV
-		wantNRoots  int
-		wantRootsFP []string // Fingerprints we expect to be present
+		desc              string
+		cvCfg             ChainValidationConfig
+		rsps              []ccadbRsp
+		backupRoots       []storage.KV
+		wantNRoots        int
+		wantRootsFP       []string // Fingerprints we expect to be present
+		wantBackupRootsFP []string // Fingerprints we expect to be present
 	}{
 		{
 			desc: "reject-local-root",
@@ -387,8 +396,9 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 				RootsPEMFile: "./internal/testdata/fake-ca.cert", // Contains FakeRootCACertPEM
 				RejectRoots:  []string{fakeRootFingerprint},
 			},
-			wantNRoots:  0,
-			wantRootsFP: []string{},
+			wantNRoots:        0,
+			wantRootsFP:       nil,
+			wantBackupRootsFP: nil,
 		},
 		{
 			desc: "reject-remote-root",
@@ -405,8 +415,9 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 					},
 				},
 			},
-			wantNRoots:  1, // Only local FakeRootCACertPEM
-			wantRootsFP: []string{fakeRootFingerprint},
+			wantNRoots:        1, // Only local FakeRootCACertPEM
+			wantRootsFP:       []string{fakeRootFingerprint},
+			wantBackupRootsFP: []string{caRootFingerprint}, // remote roots are always backed up
 		},
 		{
 			desc: "reject-both-roots",
@@ -423,8 +434,9 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 					},
 				},
 			},
-			wantNRoots:  0,
-			wantRootsFP: []string{},
+			wantNRoots:        0,
+			wantRootsFP:       []string{},
+			wantBackupRootsFP: []string{caRootFingerprint}, // remote roots are always backed up
 		},
 		{
 			desc: "reject-backup-root",
@@ -435,12 +447,13 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 			},
 			backupRoots: []storage.KV{
 				{
-					K: []byte("fake-root-key"),
+					K: []byte(fakeRootFingerprint),
 					V: []byte(testdata.FakeRootCACertPEM),
 				},
 			},
-			wantNRoots:  1,                         // Only CACertPEM from file
-			wantRootsFP: []string{caRootFingerprint}, // CACertPEM fingerprint
+			wantNRoots:        1,                             // Only CACertPEM from file
+			wantRootsFP:       []string{caRootFingerprint},   // CACertPEM fingerprint
+			wantBackupRootsFP: []string{fakeRootFingerprint}, // remote roots are always backed up
 		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
@@ -448,8 +461,9 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 			ts.Start()
 			defer ts.Close()
 			tc.cvCfg.RootsRemoteFetchURL = ts.URL
-			if tc.backupRoots != nil {
-				tc.cvCfg.RootsRemoteFetchBackup = &memoryRootsStorage{kvs: tc.backupRoots}
+			tc.cvCfg.RootsRemoteFetchBackup = &memoryRootsStorage{m: make(map[string][]byte)}
+			if err := tc.cvCfg.RootsRemoteFetchBackup.AddIfNotExist(t.Context(), tc.backupRoots); err != nil {
+				t.Fatalf("Can't initialize root backup storage: %v", err)
 			}
 			cv, err := newChainValidator(t.Context(), tc.cvCfg)
 			if err != nil {
@@ -474,6 +488,26 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 				if !found {
 					t.Errorf("ChainValidator missing root with fingerprint %s", wantFP)
 				}
+			}
+			// Verify presence of expected backed up roots
+			gotBackupRoots, err := tc.cvCfg.RootsRemoteFetchBackup.LoadAll(t.Context())
+			if err != nil {
+				t.Fatalf("Couldn't read backed up roots: %v", err)
+			}
+			gotBackupRootsByFP := make(map[string][]byte)
+			for _, root := range gotBackupRoots {
+				gotBackupRootsByFP[string(root.K)] = root.V
+			}
+			for _, wantFP := range tc.wantBackupRootsFP {
+				if _, exists := gotBackupRootsByFP[wantFP]; !exists {
+					t.Errorf("Backed up roots missing root with fingerprint %s", wantFP)
+					continue
+				}
+				delete(gotBackupRootsByFP, wantFP)
+			}
+			if len(gotBackupRootsByFP) > 0 {
+				extra := slices.Collect(maps.Keys(gotBackupRootsByFP))
+				t.Errorf("Backed up roots contains unexpected roots: %v", strings.Join(extra, ", "))
 			}
 		})
 	}
