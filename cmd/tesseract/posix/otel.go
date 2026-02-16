@@ -53,11 +53,11 @@ func initOTel(ctx context.Context, origin string) func(context.Context) {
 
 	resources, err := resource.New(ctx,
 		resource.WithTelemetrySDK(),
-		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		resource.WithAttributes(
 			semconv.ServiceNameKey.String(origin),
 			semconv.ServiceNamespaceKey.String("tesseract"),
 		),
+		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 	)
 	if err != nil {
 		klog.Exitf("Failed to detect resources: %v", err)
