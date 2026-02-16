@@ -58,13 +58,13 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	}
 	resources, err := resource.New(ctx,
 		resource.WithTelemetrySDK(),
-		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		// Add your own custom attributes to identify your application
 		resource.WithAttributes(
 			semconv.ServiceNamespaceKey.String("tesseract"),
 			semconv.ServiceNameKey.String(origin),
 			semconv.ServiceInstanceIDKey.String(instanceID),
 		),
+		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		resource.WithDetectors(gcp.NewDetector()),
 	)
 	if err != nil {
