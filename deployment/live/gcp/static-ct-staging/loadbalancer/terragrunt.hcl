@@ -3,11 +3,10 @@ terraform {
 }
 
 locals {
-  env                      = "staging"
-  project_id               = get_env("GOOGLE_PROJECT", "static-ct-staging")
-  location                 = get_env("GOOGLE_REGION", "us-central1")
-  submission_host_suffixes = [".staging.ct.transparency.dev"]
-  enable_cloud_armor       = true
+  env                = "staging"
+  project_id         = get_env("GOOGLE_PROJECT", "static-ct-staging")
+  location           = get_env("GOOGLE_REGION", "us-central1")
+  enable_cloud_armor = true
   logs = {
     "arche2025h1" = {
       region                 = "us-central1"
