@@ -18,7 +18,7 @@ module "gce-lb-http" {
   ssl                   = true
   // Create one cert per log, wildcard certificates are not supported.
   // Put staging.ct.transparency.dev first for it be used as the Common Name.
-  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], flatten([for sfx in var.submission_host_suffixes: [for log_name, _ in var.logs: "${log_name}${sfx}"]]))
+  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for name, v in var.logs: "${name}${v.submission_host_suffix}"])
   random_certificate_suffix       = true
 
   // Firewalls are defined externally.
@@ -30,7 +30,7 @@ module "gce-lb-http" {
   // Use the Cloud Armor policy, if it's enabled.
   security_policy = one(module.cloud_armor[*].policy.self_link)
 
-  backends = { for name, region in var.logs:
+  backends = { for name, v in var.logs:
     "${name}-backend" => {
       protocol    = "HTTP"
       port        = 80
@@ -55,7 +55,7 @@ module "gce-lb-http" {
       groups = [
         {
           // A Backend group must have beed deployed independently at this URI.
-          group          = "projects/${var.project_id}/regions/${region}/instanceGroups/${name}-instance-group-manager"
+          group          = "projects/${var.project_id}/regions/${v.region}/instanceGroups/${name}-instance-group-manager"
           balancing_mode = "RATE"
           // Based on the most recent load tests /docs/performance.md
           // Caution:
@@ -89,7 +89,7 @@ resource "google_compute_url_map" "url_map" {
     for_each = var.logs
     iterator = log
     content {
-      hosts        = [for sfx in var.submission_host_suffixes: "${log.key}${sfx}"]
+      hosts        = ["${log.key}${log.value.submission_host_suffix}"]
       path_matcher = "${log.key}-path-matcher"
     }
   }

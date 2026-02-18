@@ -5,13 +5,10 @@ variable "project_id" {
 
 variable "logs" {
   description = "Map of log names to regions."
-  type = map(string)
-}
-
-// TODO: this shouldn't be a list really, revert back to a single suffix.
-variable "submission_host_suffixes" {
-  description = "Submission host suffixes, appended to each log name. MUST cover all log origin suffixes as per https://c2sp.org/static-ct-api."
-  type        = string
+  type = map(object({
+  region                 = string
+  submission_host_suffix = string
+  }))
 }
 
 variable "enable_cloud_armor" {

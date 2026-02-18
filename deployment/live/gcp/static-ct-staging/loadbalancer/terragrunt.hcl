@@ -9,9 +9,18 @@ locals {
   submission_host_suffixes = [".staging.ct.transparency.dev"]
   enable_cloud_armor       = true
   logs = {
-    "arche2025h1" = "us-central1"
-    "arche2025h2" = "us-central1"
-    "arche2026h1" = "us-central1"
+    "arche2025h1" = {
+      region                 = "us-central1"
+      submission_host_suffix = ".staging.ct.transparency.dev"
+    }
+    "arche2025h2" = {
+      region                 = "us-central1"
+      submission_host_suffix = ".staging.ct.transparency.dev"
+    }
+    "arche2026h1" = {
+      region                 = "us-central1"
+      submission_host_suffix = ".staging.ct.transparency.dev"
+    }
   }
 }
 
