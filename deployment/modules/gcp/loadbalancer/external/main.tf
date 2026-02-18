@@ -18,7 +18,7 @@ module "gce-lb-http" {
   ssl                   = true
   // Create one cert per log, wildcard certificates are not supported.
   // Put staging.ct.transparency.dev first for it be used as the Common Name.
-  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for log_name in var.log_names : "${log_name}.staging.ct.transparency.dev"])
+  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for log_name, _ in var.logs: "${log_name}.staging.ct.transparency.dev"])
   random_certificate_suffix       = true
 
   // Firewalls are defined externally.
@@ -30,8 +30,8 @@ module "gce-lb-http" {
   // Use the Cloud Armor policy, if it's enabled.
   security_policy = one(module.cloud_armor[*].policy.self_link)
 
-  backends = { for log_name in var.log_names :
-    "${log_name}-backend" => {
+  backends = { for name, region in var.logs:
+    "${name}-backend" => {
       protocol    = "HTTP"
       port        = 80
       port_name   = "http"
@@ -55,7 +55,7 @@ module "gce-lb-http" {
       groups = [
         {
           // A Backend group must have beed deployed independently at this URI.
-          group          = "projects/${var.project_id}/regions/${var.log_location}/instanceGroups/${log_name}-instance-group-manager"
+          group          = "projects/${var.project_id}/regions/${region}/instanceGroups/${name}-instance-group-manager"
           balancing_mode = "RATE"
           // Based on the most recent load tests /docs/performance.md
           // Caution:
@@ -86,20 +86,20 @@ resource "google_compute_url_map" "url_map" {
   }
 
   dynamic "host_rule" {
-    for_each = var.log_names
-    iterator = log_name
+    for_each = var.logs
+    iterator = log
     content {
-      hosts        = ["${log_name.value}${var.submission_host_suffix}"]
-      path_matcher = "${log_name.value}-path-matcher"
+      hosts        = ["${log.key}${var.submission_host_suffix}"]
+      path_matcher = "${log.key}-path-matcher"
     }
   }
 
   dynamic "path_matcher" {
-    for_each = var.log_names
-    iterator = log_name
+    for_each = var.logs
+    iterator = log
 
     content {
-      name = "${log_name.value}-path-matcher"
+      name = "${log.key}-path-matcher"
 
       // TODO(phboneff): point at json once we have it
       default_url_redirect {
@@ -116,7 +116,7 @@ resource "google_compute_url_map" "url_map" {
           "/ct/v1/add-chain",
           "/ct/v1/get-roots",
         ]
-        service = module.gce-lb-http.backend_services["${log_name.value}-backend"].self_link
+        service = module.gce-lb-http.backend_services["${log.key}-backend"].self_link
       }
     }
   }

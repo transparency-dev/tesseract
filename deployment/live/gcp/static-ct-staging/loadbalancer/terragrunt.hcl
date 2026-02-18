@@ -6,10 +6,13 @@ locals {
   env                    = "staging"
   project_id             = get_env("GOOGLE_PROJECT", "static-ct-staging")
   location               = get_env("GOOGLE_REGION", "us-central1")
-  log_location           = get_env("GOOGLE_REGION", "us-central1")
-  log_names              = ["arche2025h1", "arche2025h2", "arche2026h1"]
   submission_host_suffix = ".staging.ct.transparency.dev"
   enable_cloud_armor     = true
+  logs = {
+    "arche2025h1" = "us-central1"
+    "arche2025h2" = "us-central1"
+    "arche2026h1" = "us-central1"
+  }
 }
 
 inputs = local
