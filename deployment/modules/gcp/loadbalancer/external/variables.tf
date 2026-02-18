@@ -8,8 +8,8 @@ variable "logs" {
   type = map(string)
 }
 
-variable "submission_host_suffix" {
-  description = "Submission host suffix, appended to each log name."
+variable "submission_host_suffixes" {
+  description = "Submission host suffixes, appended to each log name. MUST cover all log origin suffixes as per https://c2sp.org/static-ct-api."
   type        = string
 }
 
