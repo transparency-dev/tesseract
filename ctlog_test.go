@@ -26,6 +26,7 @@ import (
 	"net/http/httptest"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -351,10 +352,13 @@ func parsePEM(t *testing.T, pemCert string) *x509.Certificate {
 }
 
 type memoryRootsStorage struct {
-	m map[string][]byte
+	mu sync.RWMutex
+	m  map[string][]byte
 }
 
 func (m *memoryRootsStorage) AddIfNotExist(ctx context.Context, kvs []storage.KV) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	for _, kv := range kvs {
 		m.m[string(kv.K)] = kv.V
 	}
@@ -362,6 +366,8 @@ func (m *memoryRootsStorage) AddIfNotExist(ctx context.Context, kvs []storage.KV
 }
 
 func (m *memoryRootsStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
 	kvs := make([]storage.KV, 0, len(m.m))
 	for k, v := range m.m {
 		kvs = append(kvs, storage.KV{K: []byte(k), V: v})
