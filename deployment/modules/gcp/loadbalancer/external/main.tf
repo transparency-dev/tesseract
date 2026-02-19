@@ -18,7 +18,7 @@ module "gce-lb-http" {
   ssl                   = true
   // Create one cert per log, wildcard certificates are not supported.
   // Put staging.ct.transparency.dev first for it be used as the Common Name.
-  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for name, v in var.logs: "${name}${v.submission_host_suffix}"])
+  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for name, v in var.logs: "${name}.${v.submission_host_suffix}"])
   random_certificate_suffix       = true
 
   // Firewalls are defined externally.
@@ -89,7 +89,7 @@ resource "google_compute_url_map" "url_map" {
     for_each = var.logs
     iterator = log
     content {
-      hosts        = ["${log.key}${log.value.submission_host_suffix}"]
+      hosts        = ["${log.key}.${log.value.submission_host_suffix}"]
       path_matcher = "${log.key}-path-matcher"
     }
   }
