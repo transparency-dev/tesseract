@@ -10,15 +10,15 @@ locals {
   logs = {
     "arche2025h1" = {
       region                 = "us-central1"
-      submission_host_suffix = ".staging.ct.transparency.dev"
+      submission_host_suffix = "staging.ct.transparency.dev"
     }
     "arche2025h2" = {
       region                 = "us-central1"
-      submission_host_suffix = ".staging.ct.transparency.dev"
+      submission_host_suffix = "staging.ct.transparency.dev"
     }
     "arche2026h1" = {
       region                 = "us-central1"
-      submission_host_suffix = ".staging.ct.transparency.dev"
+      submission_host_suffix = "staging.ct.transparency.dev"
     }
   }
 }
