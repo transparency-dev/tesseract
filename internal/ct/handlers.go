@@ -239,6 +239,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
+		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
 		return
 	}

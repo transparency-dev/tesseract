@@ -15,7 +15,10 @@
 package storage
 
 import (
+	"context"
+
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/codes"
 )
 
 const name = "github.com/transparency-dev/tesseract/storage"
@@ -23,3 +26,29 @@ const name = "github.com/transparency-dev/tesseract/storage"
 var (
 	tracer = otel.Tracer(name)
 )
+
+// trace1 executes logic that returns (Value, error).
+func trace1[T any](ctx context.Context, name string, fn func(context.Context) (T, error)) (T, error) {
+	ctx, span := tracer.Start(ctx, name)
+	defer span.End()
+
+	res, err := fn(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+	return res, err
+}
+
+// traceErr executes logic that returns only an error.
+func traceErr(ctx context.Context, name string, fn func(context.Context) error) error {
+	ctx, span := tracer.Start(ctx, name)
+	defer span.End()
+
+	err := fn(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, err.Error())
+	}
+	return err
+}

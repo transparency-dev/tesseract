@@ -99,74 +99,72 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 //
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
 func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.dedupFuture")
-	defer span.End()
-
-	idx, cpRaw, err := cts.awaiter.Await(ctx, f)
-	if err != nil {
-		return 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
-	}
-
-	// A https://c2sp.org/static-ct-api logsize is on the second line
-	l := bytes.SplitN(cpRaw, []byte("\n"), 3)
-	if len(l) < 2 {
-		return 0, errors.New("invalid checkpoint - no size")
-	}
-	ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
-	if err != nil {
-		return 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
-	}
-
-	eBIdx := idx.Index / layout.EntryBundleWidth
-	eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (uint64, error) {
+		idx, cpRaw, err := cts.awaiter.Await(ctx, f)
+		if err != nil {
+			return 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
-		return 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
-	}
-	eIdx := idx.Index % layout.EntryBundleWidth
-	t, err := timestamp(eBRaw, eIdx)
-	if err != nil {
-		return 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
-	}
-	return t, nil
+
+		// A https://c2sp.org/static-ct-api logsize is on the second line
+		l := bytes.SplitN(cpRaw, []byte("\n"), 3)
+		if len(l) < 2 {
+			return 0, errors.New("invalid checkpoint - no size")
+		}
+		ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
+		if err != nil {
+			return 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+		}
+
+		eBIdx := idx.Index / layout.EntryBundleWidth
+		eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
+		if err != nil {
+			if errors.Is(err, os.ErrNotExist) {
+				return 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+			}
+			return 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
+		}
+		eIdx := idx.Index % layout.EntryBundleWidth
+		t, err := timestamp(eBRaw, eIdx)
+		if err != nil {
+			return 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+		}
+		return t, nil
+	})
 }
 
 // Add stores CT entries.
 func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (tessera.IndexFuture, error) {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.Add")
-	defer span.End()
+	return trace1(ctx, "tesseract.storage.Add", func(ctx context.Context) (tessera.IndexFuture, error) {
+		future := cts.storeData(ctx, entry)
 
-	future := cts.storeData(ctx, entry)
-
-	if cts.enableAwaiter {
-		_, _, err := cts.awaiter.Await(ctx, future)
-		if err != nil {
-			return future, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+		if cts.enableAwaiter {
+			_, _, err := cts.awaiter.Await(ctx, future)
+			if err != nil {
+				return future, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+			}
 		}
-	}
 
-	return future, nil
+		return future, nil
+	})
 }
 
 // AddIssuerChain stores every chain certificate under its sha256.
 //
 // If an object is already stored under this hash, continues.
 func (cts *CTStorage) AddIssuerChain(ctx context.Context, chain []*x509.Certificate) error {
-	ctx, span := tracer.Start(ctx, "tesseract.storage.AddIssuerChain")
-	defer span.End()
+	return traceErr(ctx, "tesseract.storage.AddIssuerChain", func(ctx context.Context) error {
 
-	kvs := []KV{}
-	for _, c := range chain {
-		id := sha256.Sum256(c.Raw)
-		key := []byte(hex.EncodeToString(id[:]))
-		kvs = append(kvs, KV{K: key, V: c.Raw})
-	}
-	if err := cts.storeIssuers(ctx, kvs); err != nil {
-		return fmt.Errorf("error storing intermediates: %v", err)
-	}
-	return nil
+		kvs := []KV{}
+		for _, c := range chain {
+			id := sha256.Sum256(c.Raw)
+			key := []byte(hex.EncodeToString(id[:]))
+			kvs = append(kvs, KV{K: key, V: c.Raw})
+		}
+		if err := cts.storeIssuers(ctx, kvs); err != nil {
+			return fmt.Errorf("error storing intermediates: %v", err)
+		}
+		return nil
+	})
 }
 
 // cachedStoreIssuers returns a caching wrapper for an IssuerStorage
