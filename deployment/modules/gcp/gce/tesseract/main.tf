@@ -26,7 +26,7 @@ locals {
 
   # docker_run_args are provided to the docker run command.
   # Use this to configure docker-specific things.
-  docker_run_args = join(" ", compact([
+  docker_run_args = compact([
     # Map the port
     "-p 80:80",
     # Ensure that TesseraCT logs are delivered to GCP logging.
@@ -35,10 +35,10 @@ locals {
     var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
     # Bind-mount the roots file, if one has been provided.
     var.accepted_roots == "" ? "" : "--mount type=bind,src=${local.accepted_roots_file},dst=${local.accepted_roots_file}"
-  ]))
+  ])
 
   # tesseract_args are provided to the tesseract command.
-  tesseract_args = join(" ", [
+  tesseract_args = [
     "-logtostderr",
     "-v=2",
     "-http_endpoint=:80",
@@ -64,7 +64,7 @@ locals {
     length(var.roots_reject_fingerprints) == 0 ? "" : join(" ", formatlist("-roots_reject_fingerprints=%s", var.roots_reject_fingerprints)),
     var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
     length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names))
-  ])
+  ]
 
   container_name = "tesseract-${var.base_name}"
 
@@ -114,7 +114,12 @@ locals {
 
           [Service]
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
-          ExecStart=sudo -u tesseract -E /usr/bin/docker run --rm -u 2000 --name=${local.container_name} ${local.docker_run_args} ${var.server_docker_image} ${local.tesseract_args}
+          ExecStart=sudo -u tesseract -E /usr/bin/docker run \
+            --rm -u 2000 \
+            --name=${local.container_name} \
+            ${var.server_docker_image} \
+            ${join(" \\\n            ", local.docker_run_args)} \
+            ${join(" \\\n            ", local.tesseract_args)}
           ExecStop=sudo -u tesseract /usr/bin/docker stop ${local.container_name}
           ExecStopPost=sudo -u /usr/bin/docker rm ${local.container_name}
           StandardOutput=journal
