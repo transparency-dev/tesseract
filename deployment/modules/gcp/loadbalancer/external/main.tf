@@ -16,9 +16,9 @@ module "gce-lb-http" {
   project               = var.project_id
   load_balancing_scheme = "EXTERNAL"
   ssl                   = true
-  // Create one cert per log, wildcard certificates are not supported.
-  // Put staging.ct.transparency.dev first for it be used as the Common Name.
-  managed_ssl_certificate_domains = concat(["staging.ct.transparency.dev"], [for name, v in var.logs: "${name}.${v.submission_host_suffix}"])
+  // Create a single certificate that covers all log domains, and all submission_host_suffixes.
+  // Wildcard certificates are not suported.
+  managed_ssl_certificate_domains = distinct(flatten([for name, v in var.logs: [v.submission_host_suffix, "${name}.${v.submission_host_suffix}"]]))
   random_certificate_suffix       = true
 
   // Firewalls are defined externally.
