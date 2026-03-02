@@ -94,6 +94,7 @@ var (
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
+	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", false, "Use gRPC-based GCS client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
@@ -116,10 +117,7 @@ func main() {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
 
-	gcsClient, err := gcs.NewGRPCClient(ctx)
-	if err != nil {
-		klog.Exitf("failed to create GCS client: %v", err)
-	}
+	gcsClient := gcsClientFromFlags(ctx)
 	fetchedRootsBackupStorage, err := gcp.NewRootsStorage(ctx, *bucket, gcsClient)
 	if err != nil {
 		klog.Exitf("failed to initialize GCS backup storage for remotely fetched roots: %v", err)
@@ -222,11 +220,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		Timeout: *clientHTTPTimeout,
 	}
 
-	gcsClient, err := gcs.NewGRPCClient(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create GCS client: %v", err)
-	}
-
+	gcsClient := gcsClientFromFlags(ctx)
 	gcpCfg := tgcp.Config{
 		Bucket:     *bucket,
 		Spanner:    *spannerDB,
@@ -357,3 +351,20 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }
+
+func gcsClientFromFlags(ctx context.Context) *gcs.Client {
+	if *gcsUseGRPC {
+		gcsClient, err := gcs.NewGRPCClient(ctx)
+		if err != nil {
+			klog.Exitf("Failed to create gRPC GCS client: %v", err)
+		}
+		return gcsClient
+	}
+
+	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads())
+	if err != nil {
+		klog.Exitf("Failed to create GCS client: %v", err)
+	}
+	return gcsClient
+}
+
