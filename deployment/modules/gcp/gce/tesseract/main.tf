@@ -2,7 +2,7 @@ terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
-      version = "6.50.0"
+      version = ">= 7.0"
     }
   }
 }
@@ -66,7 +66,8 @@ locals {
     length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names))
   ]
 
-  container_name = "tesseract-${var.base_name}"
+  container_name      = "tesseract-${var.base_name}"
+  cached_docker_image = "${google_artifact_registry_repository.tesseract.registry_uri}/${var.server_docker_image}"
 
   // cloud_init is the config used to configure the COS VM.
   //
@@ -117,7 +118,7 @@ locals {
           ExecStart=sudo -u tesseract -E /usr/bin/docker run \
             --rm -u 2000 \
             --name=${local.container_name} \
-            ${var.server_docker_image} \
+            ${local.cached_docker_image} \
             ${join(" \\\n            ", local.docker_run_args)} \
             ${join(" \\\n            ", local.tesseract_args)}
           ExecStop=sudo -u tesseract /usr/bin/docker stop ${local.container_name}
@@ -130,6 +131,27 @@ locals {
       - systemctl start tesseract.service
     EOT
 }
+
+# Set up an artifact registry to cache remote images we depend on via Cloud Run, below.
+#
+# This is intended to guard against the upstream image being unavailable for some reason.
+resource "google_artifact_registry_repository" "tesseract" {
+  location      = var.location
+  repository_id = var.base_name
+  description   = "Remote repository with TesseraCT docker images upstream"
+  format        = "DOCKER"
+  mode          = "REMOTE_REPOSITORY"
+  remote_repository_config {
+    description                 = "Pull-through cache of TesseraCT repository"
+    disable_upstream_validation = true
+    docker_repository {
+      custom_repository {
+        uri = var.docker_repo
+      }
+    }
+  }
+}
+
 
 resource "google_compute_region_instance_template" "tesseract" {
   // Templates cannot be updated, so we generate a new one every time.
