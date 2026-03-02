@@ -41,13 +41,13 @@ variable "env" {
   type        = string
 }
 
-variable "docker_env" {
-  description = "Unique identifier for the Docker env, e.g. dev or ci or prod"
+variable "docker_repo" {
+  description = "The full URL of the docker registry where the TesseraCT docker images can be found"
   type        = string
 }
 
 variable "server_docker_image" {
-  description = "The full image URL (path & tag) for the Docker image to deploy in Cloud Run"
+  description = "The image and tag for the Docker image to deploy, as found in the docker_repo"
   type        = string
 }
 

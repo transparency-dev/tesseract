@@ -28,6 +28,7 @@ module "gce" {
   base_name                                  = var.base_name
   origin                                     = var.origin
   location                                   = var.location
+  docker_repo                                = var.docker_repo
   server_docker_image                        = var.server_docker_image
   machine_type                               = var.machine_type
   not_after_start                            = var.not_after_start
