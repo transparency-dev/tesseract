@@ -118,11 +118,11 @@ locals {
           ExecStart=sudo -u tesseract -E /usr/bin/docker run \
             --rm -u 2000 \
             --name=${local.container_name} \
-            ${local.cached_docker_image} \
             ${join(" \\\n            ", local.docker_run_args)} \
+            ${local.cached_docker_image} \
             ${join(" \\\n            ", local.tesseract_args)}
           ExecStop=sudo -u tesseract /usr/bin/docker stop ${local.container_name}
-          ExecStopPost=sudo -u /usr/bin/docker rm ${local.container_name}
+          ExecStopPost=sudo -u tesseract /usr/bin/docker rm ${local.container_name}
           StandardOutput=journal
           StandardError=journal
 
