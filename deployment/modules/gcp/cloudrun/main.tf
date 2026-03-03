@@ -24,7 +24,7 @@ resource "google_cloud_run_v2_service" "default" {
   name         = var.base_name
   location     = var.location
   launch_stage = "GA"
-  ingress      = "INGRESS_TRAFFIC_ALL"
+  ingress      = "INGRESS_TRAFFIC_INTERNAL_ONLY"
 
   template {
     service_account                  = "${local.cloudrun_service_account_id}@${var.project_id}.iam.gserviceaccount.com"
