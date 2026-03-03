@@ -35,6 +35,10 @@ resource "google_cloud_run_v2_service" "default" {
       min_instance_count = 2
     }
 
+    annotations = {
+      "run.googleapis.com/ingress" = "internal"
+    }
+
     containers {
       image = var.server_docker_image
       name  = "tesseract"
