@@ -20,6 +20,7 @@ locals {
   log_public_key_secret_name                 = "projects/${include.root.locals.project_id}/secrets/${local.base_name}-ecdsa-p256-public-key/versions/1"  # Legacy key name pattern.
   log_private_key_secret_name                = "projects/${include.root.locals.project_id}/secrets/${local.base_name}-ecdsa-p256-private-key/versions/1" # Legacy key name pattern.
   additional_signer_private_key_secret_names = ["projects/${include.root.locals.project_id}/secrets/${local.base_name}-ed25519-private-key/versions/1"]
+  gcs_use_grpc                               = true
 }
 
 include "root" {

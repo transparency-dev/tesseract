@@ -167,3 +167,9 @@ variable "roots_reject_fingerprints" {
   type        = list(string)
   default     = []
 }
+
+variable "gcs_use_grpc" {
+  description = "Use gRPC for GCS access."
+  type        = bool
+  default     = false
+}
