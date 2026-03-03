@@ -13,7 +13,7 @@ locals {
   server_docker_image                        = "tesseract-gcp:${include.root.locals.docker_container_tag}"
   docker_repo                                = "https://${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}"
   spanner_pu                                 = 500
-  trace_fraction                             = 0.1
+  trace_fraction                             = 0.002
   create_internal_load_balancer              = true
   public_bucket                              = true
   rate_limit_old_not_before                  = "28h:150"
