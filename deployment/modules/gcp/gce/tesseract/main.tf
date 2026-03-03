@@ -144,9 +144,18 @@ resource "google_artifact_registry_repository" "tesseract" {
   remote_repository_config {
     description                 = "Pull-through cache of TesseraCT repository"
     disable_upstream_validation = true
-    docker_repository {
-      custom_repository {
-        uri = var.docker_repo
+    dynamic common_repository {
+      for_each = can(regex(".*docker.pkg.dev.*", var.docker_repo)) ? [1] : []
+      content {
+        uri   = var.docker_repo
+      }
+    }
+    dynamic docker_repository {
+      for_each = can(regex(".*docker.pkg.dev.*", var.docker_repo)) ? [] : [1]
+      content {
+        custom_repository {
+          uri   = var.docker_repo
+        }
       }
     }
   }
