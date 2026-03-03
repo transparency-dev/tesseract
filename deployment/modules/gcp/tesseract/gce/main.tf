@@ -52,6 +52,7 @@ module "gce" {
   roots_remote_fetch_url                     = var.roots_remote_fetch_url
   roots_remote_fetch_interval                = var.roots_remote_fetch_interval
   roots_reject_fingerprints                  = var.roots_reject_fingerprints
+  gcs_use_grpc                               = var.gcs_use_grpc
 
   depends_on = [
     module.storage
