@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os"
 
+	t_otel "github.com/transparency-dev/tesseract/internal/otel"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -28,6 +29,7 @@ import (
 
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+
 	"github.com/google/uuid"
 	"k8s.io/klog/v2"
 )
@@ -99,7 +101,7 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	}
 	// initialize a TracerProvier that periodically exports to the GCP exporter.
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(sdktrace.TraceIDRatioBased(traceFraction)),
+		sdktrace.WithSampler(t_otel.NewAttributeSampler([]string{"tessera.periodic"}, sdktrace.TraceIDRatioBased(traceFraction))),
 		sdktrace.WithBatcher(te),
 		sdktrace.WithResource(resources),
 	)
