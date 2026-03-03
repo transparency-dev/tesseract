@@ -277,8 +277,8 @@ github.com/transparency-dev/formats v0.1.0 h1:oL0zUFuYUjg8AbtjPMnIRDmjbaHo5jCjEW
 github.com/transparency-dev/formats v0.1.0/go.mod h1:d2FibUOHfCMdCe/+/rbKt1IPLBbPTDfwj46kt541/mU=
 github.com/transparency-dev/merkle v0.0.2 h1:Q9nBoQcZcgPamMkGn7ghV8XiTZ/kRxn1yCG81+twTK4=
 github.com/transparency-dev/merkle v0.0.2/go.mod h1:pqSy+OXefQ1EDUVmAJ8MUhHB9TXGuzVAT58PqBoHz1A=
-github.com/transparency-dev/tessera v1.0.3-0.20260303130642-a6c6cf514da0 h1:lQQ/iWFOrYiGU69bs9Api+TJlRKfMeddplpk4wKhZ2A=
-github.com/transparency-dev/tessera v1.0.3-0.20260303130642-a6c6cf514da0/go.mod h1:sxP78d0fIX8VlELBlacizsBHZwm8mrOSybn3AM/WxWk=
+github.com/transparency-dev/tessera v1.0.3-0.20260303172654-b64a6fdf82f4 h1:aNC1jwA7QMPEzLB0LTgICJKsm0pyiDSzOrCtzS46VwU=
+github.com/transparency-dev/tessera v1.0.3-0.20260303172654-b64a6fdf82f4/go.mod h1:sxP78d0fIX8VlELBlacizsBHZwm8mrOSybn3AM/WxWk=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e h1:JVG44RsyaB9T2KIHavMF/ppJZNG9ZpyihvCd0w101no=
 github.com/xo/terminfo v0.0.0-20220910002029-abceb7e1c41e/go.mod h1:RbqR21r5mrJuqunuUZ/Dhy/avygyECGrLceyNeo4LiM=
 github.com/yuin/goldmark v1.4.13/go.mod h1:6yULJ656Px+3vBD8DxQVa3kxgyrAnzto9xy5taEt/CY=
