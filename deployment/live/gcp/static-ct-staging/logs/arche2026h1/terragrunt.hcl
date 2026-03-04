@@ -16,6 +16,7 @@ locals {
   trace_fraction                             = 0.002
   create_internal_load_balancer              = true
   public_bucket                              = true
+  machine_type                               = "n2-standard-8"
   rate_limit_old_not_before                  = "28h:150"
   log_public_key_secret_name                 = "projects/${include.root.locals.project_id}/secrets/${local.base_name}-ecdsa-p256-public-key/versions/1"  # Legacy key name pattern.
   log_private_key_secret_name                = "projects/${include.root.locals.project_id}/secrets/${local.base_name}-ecdsa-p256-private-key/versions/1" # Legacy key name pattern.
