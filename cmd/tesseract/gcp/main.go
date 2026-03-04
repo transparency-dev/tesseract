@@ -29,6 +29,7 @@ import (
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/spanner"
 	gcs "cloud.google.com/go/storage"
 	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
@@ -39,6 +40,7 @@ import (
 	"github.com/transparency-dev/tesseract/storage/gcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
+	"google.golang.org/api/option"
 	"k8s.io/klog/v2"
 )
 
@@ -97,6 +99,7 @@ var (
 	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", false, "Use gRPC-based GCS client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
+	spannerConnections         = flag.Int("spanner_sessions", 100, "Number of Spanner connections to configure.")
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
@@ -220,12 +223,17 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 		Timeout: *clientHTTPTimeout,
 	}
 
+	spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
+	}
+
 	gcsClient := gcsClientFromFlags(ctx)
 	gcpCfg := tgcp.Config{
-		Bucket:     *bucket,
-		Spanner:    *spannerDB,
-		HTTPClient: hc,
-		GCSClient:  gcsClient,
+		Bucket:        *bucket,
+		SpannerClient: spannerClient,
+		HTTPClient:    hc,
+		GCSClient:     gcsClient,
 	}
 
 	driver, err := tgcp.New(ctx, gcpCfg)
@@ -367,4 +375,3 @@ func gcsClientFromFlags(ctx context.Context) *gcs.Client {
 	}
 	return gcsClient
 }
-
