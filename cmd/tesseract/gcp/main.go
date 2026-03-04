@@ -231,6 +231,7 @@ func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage,
 	gcsClient := gcsClientFromFlags(ctx)
 	gcpCfg := tgcp.Config{
 		Bucket:        *bucket,
+		Spanner:       *spannerDB,
 		SpannerClient: spannerClient,
 		HTTPClient:    hc,
 		GCSClient:     gcsClient,
