@@ -119,6 +119,7 @@ locals {
           [Service]
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
           ExecStart=sudo -u tesseract -E /usr/bin/docker run \
+            -e GOEXPERIMENT=goroutineleakprofile \
             --rm -u 2000 \
             --name=${local.container_name} \
             ${join(" \\\n            ", local.docker_run_args)} \
