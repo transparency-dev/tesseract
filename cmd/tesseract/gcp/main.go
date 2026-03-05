@@ -90,8 +90,8 @@ var (
 	pushbackMaxOutstanding      = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxAntispamLag      = flag.Uint("pushback_max_antispam_lag", gcp_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returning pushback.")
 	clientHTTPTimeout           = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
-	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
-	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
+	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 200, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 200, "Maximum number of idle HTTP connections per host for outgoing requests.")
 	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
 
 	// Infrastructure setup flags
