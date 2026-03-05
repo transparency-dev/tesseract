@@ -204,6 +204,7 @@ resource "google_compute_region_instance_template" "tesseract" {
   metadata = {
     google-logging-enabled    = "true"
     google-monitoring-enabled = "true"
+    enable-oslogin            = "true"
     user-data                 = local.cloud_init
   }
 
