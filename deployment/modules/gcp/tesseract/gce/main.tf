@@ -53,6 +53,7 @@ module "gce" {
   roots_remote_fetch_interval                = var.roots_remote_fetch_interval
   roots_reject_fingerprints                  = var.roots_reject_fingerprints
   gcs_use_grpc                               = var.gcs_use_grpc
+  garbage_collection_interval                = var.garbage_collection_interval
 
   depends_on = [
     module.storage

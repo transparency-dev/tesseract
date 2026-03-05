@@ -173,3 +173,9 @@ variable "gcs_use_grpc" {
   type        = bool
   default     = false
 }
+
+variable "garbage_collection_interval" {
+  description = "Interval between garbage collection runs, e.g. \"10s\"."
+  type        = string
+  default     = null
+}

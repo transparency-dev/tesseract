@@ -64,7 +64,8 @@ locals {
     length(var.roots_reject_fingerprints) == 0 ? "" : join(" ", formatlist("-roots_reject_fingerprints=%s", var.roots_reject_fingerprints)),
     var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
     length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names)),
-    "-gcs_use_grpc=${var.gcs_use_grpc}"
+    "-gcs_use_grpc=${var.gcs_use_grpc}",
+    var.garbage_collection_interval == null ? "" : "-garbage_collection_interval=${var.garbage_collection_interval}"
   ]
 
   container_name      = "tesseract-${var.base_name}"
