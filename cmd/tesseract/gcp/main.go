@@ -97,6 +97,7 @@ var (
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
 	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", false, "Use gRPC-based GCS client.")
+	gcsConnections             = flag.Int("gcs_connections", 100, "Size of connection pool for GCS gRPC client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerConnections         = flag.Int("spanner_sessions", 100, "Number of Spanner connections to configure.")
@@ -364,6 +365,7 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 func gcsClientFromFlags(ctx context.Context) *gcs.Client {
 	if *gcsUseGRPC {
 		gcsClient, err := gcs.NewGRPCClient(ctx)
+		gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
 		if err != nil {
 			klog.Exitf("Failed to create gRPC GCS client: %v", err)
 		}
