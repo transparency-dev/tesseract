@@ -21,6 +21,7 @@ import (
 
 	t_otel "github.com/transparency-dev/tesseract/internal/otel"
 	"go.opentelemetry.io/contrib/detectors/gcp"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
@@ -108,5 +109,10 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
 	otel.SetTracerProvider(tp)
 
+	// 	https://github.com/open-telemetry/opentelemetry-go-contrib
+
+	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		klog.Exitf("Failed to start exporting Go runtime metrics: %v", err)
+	}
 	return shutdown
 }
