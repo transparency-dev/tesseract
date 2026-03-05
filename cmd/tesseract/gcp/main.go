@@ -90,13 +90,14 @@ var (
 	pushbackMaxOutstanding      = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxAntispamLag      = flag.Uint("pushback_max_antispam_lag", gcp_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returning pushback.")
 	clientHTTPTimeout           = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
-	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
-	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
+	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 200, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 200, "Maximum number of idle HTTP connections per host for outgoing requests.")
 	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
 	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", false, "Use gRPC-based GCS client.")
+	gcsConnections             = flag.Int("gcs_connections", 100, "Size of connection pool for GCS gRPC client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerConnections         = flag.Int("spanner_sessions", 100, "Number of Spanner connections to configure.")
@@ -120,7 +121,16 @@ func main() {
 		klog.Exitf("Can't create secret manager signer: %v", err)
 	}
 
-	gcsClient := gcsClientFromFlags(ctx)
+	hc := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        *clientHTTPMaxIdle,
+			MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
+			DisableKeepAlives:   false,
+		},
+		Timeout: *clientHTTPTimeout,
+	}
+
+	gcsClient := gcsClientFromFlags(ctx, hc)
 	fetchedRootsBackupStorage, err := gcp.NewRootsStorage(ctx, *bucket, gcsClient)
 	if err != nil {
 		klog.Exitf("failed to initialize GCS backup storage for remotely fetched roots: %v", err)
@@ -151,7 +161,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		NotBeforeRL: notBeforeRLFromFlags(),
 		DedupRL:     dedupRL,
 	}
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage(gcsClient, hc), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
@@ -205,116 +215,108 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newGCPStorage(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-	if *bucket == "" {
-		return nil, errors.New("missing bucket")
-	}
+func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+		if *bucket == "" {
+			return nil, errors.New("missing bucket")
+		}
 
-	if *spannerDB == "" {
-		return nil, errors.New("missing spannerDB")
-	}
+		if *spannerDB == "" {
+			return nil, errors.New("missing spannerDB")
+		}
 
-	hc := &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        *clientHTTPMaxIdle,
-			MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
-			DisableKeepAlives:   false,
-		},
-		Timeout: *clientHTTPTimeout,
-	}
-
-	spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
-	}
-
-	gcsClient := gcsClientFromFlags(ctx)
-	gcpCfg := tgcp.Config{
-		Bucket:        *bucket,
-		Spanner:       *spannerDB,
-		SpannerClient: spannerClient,
-		HTTPClient:    hc,
-		GCSClient:     gcsClient,
-	}
-
-	driver, err := tgcp.New(ctx, gcpCfg)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP Tessera storage driver: %v", err)
-	}
-
-	var antispam tessera.Antispam
-	if *spannerAntispamDB != "" {
-		antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, gcp_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
+		spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
 		if err != nil {
-			return nil, fmt.Errorf("failed to create new GCP antispam storage: %v", err)
+			return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
 		}
-	}
 
-	antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
-	if unit != "" {
-		return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
-	}
-	if error != nil {
-		return nil, fmt.Errorf("invalid antispam cache size: %v", error)
-	}
+		gcpCfg := tgcp.Config{
+			Bucket:        *bucket,
+			Spanner:       *spannerDB,
+			SpannerClient: spannerClient,
+			HTTPClient:    hc,
+			GCSClient:     gc,
+		}
 
-	var extraSigners []note.Signer
-	for _, as := range additionalSigners {
-		s, err := NewSecretManagerNoteSigner(ctx, as)
+		driver, err := tgcp.New(ctx, gcpCfg)
 		if err != nil {
-			return nil, fmt.Errorf("failed to instantiate additional signer: %v", err)
+			return nil, fmt.Errorf("failed to initialize GCP Tessera storage driver: %v", err)
 		}
-		extraSigners = append(extraSigners, s)
-	}
 
-	opts := tessera.NewAppendOptions().
-		WithCheckpointSigner(signer, extraSigners...).
-		WithCTLayout().
-		WithAntispam(uint(antispamCacheSize), antispam).
-		WithCheckpointInterval(*checkpointInterval).
-		WithCheckpointRepublishInterval(*checkpointRepublishInterval).
-		WithBatching(*batchMaxSize, *batchMaxAge).
-		WithPushback(*pushbackMaxOutstanding).
-		WithGarbageCollectionInterval(*garbageCollectionInterval)
+		var antispam tessera.Antispam
+		if *spannerAntispamDB != "" {
+			antispam, err = gcp_as.NewAntispam(ctx, *spannerAntispamDB, gcp_as.AntispamOpts{PushbackThreshold: *pushbackMaxAntispamLag})
+			if err != nil {
+				return nil, fmt.Errorf("failed to create new GCP antispam storage: %v", err)
+			}
+		}
 
-	if *witnessPolicyFile != "" {
-		f, err := os.ReadFile(*witnessPolicyFile)
+		antispamCacheSize, unit, error := humanize.ParseSI(*inMemoryAntispamCacheSize)
+		if unit != "" {
+			return nil, fmt.Errorf("invalid antispam cache size, used unit %q, want none", unit)
+		}
+		if error != nil {
+			return nil, fmt.Errorf("invalid antispam cache size: %v", error)
+		}
+
+		var extraSigners []note.Signer
+		for _, as := range additionalSigners {
+			s, err := NewSecretManagerNoteSigner(ctx, as)
+			if err != nil {
+				return nil, fmt.Errorf("failed to instantiate additional signer: %v", err)
+			}
+			extraSigners = append(extraSigners, s)
+		}
+
+		opts := tessera.NewAppendOptions().
+			WithCheckpointSigner(signer, extraSigners...).
+			WithCTLayout().
+			WithAntispam(uint(antispamCacheSize), antispam).
+			WithCheckpointInterval(*checkpointInterval).
+			WithCheckpointRepublishInterval(*checkpointRepublishInterval).
+			WithBatching(*batchMaxSize, *batchMaxAge).
+			WithPushback(*pushbackMaxOutstanding).
+			WithGarbageCollectionInterval(*garbageCollectionInterval)
+
+		if *witnessPolicyFile != "" {
+			f, err := os.ReadFile(*witnessPolicyFile)
+			if err != nil {
+				return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+			}
+			wg, err := tessera.NewWitnessGroupFromPolicy(f)
+			if err != nil {
+				return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			}
+
+			// Don't block if witnesses are unavailable.
+			wOpts := &tessera.WitnessOptions{
+				FailOpen: true,
+				Timeout:  *witnessTimeout,
+			}
+			opts.WithWitnesses(wg, wOpts)
+		}
+
+		// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
+		// when it's time to exit.
+		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
-			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
+			return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 		}
-		wg, err := tessera.NewWitnessGroupFromPolicy(f)
+
+		issuerStorage, err := gcp.NewIssuerStorage(ctx, *bucket, gc)
 		if err != nil {
-			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
 		}
 
-		// Don't block if witnesses are unavailable.
-		wOpts := &tessera.WitnessOptions{
-			FailOpen: true,
-			Timeout:  *witnessTimeout,
+		sopts := storage.CTStorageOptions{
+			Appender:      appender,
+			Reader:        reader,
+			IssuerStorage: issuerStorage,
+			EnableAwaiter: *enablePublicationAwaiter,
 		}
-		opts.WithWitnesses(wg, wOpts)
-	}
 
-	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
-	// when it's time to exit.
-	appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
+		return storage.NewCTStorage(ctx, &sopts)
 	}
-
-	issuerStorage, err := gcp.NewIssuerStorage(ctx, *bucket, gcsClient)
-	if err != nil {
-		return nil, fmt.Errorf("failed to initialize GCP issuer storage: %v", err)
-	}
-
-	sopts := storage.CTStorageOptions{
-		Appender:      appender,
-		Reader:        reader,
-		IssuerStorage: issuerStorage,
-		EnableAwaiter: *enablePublicationAwaiter,
-	}
-
-	return storage.NewCTStorage(ctx, &sopts)
 }
 
 type timestampFlag struct {
@@ -361,16 +363,16 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }
 
-func gcsClientFromFlags(ctx context.Context) *gcs.Client {
+func gcsClientFromFlags(ctx context.Context, httpClient *http.Client) *gcs.Client {
 	if *gcsUseGRPC {
-		gcsClient, err := gcs.NewGRPCClient(ctx)
+		gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
 		if err != nil {
 			klog.Exitf("Failed to create gRPC GCS client: %v", err)
 		}
 		return gcsClient
 	}
 
-	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads())
+	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads(), option.WithHTTPClient(httpClient))
 	if err != nil {
 		klog.Exitf("Failed to create GCS client: %v", err)
 	}
