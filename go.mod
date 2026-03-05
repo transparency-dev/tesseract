@@ -4,6 +4,7 @@ go 1.25.0
 
 require (
 	cloud.google.com/go/secretmanager v1.16.0
+	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.60.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric v0.55.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.31.0
@@ -31,6 +32,7 @@ require (
 	github.com/transparency-dev/tessera v1.0.3-0.20260304181934-701f15667481
 	go.opentelemetry.io/contrib/detectors/gcp v1.41.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.65.0
+	go.opentelemetry.io/contrib/instrumentation/runtime v0.66.0
 	go.opentelemetry.io/otel v1.41.0
 	go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp v1.40.0
 	go.opentelemetry.io/otel/metric v1.41.0
@@ -57,7 +59,6 @@ require (
 	cloud.google.com/go/longrunning v0.8.0 // indirect
 	cloud.google.com/go/monitoring v1.24.3 // indirect
 	cloud.google.com/go/pubsub/v2 v2.4.0 // indirect
-	cloud.google.com/go/spanner v1.88.0 // indirect
 	cloud.google.com/go/trace v1.11.7 // indirect
 	filippo.io/edwards25519 v1.1.1 // indirect
 	github.com/GoogleCloudPlatform/grpc-gcp-go/grpcgcp v1.6.0 // indirect
