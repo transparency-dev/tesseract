@@ -36,8 +36,9 @@ locals {
     var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
     # Bind-mount the roots file, if one has been provided.
     var.accepted_roots == "" ? "" : "--mount type=bind,src=${local.accepted_roots_file},dst=${local.accepted_roots_file}",
-    # Bind-mount the grpc observation config file, if one has been provided.
-    var.grpc_obs_config == "" ? "" : "--mount type=bind,src=${local.grpc_obs_config_file},dst=${local.grpc_obs_config_file}"
+    # Bind-mount the grpc observation config file and set env vars, if one has been provided.
+    var.grpc_obs_config == "" ? "" : "--mount type=bind,src=${local.grpc_obs_config_file},dst=${local.grpc_obs_config_file}",
+    var.grpc_obs_config  == "" ? "" : "-e GRPC_GCP_OBSERVABILITY_CONFIG_FILE=${local.grpc_obs_config_file}"
   ])
 
   # tesseract_args are provided to the tesseract command.
@@ -124,7 +125,6 @@ locals {
           After=gcr-online.target docker.socket config-firewall.service
 
           [Service]
-          ${var.grpc_obs_config == "" ? "" : "Environment=GRPC_GCP_OBSERVABILITY_CONFIG_FILE=${local.grpc_obs_config_file}"}
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
           ExecStart=sudo -u tesseract -E /usr/bin/docker run \
             --rm -u 2000 \
