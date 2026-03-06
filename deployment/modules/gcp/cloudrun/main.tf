@@ -92,3 +92,4 @@ resource "google_cloud_run_v2_service" "default" {
     google_project_service.cloudrun_api,
   ]
 }
+
