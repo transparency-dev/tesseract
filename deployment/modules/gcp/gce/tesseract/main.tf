@@ -124,7 +124,7 @@ locals {
           After=gcr-online.target docker.socket config-firewall.service
 
           [Service]
-          Environment="GRPC_GCP_OBSERVABILITY_CONFIG_FILE=${local.grpc_obs_config_file}"
+          ${var.grpc_obs_config == "" ? "" : "Environment=GRPC_GCP_OBSERVABILITY_CONFIG_FILE=${local.grpc_obs_config_file}"}
           ExecStartPre=sudo -u tesseract /usr/bin/docker-credential-gcr configure-docker --registries ${var.location}-docker.pkg.dev
           ExecStart=sudo -u tesseract -E /usr/bin/docker run \
             --rm -u 2000 \
