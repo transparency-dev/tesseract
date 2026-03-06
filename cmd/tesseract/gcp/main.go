@@ -118,7 +118,7 @@ func main() {
 	defer shutdownOTel(ctx)
 	err := observability.Start(context.Background())
 	if err != nil {
-		klog.Exitf("failed to start GCP gRPC observability: %v", err)
+		klog.Warningf("failed to start GCP gRPC observability: %v", err)
 	}
 	defer observability.End()
 
