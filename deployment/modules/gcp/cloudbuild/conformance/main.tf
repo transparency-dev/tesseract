@@ -225,6 +225,7 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           --log_url="https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)/" \
           --write_log_url="$(cat /workspace/conformance_url)/${local.origin}" \
           -v=1 \
+          --gcs_use_grpc = true \
           --show_ui=false \
           --bearer_token="$(cat /workspace/cb_access)" \
           --bearer_token_write="$(cat /workspace/cb_identity)" \
