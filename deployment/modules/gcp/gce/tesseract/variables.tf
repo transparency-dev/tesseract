@@ -170,8 +170,3 @@ variable "garbage_collection_interval" {
   default     = null
 }
 
-variable "grpc_obs_config" {
-  description = "Configuration file for grpc-go observability."
-  type        = string
-  default     = ""
-}
