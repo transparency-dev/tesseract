@@ -108,6 +108,7 @@ var (
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
+	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 )
 
 // nolint:staticcheck
@@ -116,7 +117,9 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	handler := slog.NewJSONHandler(os.Stderr, nil)
+	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.Level(*slogLevel),
+	})
 	slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
