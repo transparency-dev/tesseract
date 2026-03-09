@@ -44,7 +44,7 @@ locals {
   # tesseract_args are provided to the tesseract command.
   tesseract_args = [
     "-logtostderr",
-    "-v=2",
+    "-v=0",
     "-http_endpoint=:80",
     "-bucket=${var.bucket}",
     "-spanner_db_path=${local.spanner_log_db_path}",
