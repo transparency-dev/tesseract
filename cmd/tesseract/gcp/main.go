@@ -20,6 +20,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -36,6 +37,7 @@ import (
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
 	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
 	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/gcp"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -105,7 +107,8 @@ var (
 	signerPublicKeySecretName  = flag.String("signer_public_key_secret_name", "", "Public key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
-	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter. This is only required for local runs.")
+	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
+	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 )
 
 // nolint:staticcheck
@@ -113,6 +116,11 @@ func main() {
 	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+
+	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.Level(*slogLevel),
+	})
+	slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
