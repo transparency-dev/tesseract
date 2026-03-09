@@ -6,7 +6,6 @@ locals {
   origin_suffix        = get_env("TESSERA_ORIGIN_SUFFIX", ".staging.ct.transparency.dev")
   docker_container_tag = get_env("DOCKER_CONTAINER_TAG", "latest")
   witness_policy       = file("./witness.policy")
-  grpc_obs_config      = file("./grpc-obs.json")
 }
 
 remote_state {

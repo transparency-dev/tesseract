@@ -54,7 +54,6 @@ module "gce" {
   roots_reject_fingerprints                  = var.roots_reject_fingerprints
   gcs_use_grpc                               = var.gcs_use_grpc
   garbage_collection_interval                = var.garbage_collection_interval
-  grpc_obs_config                            = var.grpc_obs_config
 
   depends_on = [
     module.storage

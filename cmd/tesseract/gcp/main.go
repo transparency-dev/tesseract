@@ -43,7 +43,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc/gcp/observability"
 	"k8s.io/klog/v2"
 )
 
@@ -124,11 +123,6 @@ func main() {
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
-	err := observability.Start(context.Background())
-	if err != nil {
-		klog.Warningf("failed to start GCP gRPC observability: %v", err)
-	}
-	defer observability.End()
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {

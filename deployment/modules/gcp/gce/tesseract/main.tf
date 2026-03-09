@@ -23,7 +23,6 @@ locals {
 
   witness_policy_file = "/etc/tesseract-witness.policy"
   accepted_roots_file = "/etc/roots.pem"
-  grpc_obs_config_file = "/etc/grpc-obs.json"
 
   # docker_run_args are provided to the docker run command.
   # Use this to configure docker-specific things.
@@ -36,9 +35,6 @@ locals {
     var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
     # Bind-mount the roots file, if one has been provided.
     var.accepted_roots == "" ? "" : "--mount type=bind,src=${local.accepted_roots_file},dst=${local.accepted_roots_file}",
-    # Bind-mount the grpc observation config file and set env vars, if one has been provided.
-    var.grpc_obs_config == "" ? "" : "--mount type=bind,src=${local.grpc_obs_config_file},dst=${local.grpc_obs_config_file}",
-    var.grpc_obs_config  == "" ? "" : "-e GRPC_GCP_OBSERVABILITY_CONFIG_FILE=${local.grpc_obs_config_file}"
   ])
 
   # tesseract_args are provided to the tesseract command.
@@ -100,11 +96,6 @@ locals {
         owner: root
         encoding: b64
         content: ${base64encode(var.accepted_roots)}
-      - path: ${local.grpc_obs_config_file}
-        permissions: 0444
-        owner: root
-        encoding: b64
-        content: ${base64encode(var.grpc_obs_config)}
       - path: /etc/systemd/system/config-firewall.service
         permissions: 0644
         owner: root
