@@ -40,6 +40,16 @@ func (s *AttributeSampler) ShouldSample(p sdktrace.SamplingParameters) sdktrace.
 	// Always extract the parent span context to get the tracestate.
 	psc := trace.SpanContextFromContext(p.ParentContext)
 
+	// Always sample children of sampled parents.
+	if psc.IsSampled() {
+		return sdktrace.SamplingResult{
+			Decision:   sdktrace.RecordAndSample,
+			Attributes: p.Attributes,
+			// Critical: preserve the parent's tracestate
+			Tracestate: psc.TraceState(),
+		}
+	}
+
 	// Check for "always" attributes and sample if one is present:
 	for _, attr := range p.Attributes {
 		if _, found := s.always[string(attr.Key)]; found {
