@@ -133,7 +133,11 @@ func main() {
 		if err != nil {
 			klog.Exitf("Failed to create Cloud Logging client: %v", err)
 		}
-		defer logClient.Close()
+		defer func() {
+			if err := logClient.Close(); err != nil {
+				klog.Errorf("Failed to close Cloud Logging client: %v", err)
+			}
+		}()
 
 		logWriter = &cloudLoggingWriter{
 			logger: logClient.Logger("tesseract"),
