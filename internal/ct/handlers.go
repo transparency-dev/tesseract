@@ -15,13 +15,13 @@
 package ct
 
 import (
+	"bytes"
 	"context"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"math/rand/v2"
 	"net/http"
@@ -367,23 +367,44 @@ func (opts *HandlerOptions) sendHTTPError(w http.ResponseWriter, statusCode int,
 	http.Error(w, errorBody, statusCode)
 }
 
+// bufferPool holds a pool of bytes.Buffer instances which can be reused across requests to avoid allocs.
+var bufferPool = sync.Pool{
+	New: func() any {
+		return new(bytes.Buffer)
+	},
+}
+
+// getBuffer returns a bytes.Buffer instance from the bufferPool.
+// Callers should return instances to the pool using the returnBuffer func.
+func getBuffer() *bytes.Buffer {
+	buf := bufferPool.Get().(*bytes.Buffer)
+	buf.Reset()
+	return buf
+}
+
+func returnBuffer(b *bytes.Buffer) {
+	bufferPool.Put(b)
+}
+
 // parseBodyAsJSONChain tries to extract cert-chain out of request.
 func parseBodyAsJSONChain(r *http.Request) (rfc6962.AddChainRequest, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
+	buf := getBuffer()
+	defer returnBuffer(buf)
+
+	if _, err := buf.ReadFrom(r.Body); err != nil {
 		klog.V(1).Infof("Failed to read request body: %v", err)
 		return rfc6962.AddChainRequest{}, err
 	}
 
 	var req rfc6962.AddChainRequest
-	if err := json.Unmarshal(body, &req); err != nil {
+	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
 		klog.V(1).Infof("Failed to parse request body: %v", err)
 		return rfc6962.AddChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		klog.V(1).Infof("Request chain is empty: %q", body)
+		klog.V(1).Infof("Request chain is empty: %q", buf.Bytes())
 		return rfc6962.AddChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -443,6 +464,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	if err != nil {
 		return http.StatusBadRequest, nil, fmt.Errorf("failed to build MerkleTreeLeaf: %s", err)
 	}
+	defer x509util.ReturnEntry(entry) // Return entry to the pool once we're done with it.
 
 	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %s", err)
@@ -574,14 +596,8 @@ func marshalAndWriteAddChainResponse(sct *rfc6962.SignedCertificateTimestamp, w 
 	}
 
 	w.Header().Set(contentTypeHeader, contentTypeJSON)
-	jsonData, err := json.Marshal(&rsp)
-	if err != nil {
-		return fmt.Errorf("failed to marshal add-chain: %s", err)
-	}
-
-	_, err = w.Write(jsonData)
-	if err != nil {
-		return fmt.Errorf("failed to write add-chain resp: %s", err)
+	if err := json.NewEncoder(w).Encode(&rsp); err != nil {
+		return fmt.Errorf("failed to marshal and write add-chain response: %s", err)
 	}
 
 	return nil

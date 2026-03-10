@@ -367,6 +367,7 @@ func (v *MMDVerifier) Run(ctx context.Context) {
 			v.errChan <- fmt.Errorf("failed to create entry from chain: %v", err)
 			continue
 		}
+		x509util.ReturnEntry(entry)
 		leafHash := entry.MerkleLeafHash(leafMMD.index)
 		if err := proof.VerifyInclusion(hasher.DefaultHasher, leafMMD.index, checkpoint.Size, leafHash, ip, checkpoint.Hash); err != nil {
 			v.errChan <- fmt.Errorf("failed to verify inclusion proof: %v", err)

@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 	"time"
 
 	"github.com/transparency-dev/tessera/ctonly"
@@ -184,30 +185,62 @@ func RemoveCTPoison(tbsData []byte) ([]byte, error) {
 	return BuildPrecertTBS(tbsData, nil)
 }
 
+// entryPool holds ctonly.Entry instances which can be re-used across requests.
+var entryPool = sync.Pool{
+	New: func() any {
+		return &ctonly.Entry{}
+	},
+}
+
+// ReturnEntry returns an Entry back to the pool for reuse.
+func ReturnEntry(e *ctonly.Entry) {
+	if e != nil {
+		entryPool.Put(e)
+	}
+}
+
+// newEntryFromPool returns an Entry instance from entryPool.
+// The fields of the instance will be reset to default values, with the exception of FingerprintsChain
+// which is guaranteed to have at least enough capacity to have fpLen entries appended to it.
+//
+// Instances returned by this function should be returned to the pool via ReturnEntry func above.
+func newEntryFromPool(fpLen int) *ctonly.Entry {
+	r := entryPool.Get().(*ctonly.Entry)
+	r.IssuerKeyHash = nil
+	r.Precertificate = nil
+	r.Certificate = nil
+	if cap(r.FingerprintsChain) < fpLen {
+		r.FingerprintsChain = make([][32]byte, 0, fpLen)
+	} else {
+		r.FingerprintsChain = r.FingerprintsChain[:0]
+	}
+	return r
+}
+
 // EntryFromChain generates an Entry from a chain and timestamp.
 // copied from certificate-transparency-go/serialization.go
+//
+// Instances returned by this func should be returned to the pool via the ReturnEntry func above.
 func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64) (*ctonly.Entry, error) {
-	leaf := ctonly.Entry{
-		IsPrecert: isPrecert,
-		Timestamp: timestamp,
-	}
+	leaf := newEntryFromPool(len(chain) - 1)
+	leaf.IsPrecert = isPrecert
+	leaf.Timestamp = timestamp
 
 	if len(chain) > 1 {
-		issuersChain := make([][32]byte, len(chain)-1)
-		for i, c := range chain[1:] {
-			issuersChain[i] = sha256.Sum256(c.Raw)
+		for _, c := range chain[1:] {
+			leaf.FingerprintsChain = append(leaf.FingerprintsChain, sha256.Sum256(c.Raw))
 		}
-		leaf.FingerprintsChain = issuersChain
 	}
 
 	if !isPrecert {
 		leaf.Certificate = chain[0].Raw
-		return &leaf, nil
+		return leaf, nil
 	}
 
 	// Pre-certs are more complicated. First, parse the leaf pre-cert and its
 	// putative issuer.
 	if len(chain) < 2 {
+		ReturnEntry(leaf)
 		return nil, fmt.Errorf("no issuer cert available for precert leaf building")
 	}
 	issuer := chain[1]
@@ -221,6 +254,7 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 		// The issuer of the pre-cert is not going to be the issuer of the final
 		// cert.  Change to use the final issuer's key hash.
 		if len(chain) < 3 {
+			ReturnEntry(leaf)
 			return nil, fmt.Errorf("no issuer cert available for pre-issuer")
 		}
 		issuer = chain[2]
@@ -230,6 +264,7 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	// extension and possibly update the issuer field.
 	defangedTBS, err := BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
 	if err != nil {
+		ReturnEntry(leaf)
 		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
 	}
 
@@ -240,7 +275,7 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 
 	issuerKeyHash := sha256.Sum256(issuer.RawSubjectPublicKeyInfo)
 	leaf.IssuerKeyHash = issuerKeyHash[:]
-	return &leaf, nil
+	return leaf, nil
 }
 
 // isPreIssuer indicates if a certificate is a precertificate signing cert.
