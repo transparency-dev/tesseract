@@ -1068,3 +1068,28 @@ func TestReceivedAtOrigin(t *testing.T) {
 		})
 	}
 }
+
+// BenchmarkParseBodyAsJSONChain benchmarks the parsing of the request body.
+//
+// go test --bench=BenchmarkParseBodyAsJSONChain -run='^$' ./internal/ct -v=1 --benchtime=10s
+func BenchmarkParseBodyAsJSONChain(b *testing.B) {
+	rawChain := pemsToDERChain(b, []string{testdata.PreCertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM})
+	reqBody := rfc6962.AddChainRequest{
+		Chain: rawChain,
+	}
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		r := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(body))
+		_, err := parseBodyAsJSONChain(r)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+

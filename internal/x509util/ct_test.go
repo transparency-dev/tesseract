@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/testdata"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"golang.org/x/crypto/cryptobyte"
 	cryptobyte_asn1 "golang.org/x/crypto/cryptobyte/asn1"
@@ -672,6 +673,30 @@ func TestRemoveCTPoison(t *testing.T) {
 			t.Errorf("RemoveCTPoison(%s)=nil,%q; want %s,nil", test.name, err, test.want)
 		} else if !bytes.Equal(got, want) {
 			t.Errorf("RemoveCTPoison(%s)=%s,nil; want %s,nil", test.name, hex.EncodeToString(got), test.want)
+		}
+	}
+}
+
+func BenchmarkEntryFromChain(b *testing.B) {
+	decode := func(p string) *x509.Certificate {
+		block, _ := pem.Decode([]byte(p))
+		cert, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			b.Fatal(err)
+		}
+		return cert
+	}
+
+	root := decode(testdata.CACertPEM)
+	leaf := decode(testdata.LeafCertPEM)
+	chain := []*x509.Certificate{leaf, root}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for b.Loop() {
+		_, err := EntryFromChain(chain, false, 123456789)
+		if err != nil {
+			b.Fatal(err)
 		}
 	}
 }
