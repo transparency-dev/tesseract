@@ -51,6 +51,9 @@ const (
 	contentTypeJSON string = "application/json"
 	// The name of the JSON response map key in get-roots responses
 	jsonMapKeyCertificates string = "certificates"
+	// Not supported by net/http, but commonly used by NGNIX.
+	ClientClosedRequestStatus     = 499
+	ClientClosedRequestStatusText = "Client Closed Request"
 )
 
 // entrypointName identifies a CT entrypoint as defined in section 4 of RFC 6962.
@@ -237,6 +240,10 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
 	rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	if err != nil {
+		if errors.Is(err, context.Canceled) && errors.Is(r.Context().Err(), context.Canceled) {
+			statusCode = ClientClosedRequestStatus
+			err = fmt.Errorf("client closed the connection: %v", err)
+		}
 		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
 		a.opts.sendHTTPError(w, statusCode, err)
 		span.RecordError(err)
@@ -348,7 +355,12 @@ func NewPathHandlers(ctx context.Context, opts *HandlerOptions, log *log) pathHa
 
 // sendHTTPError generates a custom error page to give more information on why something didn't work
 func (opts *HandlerOptions) sendHTTPError(w http.ResponseWriter, statusCode int, err error) {
-	errorBody := http.StatusText(statusCode)
+	var errorBody string
+	if statusCode == ClientClosedRequestStatus {
+		errorBody = ClientClosedRequestStatusText
+	} else {
+		errorBody = http.StatusText(statusCode)
+	}
 	if !opts.MaskInternalErrors || statusCode != http.StatusInternalServerError {
 		errorBody += fmt.Sprintf("\n%v", err)
 	}
