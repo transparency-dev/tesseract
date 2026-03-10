@@ -29,7 +29,7 @@ require (
 	github.com/rivo/tview v0.42.0
 	github.com/transparency-dev/formats v0.1.0
 	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/tessera v1.0.3-0.20260309130555-e03a2b54d673
+	github.com/transparency-dev/tessera v1.0.3-0.20260310105140-42e4bb33d521
 	go.opentelemetry.io/contrib/detectors/gcp v1.42.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.67.0
 	go.opentelemetry.io/contrib/instrumentation/runtime v0.67.0
@@ -44,7 +44,7 @@ require (
 	golang.org/x/net v0.51.0
 	golang.org/x/sync v0.20.0
 	golang.org/x/time v0.15.0
-	google.golang.org/api v0.269.0
+	google.golang.org/api v0.270.0
 	google.golang.org/grpc v1.79.2
 	k8s.io/klog/v2 v2.140.0
 )
@@ -101,7 +101,7 @@ require (
 	github.com/google/flatbuffers v25.2.10+incompatible // indirect
 	github.com/google/renameio/v2 v2.0.0 // indirect
 	github.com/google/s2a-go v0.1.9 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.12 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.14 // indirect
 	github.com/googleapis/gax-go/v2 v2.17.0 // indirect
 	github.com/gorilla/handlers v1.5.2 // indirect
 	github.com/gorilla/mux v1.8.1 // indirect
@@ -134,6 +134,6 @@ require (
 	golang.org/x/tools v0.41.0 // indirect
 	google.golang.org/genproto v0.0.0-20260128011058-8636f8732409 // indirect
 	google.golang.org/genproto/googleapis/api v0.0.0-20260209200024-4cfbd4190f57 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20260217215200-42d3e9bedb6d // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20260226221140-a57be14db171 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
