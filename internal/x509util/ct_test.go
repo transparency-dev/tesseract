@@ -405,6 +405,7 @@ func TestEntryFromChain(t *testing.T) {
 				}
 				return
 			}
+			defer ReturnEntry(got)
 			if test.wantErr {
 				t.Error("EntryFromChain() got no error, want error")
 			}
@@ -694,9 +695,10 @@ func BenchmarkEntryFromChain(b *testing.B) {
 	b.ResetTimer()
 	b.ReportAllocs()
 	for b.Loop() {
-		_, err := EntryFromChain(chain, false, 123456789)
+		entry, err := EntryFromChain(chain, false, 123456789)
 		if err != nil {
 			b.Fatal(err)
 		}
+		ReturnEntry(entry)
 	}
 }

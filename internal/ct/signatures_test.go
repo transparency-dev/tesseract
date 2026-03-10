@@ -259,6 +259,8 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
+	defer x509util.ReturnEntry(entry)
+
 	var leaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(uint64(fakeIndex))
 	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
@@ -322,6 +324,8 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("buildV1MerkleTreeLeafForCert()=nil,%v; want _,nil", err)
 	}
+	defer x509util.ReturnEntry(entry)
+
 	var leaf rfc6962.MerkleTreeLeaf
 	leafValue := entry.MerkleTreeLeaf(uint64(fakeIndex))
 	if rest, err := tls.Unmarshal(leafValue, &leaf); err != nil {
