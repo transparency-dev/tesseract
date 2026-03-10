@@ -3,6 +3,7 @@ module github.com/transparency-dev/tesseract
 go 1.25.0
 
 require (
+	cloud.google.com/go/logging v1.13.2
 	cloud.google.com/go/secretmanager v1.16.0
 	cloud.google.com/go/spanner v1.88.0
 	cloud.google.com/go/storage v1.60.0
