@@ -51,7 +51,7 @@ const (
 	contentTypeJSON string = "application/json"
 	// The name of the JSON response map key in get-roots responses
 	jsonMapKeyCertificates string = "certificates"
-	// Not supported by net/http, but commonly used by NGNIX.
+	// Not supported by net/http, but commonly used by NGINX.
 	ClientClosedRequestStatus     = 499
 	ClientClosedRequestStatusText = "Client Closed Request"
 )
