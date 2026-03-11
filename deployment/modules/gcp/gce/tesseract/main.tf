@@ -30,7 +30,6 @@ locals {
     # Map the port
     "-p 80:80",
     # Ensure that TesseraCT logs are delivered to GCP logging.
-    "--log-driver=gcplogs",
     # Bind-mount the witness policy, if one has been provided.
     var.witness_policy == "" ? "" : "--mount type=bind,src=${local.witness_policy_file},dst=${local.witness_policy_file}",
     # Bind-mount the roots file, if one has been provided.
