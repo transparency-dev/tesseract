@@ -46,11 +46,9 @@ import (
 	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/gcp"
-	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
 	"google.golang.org/api/option"
-	"google.golang.org/grpc"
 	"k8s.io/klog/v2"
 )
 
@@ -265,12 +263,7 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			return nil, errors.New("missing spannerDB")
 		}
 
-		spannerClient, err := spanner.NewClient(
-			ctx,
-			*spannerDB,
-			option.WithGRPCConnectionPool(*spannerConnections),
-			option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())),
-		)
+		spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
 		}
@@ -410,11 +403,7 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 
 func gcsClientFromFlags(ctx context.Context, httpClient *http.Client) *gcs.Client {
 	if *gcsUseGRPC {
-		gcsClient, err := gcs.NewGRPCClient(
-			ctx,
-			option.WithGRPCConnectionPool(*gcsConnections),
-			option.WithGRPCDialOption(grpc.WithStatsHandler(otelgrpc.NewClientHandler())),
-		)
+		gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
 		if err != nil {
 			klog.Exitf("Failed to create gRPC GCS client: %v", err)
 		}
