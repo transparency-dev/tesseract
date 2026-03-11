@@ -17,13 +17,17 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+
+	"cloud.google.com/go/logging"
 	"os/signal"
 	"strconv"
 	"strings"
@@ -109,6 +113,7 @@ var (
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
+	logToCloudAPI              = flag.Bool("log_to_cloud_api", false, "Export logs directly to Cloud Logging API instead of stderr.")
 )
 
 // nolint:staticcheck
@@ -117,7 +122,30 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
+	var logWriter io.Writer = os.Stderr
+	var logClient *logging.Client
+
+	if *logToCloudAPI {
+		if *otelProjectID == "" {
+			klog.Exitf("--otel_project_id is required when --log_to_cloud_api is true")
+		}
+		var err error
+		logClient, err = logging.NewClient(ctx, "projects/"+*otelProjectID)
+		if err != nil {
+			klog.Exitf("Failed to create Cloud Logging client: %v", err)
+		}
+		defer func() {
+			if err := logClient.Close(); err != nil {
+				klog.Errorf("Failed to close Cloud Logging client: %v", err)
+			}
+		}()
+
+		logWriter = &cloudLoggingWriter{
+			logger: logClient.Logger("tesseract"),
+		}
+	}
+
+	handler := slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
 		Level: slog.Level(*slogLevel),
 	})
 	slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
@@ -386,4 +414,49 @@ func gcsClientFromFlags(ctx context.Context, httpClient *http.Client) *gcs.Clien
 		klog.Exitf("Failed to create GCS client: %v", err)
 	}
 	return gcsClient
+}
+
+type cloudLoggingWriter struct {
+	logger *logging.Logger
+}
+
+func (w *cloudLoggingWriter) Write(p []byte) (n int, err error) {
+	var payload map[string]any
+	if err := json.Unmarshal(p, &payload); err != nil {
+		w.logger.Log(logging.Entry{Payload: string(p)})
+		return len(p), nil
+	}
+
+	entry := logging.Entry{
+		Payload: payload,
+	}
+
+	if trace, ok := payload["logging.googleapis.com/trace"].(string); ok {
+		entry.Trace = trace
+		delete(payload, "logging.googleapis.com/trace")
+	}
+	if span, ok := payload["logging.googleapis.com/spanId"].(string); ok {
+		entry.SpanID = span
+		delete(payload, "logging.googleapis.com/spanId")
+	}
+	if sampled, ok := payload["logging.googleapis.com/trace_sampled"].(bool); ok {
+		entry.TraceSampled = sampled
+		delete(payload, "logging.googleapis.com/trace_sampled")
+	}
+	if lvl, ok := payload["level"].(string); ok {
+		entry.Severity = logging.ParseSeverity(lvl)
+	}
+	if msg, ok := payload["msg"].(string); ok {
+		payload["message"] = msg
+		delete(payload, "msg")
+	}
+	if ts, ok := payload["time"].(string); ok {
+		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
+			entry.Timestamp = t
+		}
+		delete(payload, "time")
+	}
+
+	w.logger.Log(entry)
+	return len(p), nil
 }
