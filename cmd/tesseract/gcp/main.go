@@ -123,7 +123,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	var logWriter io.Writer = os.Stderr
+	var logWriter io.Writer = os.Stdout
 	var logClient *logging.Client
 
 	if *logToCloudAPI {
