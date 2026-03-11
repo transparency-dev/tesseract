@@ -147,7 +147,8 @@ func main() {
 	}
 
 	handler := slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
-		Level: slog.Level(*slogLevel),
+		Level:       slog.Level(*slogLevel),
+		ReplaceAttr: logger.GCPReplaceAttr,
 	})
 	slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
 
