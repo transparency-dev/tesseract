@@ -66,3 +66,31 @@ func (h *GCPContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 func (h *GCPContextHandler) WithGroup(name string) slog.Handler {
 	return &GCPContextHandler{Handler: h.Handler.WithGroup(name), projectID: h.projectID}
 }
+
+// GCPReplaceAttr is a slog.ReplaceAttr function that renames standard attributes
+// to the field names expected by GCP Cloud Logging, and maps severity levels.
+// https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
+func GCPReplaceAttr(_ []string, a slog.Attr) slog.Attr {
+	switch a.Key {
+	case slog.LevelKey:
+		a.Key = "severity"
+		level := a.Value.Any().(slog.Level)
+		switch {
+		case level >= slog.LevelError:
+			a.Value = slog.StringValue("ERROR")
+		case level >= slog.LevelWarn:
+			a.Value = slog.StringValue("WARNING")
+		case level >= slog.LevelInfo:
+			a.Value = slog.StringValue("INFO")
+		case level >= slog.LevelDebug:
+			a.Value = slog.StringValue("DEBUG")
+		default:
+			a.Value = slog.StringValue("DEFAULT")
+		}
+	case slog.MessageKey:
+		a.Key = "message"
+	case slog.TimeKey:
+		a.Key = "timestamp"
+	}
+	return a
+}
