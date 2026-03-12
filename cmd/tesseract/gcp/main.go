@@ -118,7 +118,7 @@ var (
 	slogGCPHandler             = flag.Bool("slog_gcp_handler", false, "Whether to use a custom GCP slog handler.")
 	slogStdOut                 = flag.Bool("slog_std_out", false, "Set to true for slog to output to stdout. Defaults to stderr.")
 	klogEnable                 = flag.Bool("klog_enable", true, "Set to true to enable klog logging.")
-	klogCopyTo                 = flag.String("klog_copy_to", "", "Set to to redirect klog logging to default logs (INFO, WARNING, ERROR, FATAL). Leave empty to disable.")
+	klogCopyTo                 = flag.String("klog_copy_to", "WARNING", "Set to to redirect klog logging to default logs (INFO, WARNING, ERROR, FATAL). Leave empty to disable.")
 )
 
 // nolint:staticcheck
