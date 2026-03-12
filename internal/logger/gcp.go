@@ -105,15 +105,15 @@ func (w *CloudLoggingWriter) Write(p []byte) (n int, err error) {
 		lvl := slog.Level(level)
 		switch {
 		case lvl >= slog.LevelError:
-			entry.Severity = logging.ParseSeverity("ERROR")
+			entry.Severity = logging.Error
 		case lvl >= slog.LevelWarn:
-			entry.Severity = logging.ParseSeverity("WARNING")
+			entry.Severity = logging.Warning
 		case lvl >= slog.LevelInfo:
-			entry.Severity = logging.ParseSeverity("INFO")
+			entry.Severity = logging.Info
 		case lvl >= slog.LevelDebug:
-			entry.Severity = logging.ParseSeverity("DEBUG")
+			entry.Severity = logging.Debug
 		default:
-			entry.Severity = logging.ParseSeverity("DEFAULT")
+			entry.Severity = logging.Default
 		}
 		delete(payload, "level")
 	}
