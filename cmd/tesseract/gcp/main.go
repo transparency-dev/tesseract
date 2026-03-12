@@ -115,6 +115,8 @@ var (
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 	logToCloudAPI              = flag.Bool("log_to_cloud_api", false, "Export logs directly to Cloud Logging API instead of stderr.")
+	slogGCPHandler             = flag.Bool("slog_gcp_handler", false, "Whether to use a custom GCP slog handler.")
+	slogStdOut                 = flag.Bool("slog_std_out", false, "Set to true for slog to output to stdout. Defaults to stderr.")
 )
 
 // nolint:staticcheck
@@ -123,7 +125,10 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	var logWriter io.Writer = os.Stdout
+	var logWriter io.Writer = os.Stderr
+	if *slogStdOut {
+		logWriter = os.Stdout
+	}
 	var logClient *logging.Client
 
 	if *logToCloudAPI {
@@ -150,7 +155,17 @@ func main() {
 		Level:       slog.Level(*slogLevel),
 		ReplaceAttr: logger.GCPReplaceAttr,
 	})
-	slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
+	if *slogGCPHandler {
+		slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
+	} else {
+		slog.SetDefault(slog.New(handler))
+	}
+
+	// Example Logs for debugging
+	slog.Info("TESSERACT_LOG_TEST: slog.Info")
+	slog.Warn("TESSERACT_LOG_TEST: slog.Warn")
+	slog.Error("TESSERACT_LOG_TEST: slog.Error")
+	fmt.Fprintln(os.Stderr, `{"severity":"INFO","TESSERACT_LOG_TEST: Stderr pipe is open"}`)
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
