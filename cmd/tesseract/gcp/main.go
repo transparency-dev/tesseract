@@ -35,6 +35,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/logging"
+	"k8s.io/klog/v2"
 
 	"cloud.google.com/go/spanner"
 	gcs "cloud.google.com/go/storage"
@@ -49,7 +50,6 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
 	"google.golang.org/api/option"
-	"k8s.io/klog/v2"
 )
 
 func init() {
@@ -117,11 +117,15 @@ var (
 	logToCloudAPI              = flag.Bool("log_to_cloud_api", false, "Export logs directly to Cloud Logging API instead of stderr.")
 	slogGCPHandler             = flag.Bool("slog_gcp_handler", false, "Whether to use a custom GCP slog handler.")
 	slogStdOut                 = flag.Bool("slog_std_out", false, "Set to true for slog to output to stdout. Defaults to stderr.")
+	klogEnable                 = flag.Bool("klog_enable", true, "Set to true to enable klog logging.")
+	klogCopyTo                 = flag.String("klog_copy_to", "WARNING", "Set to to redirect klog logging to default logs (INFO, WARNING, ERROR, FATAL). Leave empty to disable.")
 )
 
 // nolint:staticcheck
 func main() {
-	klog.InitFlags(nil)
+	if *klogEnable {
+		klog.InitFlags(nil)
+	}
 	flag.Parse()
 	ctx := context.Background()
 
@@ -162,9 +166,14 @@ func main() {
 	}
 
 	// Example Logs for debugging
+	slog.Debug("TESSERACT_LOG_TEST: slog.Debug")
 	slog.Info("TESSERACT_LOG_TEST: slog.Info")
 	slog.Warn("TESSERACT_LOG_TEST: slog.Warn")
 	slog.Error("TESSERACT_LOG_TEST: slog.Error")
+	slog.DebugContext(ctx, "TESSERACT_LOG_TEST: slog.DebugContext")
+	slog.InfoContext(ctx, "TESSERACT_LOG_TEST: slog.InfoContext")
+	slog.WarnContext(ctx, "TESSERACT_LOG_TEST: slog.WarnContext")
+	slog.ErrorContext(ctx, "TESSERACT_LOG_TEST: slog.ErrorContext")
 	fmt.Fprintln(os.Stderr, `{"severity":"INFO","TESSERACT_LOG_TEST: Stderr pipe is open"}`)
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
@@ -220,7 +229,9 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
 	}
 
-	klog.CopyStandardLogTo("WARNING")
+	if *klogCopyTo != "" {
+		klog.CopyStandardLogTo(*klogCopyTo)
+	}
 	klog.Info("**** CT HTTP Server Starting ****")
 	http.Handle("/", otelhttp.NewHandler(logHandler, "/"))
 
