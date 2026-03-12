@@ -166,9 +166,11 @@ func main() {
 	}
 
 	// Example Logs for debugging
+	slog.Debug("TESSERACT_LOG_TEST: slog.Debug")
 	slog.Info("TESSERACT_LOG_TEST: slog.Info")
 	slog.Warn("TESSERACT_LOG_TEST: slog.Warn")
 	slog.Error("TESSERACT_LOG_TEST: slog.Error")
+	slog.DebugContext(ctx, "TESSERACT_LOG_TEST: slog.DebugContext")
 	slog.InfoContext(ctx, "TESSERACT_LOG_TEST: slog.InfoContext")
 	slog.WarnContext(ctx, "TESSERACT_LOG_TEST: slog.WarnContext")
 	slog.ErrorContext(ctx, "TESSERACT_LOG_TEST: slog.ErrorContext")
