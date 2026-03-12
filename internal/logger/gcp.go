@@ -17,8 +17,11 @@ package logger
 
 import (
 	"context"
+	"encoding/json"
 	"log/slog"
+	"time"
 
+	"cloud.google.com/go/logging"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -67,30 +70,64 @@ func (h *GCPContextHandler) WithGroup(name string) slog.Handler {
 	return &GCPContextHandler{Handler: h.Handler.WithGroup(name), projectID: h.projectID}
 }
 
-// GCPReplaceAttr is a slog.ReplaceAttr function that renames standard attributes
-// to the field names expected by GCP Cloud Logging, and maps severity levels.
-// https://docs.cloud.google.com/logging/docs/reference/v2/rest/v2/LogEntry#logseverity
-func GCPReplaceAttr(_ []string, a slog.Attr) slog.Attr {
-	switch a.Key {
-	case slog.LevelKey:
-		a.Key = "severity"
-		level := a.Value.Any().(slog.Level)
-		switch {
-		case level >= slog.LevelError:
-			a.Value = slog.StringValue("ERROR")
-		case level >= slog.LevelWarn:
-			a.Value = slog.StringValue("WARNING")
-		case level >= slog.LevelInfo:
-			a.Value = slog.StringValue("INFO")
-		case level >= slog.LevelDebug:
-			a.Value = slog.StringValue("DEBUG")
-		default:
-			a.Value = slog.StringValue("DEFAULT")
-		}
-	case slog.MessageKey:
-		a.Key = "message"
-	case slog.TimeKey:
-		a.Key = "timestamp"
+type CloudLoggingWriter struct {
+	logger *logging.Logger
+}
+
+func NewCloudLoggingWriter(logger *logging.Logger) *CloudLoggingWriter {
+	return &CloudLoggingWriter{logger: logger}
+}
+
+func (w *CloudLoggingWriter) Write(p []byte) (n int, err error) {
+	var payload map[string]any
+	if err := json.Unmarshal(p, &payload); err != nil {
+		w.logger.Log(logging.Entry{Payload: string(p)})
+		return len(p), nil
 	}
-	return a
+
+	entry := logging.Entry{
+		Payload: payload,
+	}
+
+	if trace, ok := payload["logging.googleapis.com/trace"].(string); ok {
+		entry.Trace = trace
+		delete(payload, "logging.googleapis.com/trace")
+	}
+	if span, ok := payload["logging.googleapis.com/spanId"].(string); ok {
+		entry.SpanID = span
+		delete(payload, "logging.googleapis.com/spanId")
+	}
+	if sampled, ok := payload["logging.googleapis.com/trace_sampled"].(bool); ok {
+		entry.TraceSampled = sampled
+		delete(payload, "logging.googleapis.com/trace_sampled")
+	}
+	if level, ok := payload["level"].(float64); ok {
+		lvl := slog.Level(level)
+		switch {
+		case lvl >= slog.LevelError:
+			entry.Severity = logging.ParseSeverity("ERROR")
+		case lvl >= slog.LevelWarn:
+			entry.Severity = logging.ParseSeverity("WARNING")
+		case lvl >= slog.LevelInfo:
+			entry.Severity = logging.ParseSeverity("INFO")
+		case lvl >= slog.LevelDebug:
+			entry.Severity = logging.ParseSeverity("DEBUG")
+		default:
+			entry.Severity = logging.ParseSeverity("DEFAULT")
+		}
+		delete(payload, "level")
+	}
+	if msg, ok := payload["msg"].(string); ok {
+		payload["message"] = msg
+		delete(payload, "msg")
+	}
+	if ts, ok := payload["time"].(string); ok {
+		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
+			entry.Timestamp = t
+		}
+		delete(payload, "time")
+	}
+
+	w.logger.Log(entry)
+	return len(p), nil
 }
