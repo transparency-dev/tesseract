@@ -42,7 +42,7 @@ locals {
     "-logtostderr",
     "-v=0",
     "-slog_level=0",
-    "-log_to_cloud_api=false",
+    "-log_to_cloud_api=true",
     "-otel_project_id=${var.project_id}",
     "-http_endpoint=:80",
     "-bucket=${var.bucket}",
