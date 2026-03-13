@@ -17,11 +17,9 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
@@ -114,9 +112,8 @@ var (
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
-	logToCloudAPI              = flag.Bool("log_to_cloud_api", false, "Export logs directly to Cloud Logging API instead of stderr.")
-	slogGCPHandler             = flag.Bool("slog_gcp_handler", false, "Whether to use a custom GCP slog handler.")
-	slogStdOut                 = flag.Bool("slog_std_out", false, "Set to true for slog to output to stdout. Defaults to stderr.")
+	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", true, "Export logs directly to Cloud Logging API. Required --otel_project_id to be set.")
+	slogToStdOut               = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
 )
 
 // nolint:staticcheck
@@ -125,40 +122,32 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	var logWriter io.Writer = os.Stderr
-	if *slogStdOut {
-		logWriter = os.Stdout
+	var loggingHandlers []slog.Handler
+	if *slogToStdOut {
+		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			ReplaceAttr: logger.GCPReplaceAttr,
+			Level:       slog.Level(*slogLevel),
+		}))
 	}
-	var logClient *logging.Client
-
-	if *logToCloudAPI {
+	if *slogToCloudAPI {
 		if *otelProjectID == "" {
-			klog.Exitf("--otel_project_id is required when --log_to_cloud_api is true")
+			klog.Exitf("--otel_project_id is required when --slog_to_cloud_api is true")
 		}
 		var err error
-		logClient, err = logging.NewClient(ctx, "projects/"+*otelProjectID)
+		loggingClient, err := logging.NewClient(ctx, "projects/"+*otelProjectID)
 		if err != nil {
 			klog.Exitf("Failed to create Cloud Logging client: %v", err)
 		}
 		defer func() {
-			if err := logClient.Close(); err != nil {
+			if err := loggingClient.Close(); err != nil {
 				klog.Errorf("Failed to close Cloud Logging client: %v", err)
 			}
 		}()
-
-		logWriter = &cloudLoggingWriter{
-			logger: logClient.Logger("tesseract"),
-		}
+		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract"), slog.Level(*slogLevel)))
 	}
 
-	handler := slog.NewJSONHandler(logWriter, &slog.HandlerOptions{
-		Level:       slog.Level(*slogLevel),
-		ReplaceAttr: logger.GCPReplaceAttr,
-	})
-	if *slogGCPHandler {
-		slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
-	} else {
-		slog.SetDefault(slog.New(handler))
+	if len(loggingHandlers) > 0 {
+		slog.SetDefault(slog.New(logger.NewEnricher(logger.NewMultiHandler(loggingHandlers...), *otelProjectID)))
 	}
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
@@ -425,49 +414,4 @@ func gcsClientFromFlags(ctx context.Context, httpClient *http.Client) *gcs.Clien
 		klog.Exitf("Failed to create GCS client: %v", err)
 	}
 	return gcsClient
-}
-
-type cloudLoggingWriter struct {
-	logger *logging.Logger
-}
-
-func (w *cloudLoggingWriter) Write(p []byte) (n int, err error) {
-	var payload map[string]any
-	if err := json.Unmarshal(p, &payload); err != nil {
-		w.logger.Log(logging.Entry{Payload: string(p)})
-		return len(p), nil
-	}
-
-	entry := logging.Entry{
-		Payload: payload,
-	}
-
-	if trace, ok := payload["logging.googleapis.com/trace"].(string); ok {
-		entry.Trace = trace
-		delete(payload, "logging.googleapis.com/trace")
-	}
-	if span, ok := payload["logging.googleapis.com/spanId"].(string); ok {
-		entry.SpanID = span
-		delete(payload, "logging.googleapis.com/spanId")
-	}
-	if sampled, ok := payload["logging.googleapis.com/trace_sampled"].(bool); ok {
-		entry.TraceSampled = sampled
-		delete(payload, "logging.googleapis.com/trace_sampled")
-	}
-	if lvl, ok := payload["level"].(string); ok {
-		entry.Severity = logging.ParseSeverity(lvl)
-	}
-	if msg, ok := payload["msg"].(string); ok {
-		payload["message"] = msg
-		delete(payload, "msg")
-	}
-	if ts, ok := payload["time"].(string); ok {
-		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
-			entry.Timestamp = t
-		}
-		delete(payload, "time")
-	}
-
-	w.logger.Log(entry)
-	return len(p), nil
 }
