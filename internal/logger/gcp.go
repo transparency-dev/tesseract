@@ -20,7 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
-	"strings"
 
 	"cloud.google.com/go/logging"
 	"go.opentelemetry.io/otel/trace"
@@ -165,15 +164,6 @@ func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
 			}
 		}
 	}
-
-	r.Attrs(func(a slog.Attr) bool {
-		// Filter out internal GCP keys to prevent double-logging in JSON body
-		if strings.HasPrefix(a.Key, "logging.googleapis.com/") {
-			return true
-		}
-		target[a.Key] = a.Value.Any()
-		return true
-	})
 
 	entry := logging.Entry{
 		Timestamp: r.Time,

@@ -113,7 +113,7 @@ var (
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", false, "Export logs directly to Cloud Logging API.")
-	slogToStdOut               = flag.Bool("slog_to_cloud_api", false, "Export logs to stdout.")
+	slogToStdOut               = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
 )
 
 // nolint:staticcheck
