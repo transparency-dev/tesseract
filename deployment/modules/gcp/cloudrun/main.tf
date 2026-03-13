@@ -63,7 +63,7 @@ resource "google_cloud_run_v2_service" "default" {
         "--roots_remote_fetch_url=${var.roots_remote_fetch_url}",
         "--roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
         "--gcs_use_grpc=true",
-n      ])
+      ])
       ports {
         container_port = 6962
       }
