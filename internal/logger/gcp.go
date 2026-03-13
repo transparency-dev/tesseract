@@ -80,20 +80,20 @@ func (h *MultiHandler) WithGroup(name string) slog.Handler {
 
 // Enricher injects GCP metadata in the record attributes.
 type Enricher struct {
-	next      slog.Handler
+	delegate  slog.Handler
 	projectID string
 }
 
 // NewEnricher wraps the provided slog.Handler. It injects GCP Cloud Logging
 // compatible trace fields extracted from the context if a valid span is present.
-func NewEnricher(next slog.Handler, projectID string) *Enricher {
-	return &Enricher{next: next, projectID: projectID}
+func NewEnricher(delegate slog.Handler, projectID string) *Enricher {
+	return &Enricher{delegate: delegate, projectID: projectID}
 }
 
 // Enabled reports whether the handler handles records at the given level.
 // The handler ignores records whose level is lower.
 func (h *Enricher) Enabled(ctx context.Context, l slog.Level) bool {
-	return h.next.Enabled(ctx, l)
+	return h.delegate.Enabled(ctx, l)
 }
 
 // Handle adds the trace ID, span ID, and sampled flag to the record attributes.
@@ -114,17 +114,17 @@ func (h *Enricher) Handle(ctx context.Context, r slog.Record) error {
 			slog.Bool("logging.googleapis.com/trace_sampled", span.IsSampled()),
 		)
 	}
-	return h.next.Handle(ctx, r)
+	return h.delegate.Handle(ctx, r)
 }
 
 // WithAttrs returns a new handler with the given attributes, preserving the GCP handling.
 func (h *Enricher) WithAttrs(as []slog.Attr) slog.Handler {
-	return &Enricher{h.next.WithAttrs(as), h.projectID}
+	return &Enricher{h.delegate.WithAttrs(as), h.projectID}
 }
 
 // WithGroup returns a new handler with the given group name, preserving the GCP handling.
 func (h *Enricher) WithGroup(g string) slog.Handler {
-	return &Enricher{h.next.WithGroup(g), h.projectID}
+	return &Enricher{h.delegate.WithGroup(g), h.projectID}
 }
 
 // Exporter logs record to GCP Cloud Logging API.
