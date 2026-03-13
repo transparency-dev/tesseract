@@ -131,8 +131,7 @@ func (h *Enricher) WithGroup(g string) slog.Handler {
 // Exporter logs record to GCP Cloud Logging API.
 type Exporter struct {
 	logger *logging.Logger
-	attrs  []slog.Attr
-	groups []string
+	goas   []groupOrAttrs
 }
 
 // NewExporter creates an slog.Handler that directly logs to GCP Cloud logging.
@@ -148,16 +147,22 @@ func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
 	payload := make(map[string]any)
 	payload["message"] = r.Message
 
+	// Walk through groups and attributes.
 	target := payload
-	for _, g := range h.groups {
-		next := make(map[string]any)
-		target[g] = next
-		target = next
+	for _, goa := range h.goas {
+		if goa.group != "" {
+			// Open a new nesting level
+			newGroup := make(map[string]any)
+			target[goa.group] = newGroup
+			target = newGroup
+		} else {
+			// Add attributes to the current level
+			for _, a := range goa.attrs {
+				target[a.Key] = a.Value.Any()
+			}
+		}
 	}
 
-	for _, a := range h.attrs {
-		target[a.Key] = a.Value.Any()
-	}
 	r.Attrs(func(a slog.Attr) bool {
 		// Filter out internal GCP keys to prevent double-logging in JSON body
 		if strings.HasPrefix(a.Key, "logging.googleapis.com/") {
@@ -195,17 +200,30 @@ func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
 	return nil
 }
 
-// WithAttrs implements Handler.WithAttrs.
-func (h *Exporter) WithAttrs(as []slog.Attr) slog.Handler {
-	h2 := *h
-	h2.attrs = append(h2.attrs[:len(h2.attrs):len(h2.attrs)], as...)
-	return &h2
+type groupOrAttrs struct {
+	group string      // group name if non-empty
+	attrs []slog.Attr // attrs if non-empty
 }
 
-// WithGroup implements Handler.WithGroup.
-func (h *Exporter) WithGroup(g string) slog.Handler {
+func (h *Exporter) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+	return h.withGroupOrAttrs(groupOrAttrs{group: name})
+}
+
+func (h *Exporter) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return h
+	}
+	return h.withGroupOrAttrs(groupOrAttrs{attrs: attrs})
+}
+
+func (h *Exporter) withGroupOrAttrs(goa groupOrAttrs) *Exporter {
 	h2 := *h
-	h2.groups = append(h2.groups[:len(h2.groups):len(h2.groups)], g)
+	h2.goas = make([]groupOrAttrs, len(h.goas)+1)
+	copy(h2.goas, h.goas)
+	h2.goas[len(h2.goas)-1] = goa
 	return &h2
 }
 
