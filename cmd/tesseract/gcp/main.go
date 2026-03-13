@@ -112,7 +112,8 @@ var (
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
-	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", false, "Export logs directly to Cloud Logging API instead of stderr.")
+	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", false, "Export logs directly to Cloud Logging API.")
+	slogToStdOut               = flag.Bool("slog_to_cloud_api", false, "Export logs to stdout.")
 )
 
 // nolint:staticcheck
@@ -121,6 +122,12 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
+	var loggingHandlers []slog.Handler
+	if *slogToStdOut {
+		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			ReplaceAttr: logger.GCPReplaceAttr,
+		}))
+	}
 	if *slogToCloudAPI {
 		if *otelProjectID == "" {
 			klog.Exitf("--otel_project_id is required when --slog_to_cloud_api is true")
@@ -135,17 +142,11 @@ func main() {
 				klog.Errorf("Failed to close Cloud Logging client: %v", err)
 			}
 		}()
+		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract")))
+	}
 
-		loggingWriter := logger.NewCloudLoggingWriter(loggingClient.Logger("tesseract"))
-		handler := slog.NewJSONHandler(loggingWriter, &slog.HandlerOptions{
-			Level: slog.Level(*slogLevel),
-		})
-		slog.SetDefault(slog.New(logger.NewGCPContextHandler(handler, *otelProjectID)))
-	} else {
-		handler := slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{
-			Level: slog.Level(*slogLevel),
-		})
-		slog.SetDefault(slog.New(handler))
+	if len(loggingHandlers) > 0 {
+		slog.SetDefault(slog.New(logger.NewEnricher(logger.NewMultiHandler(loggingHandlers...), *otelProjectID)))
 	}
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)

@@ -17,30 +17,88 @@ package logger
 
 import (
 	"context"
-	"encoding/json"
+	"errors"
+	"fmt"
 	"log/slog"
-	"time"
+	"strings"
 
 	"cloud.google.com/go/logging"
 	"go.opentelemetry.io/otel/trace"
 )
 
-// GCPContextHandler is an slog.Handler that extracts OpenTelemetry tracing
-// information from the context and adds it to the log record in the format
-// expected by GCP Cloud Logging, allowing logs to be correlated with traces.
-type GCPContextHandler struct {
-	slog.Handler
+// MultiHandler is a [Exporter] that invokes all the given Handlers.
+// Its Enabled method reports whether any of the handlers' Enabled methods return true.
+// Its Handle, WithAttrs and WithGroup methods call the corresponding method on each of the enabled handlers.
+// Copied from slog.
+// TODO: Move to slog.MultiHandler once the project has moved to go 1.26
+type MultiHandler struct {
+	multi []slog.Handler
+}
+
+// NewMultiHandler creates a [MultiHandler] with the given Handlers.
+func NewMultiHandler(handlers ...slog.Handler) *MultiHandler {
+	h := make([]slog.Handler, len(handlers))
+	copy(h, handlers)
+	return &MultiHandler{multi: h}
+}
+
+func (h *MultiHandler) Enabled(ctx context.Context, l slog.Level) bool {
+	for i := range h.multi {
+		if h.multi[i].Enabled(ctx, l) {
+			return true
+		}
+	}
+	return false
+}
+
+func (h *MultiHandler) Handle(ctx context.Context, r slog.Record) error {
+	var errs []error
+	for i := range h.multi {
+		if h.multi[i].Enabled(ctx, r.Level) {
+			if err := h.multi[i].Handle(ctx, r.Clone()); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+	return errors.Join(errs...)
+}
+
+func (h *MultiHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	handlers := make([]slog.Handler, 0, len(h.multi))
+	for i := range h.multi {
+		handlers = append(handlers, h.multi[i].WithAttrs(attrs))
+	}
+	return &MultiHandler{multi: handlers}
+}
+
+func (h *MultiHandler) WithGroup(name string) slog.Handler {
+	handlers := make([]slog.Handler, 0, len(h.multi))
+	for i := range h.multi {
+		handlers = append(handlers, h.multi[i].WithGroup(name))
+	}
+	return &MultiHandler{multi: handlers}
+}
+
+// Enricher injects GCP metadata in the record attributes.
+type Enricher struct {
+	next      slog.Handler
 	projectID string
 }
 
-// NewGCPContextHandler wraps the provided slog.Handler. It injects GCP Cloud Logging
+// NewEnricher wraps the provided slog.Handler. It injects GCP Cloud Logging
 // compatible trace fields extracted from the context if a valid span is present.
-func NewGCPContextHandler(h slog.Handler, projectID string) *GCPContextHandler {
-	return &GCPContextHandler{Handler: h, projectID: projectID}
+func NewEnricher(next slog.Handler, projectID string) *Enricher {
+	return &Enricher{next: next, projectID: projectID}
+}
+
+// Enabled reports whether the handler handles records at the given level.
+// The handler ignores records whose level is lower.
+func (h *Enricher) Enabled(ctx context.Context, l slog.Level) bool {
+	return h.next.Enabled(ctx, l)
 }
 
 // Handle adds the trace ID, span ID, and sampled flag to the record attributes.
-func (h *GCPContextHandler) Handle(ctx context.Context, r slog.Record) error {
+func (h *Enricher) Handle(ctx context.Context, r slog.Record) error {
 	span := trace.SpanContextFromContext(ctx)
 	if span.IsValid() {
 		// GCP Cloud Logging expects the trace ID to be formatted as:
@@ -48,7 +106,7 @@ func (h *GCPContextHandler) Handle(ctx context.Context, r slog.Record) error {
 		// https://docs.cloud.google.com/logging/docs/structured-logging#structured_logging_special_fields
 		tracePath := span.TraceID().String()
 		if h.projectID != "" {
-			tracePath = "projects/" + h.projectID + "/traces/" + tracePath
+			tracePath = fmt.Sprintf("projects/%s/traces/%s", h.projectID, tracePath)
 		}
 
 		r.AddAttrs(
@@ -57,77 +115,140 @@ func (h *GCPContextHandler) Handle(ctx context.Context, r slog.Record) error {
 			slog.Bool("logging.googleapis.com/trace_sampled", span.IsSampled()),
 		)
 	}
-	return h.Handler.Handle(ctx, r)
+	return h.next.Handle(ctx, r)
 }
 
 // WithAttrs returns a new handler with the given attributes, preserving the GCP handling.
-func (h *GCPContextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
-	return &GCPContextHandler{Handler: h.Handler.WithAttrs(attrs), projectID: h.projectID}
+func (h *Enricher) WithAttrs(as []slog.Attr) slog.Handler {
+	return &Enricher{h.next.WithAttrs(as), h.projectID}
 }
 
 // WithGroup returns a new handler with the given group name, preserving the GCP handling.
-func (h *GCPContextHandler) WithGroup(name string) slog.Handler {
-	return &GCPContextHandler{Handler: h.Handler.WithGroup(name), projectID: h.projectID}
+func (h *Enricher) WithGroup(g string) slog.Handler {
+	return &Enricher{h.next.WithGroup(g), h.projectID}
 }
 
-type CloudLoggingWriter struct {
+// Exporter logs record to GCP Cloud Logging API.
+type Exporter struct {
 	logger *logging.Logger
+	attrs  []slog.Attr
+	groups []string
 }
 
-func NewCloudLoggingWriter(logger *logging.Logger) *CloudLoggingWriter {
-	return &CloudLoggingWriter{logger: logger}
+// NewExporter creates an slog.Handler that directly logs to GCP Cloud logging.
+func NewExporter(logger *logging.Logger) *Exporter {
+	return &Exporter{logger: logger}
 }
 
-func (w *CloudLoggingWriter) Write(p []byte) (n int, err error) {
-	var payload map[string]any
-	if err := json.Unmarshal(p, &payload); err != nil {
-		w.logger.Log(logging.Entry{Payload: string(p)})
-		return len(p), nil
+// Enabled reports whether the handler handles records at the given level.
+func (h *Exporter) Enabled(_ context.Context, _ slog.Level) bool { return true }
+
+// Handle converts a record to a Cloud Logging entry, and logs it.
+func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
+	payload := make(map[string]any)
+	payload["message"] = r.Message
+
+	target := payload
+	for _, g := range h.groups {
+		next := make(map[string]any)
+		target[g] = next
+		target = next
 	}
+
+	for _, a := range h.attrs {
+		target[a.Key] = a.Value.Any()
+	}
+	r.Attrs(func(a slog.Attr) bool {
+		// Filter out internal GCP keys to prevent double-logging in JSON body
+		if strings.HasPrefix(a.Key, "logging.googleapis.com/") {
+			return true
+		}
+		target[a.Key] = a.Value.Any()
+		return true
+	})
 
 	entry := logging.Entry{
-		Payload: payload,
+		Timestamp: r.Time,
+		Severity:  mapSeverity(r.Level),
+		Payload:   payload,
 	}
 
-	if trace, ok := payload["logging.googleapis.com/trace"].(string); ok {
-		entry.Trace = trace
-		delete(payload, "logging.googleapis.com/trace")
-	}
-	if span, ok := payload["logging.googleapis.com/spanId"].(string); ok {
-		entry.SpanID = span
-		delete(payload, "logging.googleapis.com/spanId")
-	}
-	if sampled, ok := payload["logging.googleapis.com/trace_sampled"].(bool); ok {
-		entry.TraceSampled = sampled
-		delete(payload, "logging.googleapis.com/trace_sampled")
-	}
-	if level, ok := payload["level"].(float64); ok {
-		lvl := slog.Level(level)
-		switch {
-		case lvl >= slog.LevelError:
-			entry.Severity = logging.Error
-		case lvl >= slog.LevelWarn:
-			entry.Severity = logging.Warning
-		case lvl >= slog.LevelInfo:
-			entry.Severity = logging.Info
-		case lvl >= slog.LevelDebug:
-			entry.Severity = logging.Debug
+	r.Attrs(func(a slog.Attr) bool {
+		switch a.Key {
+		// Capture traces from the specialized keys we added in the Enricher.
+		case "logging.googleapis.com/trace":
+			entry.Trace = a.Value.String()
+		case "logging.googleapis.com/spanId":
+			entry.SpanID = a.Value.String()
+		case "logging.googleapis.com/trace_sampled":
+			entry.TraceSampled = a.Value.Bool()
+		// Skip adding level and time to the JSON body because they are already
+		// in the entry.
+		case slog.LevelKey, slog.TimeKey:
 		default:
-			entry.Severity = logging.Default
+			target[a.Key] = a.Value.Any()
 		}
-		delete(payload, "level")
-	}
-	if msg, ok := payload["msg"].(string); ok {
-		payload["message"] = msg
-		delete(payload, "msg")
-	}
-	if ts, ok := payload["time"].(string); ok {
-		if t, err := time.Parse(time.RFC3339Nano, ts); err == nil {
-			entry.Timestamp = t
-		}
-		delete(payload, "time")
-	}
+		return true
+	})
 
-	w.logger.Log(entry)
-	return len(p), nil
+	h.logger.Log(entry)
+	return nil
+}
+
+// WithAttrs implements Handler.WithAttrs.
+func (h *Exporter) WithAttrs(as []slog.Attr) slog.Handler {
+	h2 := *h
+	h2.attrs = append(h2.attrs[:len(h2.attrs):len(h2.attrs)], as...)
+	return &h2
+}
+
+// WithGroup implements Handler.WithGroup.
+func (h *Exporter) WithGroup(g string) slog.Handler {
+	h2 := *h
+	h2.groups = append(h2.groups[:len(h2.groups):len(h2.groups)], g)
+	return &h2
+}
+
+// mapSeverity translates slog levels into GCP severity.
+func mapSeverity(l slog.Level) logging.Severity {
+	switch {
+	case l >= slog.LevelError:
+		return logging.Error
+	case l >= slog.LevelWarn:
+		return logging.Warning
+	case l >= slog.LevelInfo:
+		return logging.Info
+	case l >= slog.LevelDebug:
+		return logging.Debug
+	default:
+		return logging.Default
+	}
+}
+
+// GCPReplaceAttr replaces slog attributes with attributes GCP understands.
+func GCPReplaceAttr(groups []string, a slog.Attr) slog.Attr {
+	switch a.Key {
+	case slog.MessageKey:
+		a.Key = "message"
+	case slog.TimeKey:
+		a.Key = "timestamp"
+	case slog.SourceKey:
+		a.Key = "logging.googleapis.com/sourceLocation"
+	case slog.LevelKey:
+		a.Key = "severity"
+		level := a.Value.Any().(slog.Level)
+		switch {
+		case level >= slog.LevelError:
+			a.Value = slog.StringValue("ERROR")
+		case level >= slog.LevelWarn:
+			a.Value = slog.StringValue("WARNING")
+		case level >= slog.LevelInfo:
+			a.Value = slog.StringValue("INFO")
+		case level >= slog.LevelDebug:
+			a.Value = slog.StringValue("DEBUG")
+		default:
+			a.Value = slog.StringValue("DEFAULT")
+		}
+	}
+	return a
 }
