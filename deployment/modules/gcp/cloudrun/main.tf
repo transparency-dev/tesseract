@@ -42,6 +42,8 @@ resource "google_cloud_run_v2_service" "default" {
       args = flatten([
         "--logtostderr",
         "--v=1",
+        "--otel_project_id=${var.project_id}",
+        "--slog_level=-4",
         "--http_endpoint=:6962",
         "--bucket=${var.bucket}",
         "--spanner_db_path=${local.spanner_log_db_path}",
