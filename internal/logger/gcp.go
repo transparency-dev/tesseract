@@ -131,16 +131,19 @@ func (h *Enricher) WithGroup(g string) slog.Handler {
 // Exporter logs record to GCP Cloud Logging API.
 type Exporter struct {
 	logger *logging.Logger
+	level  slog.Level
 	goas   []groupOrAttrs
 }
 
 // NewExporter creates an slog.Handler that directly logs to GCP Cloud logging.
-func NewExporter(logger *logging.Logger) *Exporter {
-	return &Exporter{logger: logger}
+func NewExporter(logger *logging.Logger, level slog.Level) *Exporter {
+	return &Exporter{logger: logger, level: level}
 }
 
 // Enabled reports whether the handler handles records at the given level.
-func (h *Exporter) Enabled(_ context.Context, _ slog.Level) bool { return true }
+func (h *Exporter) Enabled(_ context.Context, lvl slog.Level) bool {
+	return lvl >= h.level.Level()
+}
 
 // Handle converts a record to a Cloud Logging entry, and logs it.
 func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
@@ -205,6 +208,7 @@ type groupOrAttrs struct {
 	attrs []slog.Attr // attrs if non-empty
 }
 
+// WithGroup implements Handler.WithGroup.
 func (h *Exporter) WithGroup(name string) slog.Handler {
 	if name == "" {
 		return h
@@ -212,6 +216,7 @@ func (h *Exporter) WithGroup(name string) slog.Handler {
 	return h.withGroupOrAttrs(groupOrAttrs{group: name})
 }
 
+// WithAttrs implements Handler.WithAttrs.
 func (h *Exporter) WithAttrs(attrs []slog.Attr) slog.Handler {
 	if len(attrs) == 0 {
 		return h

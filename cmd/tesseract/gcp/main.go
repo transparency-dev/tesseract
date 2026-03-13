@@ -126,6 +126,7 @@ func main() {
 	if *slogToStdOut {
 		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			ReplaceAttr: logger.GCPReplaceAttr,
+			Level:       slog.Level(*slogLevel),
 		}))
 	}
 	if *slogToCloudAPI {
@@ -142,7 +143,7 @@ func main() {
 				klog.Errorf("Failed to close Cloud Logging client: %v", err)
 			}
 		}()
-		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract")))
+		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract"), slog.Level(*slogLevel)))
 	}
 
 	if len(loggingHandlers) > 0 {
