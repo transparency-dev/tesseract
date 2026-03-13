@@ -41,7 +41,7 @@ locals {
   tesseract_args = [
     "-logtostderr",
     "-v=0",
-    "-slog_level=0",
+    "-slog_level=-4",
     "-slog_to_cloud_api=true",
     "-otel_project_id=${var.project_id}",
     "-http_endpoint=:80",
