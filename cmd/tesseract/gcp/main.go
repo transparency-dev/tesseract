@@ -127,6 +127,7 @@ func main() {
 		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			ReplaceAttr: logger.GCPReplaceAttr,
 			Level:       slog.Level(*slogLevel),
+			AddSource:   true,
 		}))
 	}
 	if *slogToCloudAPI {
