@@ -22,6 +22,7 @@ locals {
   additional_signer_private_key_secret_names = ["projects/${include.root.locals.project_id}/secrets/${local.base_name}-ed25519-private-key/versions/1"]
   gcs_use_grpc                               = true
   garbage_collection_interval                = "10s"
+  extra_tesseract_flags                      = []
 }
 
 include "root" {
