@@ -38,7 +38,7 @@ locals {
   ])
 
   # tesseract_args are provided to the tesseract command.
-  tesseract_args = [
+  tesseract_args = concat([
     "-logtostderr",
     "-v=0",
     "-slog_level=-4",
@@ -68,8 +68,8 @@ locals {
     var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",
     length(var.additional_signer_private_key_secret_names) == 0 ? "" : join(" ", formatlist("-additional_signer_private_key_secret_name=%s", var.additional_signer_private_key_secret_names)),
     "-gcs_use_grpc=${var.gcs_use_grpc}",
-    var.garbage_collection_interval == null ? "" : "-garbage_collection_interval=${var.garbage_collection_interval}"
-  ]
+    var.garbage_collection_interval == null ? "" : "-garbage_collection_interval=${var.garbage_collection_interval}",
+  ], var.extra_tesseract_flags)
 
   container_name      = "tesseract-${var.base_name}"
   cached_docker_image = "${google_artifact_registry_repository.tesseract.registry_uri}/${var.server_docker_image}"

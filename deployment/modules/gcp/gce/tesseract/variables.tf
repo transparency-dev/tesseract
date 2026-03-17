@@ -170,3 +170,9 @@ variable "garbage_collection_interval" {
   default     = null
 }
 
+variable "extra_tesseract_flags" {
+  description = "A list of strings representing any additional arguments to append to the Tesseract command line. Example: [\"-flag1=value1\", \"-flag2=value2\"]. NOTE: This is intended as a temporary solution; other flags should be defined using their own dedicated variables and not added this way."
+  type        = list(string)
+  default     = []
+}
+
