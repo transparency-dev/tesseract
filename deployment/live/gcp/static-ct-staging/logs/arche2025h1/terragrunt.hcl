@@ -23,6 +23,8 @@ locals {
   gcs_use_grpc                               = true
   garbage_collection_interval                = "10s"
   extra_tesseract_flags                      = []
+  log_db_name_override                       = "${local.base_name}-db"
+  antispam_db_name_override                  = "${local.base_name}-antispam-db"
 }
 
 include "root" {

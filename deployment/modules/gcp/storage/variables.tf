@@ -35,3 +35,15 @@ variable "public_bucket" {
   type        = bool
   default     = false
 }
+
+variable "log_db_name_override" {
+  description = "Optional. Name of the Spanner DB to use for the log, overriding the default name format. This variable is optional and should only be used for legacy compatibility."
+  type        = string
+  default     = null
+}
+
+variable "antispam_db_name_override" {
+  description = "Optional. Name of the Spanner DB to use for the antispam deduplication, overriding the default name format. This variable is optional and should only be used for legacy compatibility."
+  type        = string
+  default     = null
+}
