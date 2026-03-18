@@ -1,0 +1,9 @@
+version: "2"
+linters:
+  exclusions:
+    paths:
+      - internal/lax509
+formatters:
+  exclusions:
+    paths:
+      - internal/lax509
