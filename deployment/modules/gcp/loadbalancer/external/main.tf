@@ -16,10 +16,10 @@ module "gce-lb-http" {
   project               = var.project_id
   load_balancing_scheme = "EXTERNAL"
   ssl                   = true
-  // Create a single certificate that covers all log domains, and all submission_host_suffixes.
-  // Wildcard certificates are not suported.
-  managed_ssl_certificate_domains = distinct(flatten([for name, v in var.logs: [v.submission_host_suffix, "${name}.${v.submission_host_suffix}"]]))
-  random_certificate_suffix       = true
+  // Use a single certificate per domain.
+  // Do not use `managed_ssl_certificate_domains`, updating the certificate leads to downtime.
+  ssl_certificates = [for cert in google_compute_managed_ssl_certificate.log_certs : cert.id]
+
 
   // Firewalls are defined externally.
   firewall_networks = []
@@ -136,4 +136,19 @@ module "cloud_armor" {
   layer_7_ddos_defense_rule_visibility = "STANDARD"
 }
 
+resource "google_compute_managed_ssl_certificate" "log_certs" {
+  for_each = var.logs
 
+  name_prefix = "tesseract-cert-${each.key}-"
+
+  managed {
+    domains = [
+      each.value.submission_host_suffix,
+      "${each.key}.${each.value.submission_host_suffix}"
+    ]
+  }
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
