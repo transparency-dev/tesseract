@@ -139,7 +139,7 @@ module "cloud_armor" {
 resource "google_compute_managed_ssl_certificate" "log_certs" {
   for_each = var.logs
 
-  name = "tesseract-cert-${each.key}-"
+  name = each.key
 
   managed {
     domains = [
