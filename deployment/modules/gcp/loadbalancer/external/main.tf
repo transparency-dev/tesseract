@@ -4,6 +4,10 @@ terraform {
       source  = "hashicorp/google"
       version = "6.50.0"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.0" # Or a version compatible with your project
+    }
   }
 
   backend "gcs" {}
@@ -136,19 +140,28 @@ module "cloud_armor" {
   layer_7_ddos_defense_rule_visibility = "STANDARD"
 }
 
+resource "random_id" "suffix" {
+  for_each = var.logs
+  byte_length = 4
+
+  keepers = {
+    logs = jsonencode(each.value)
+  }
+}
+
 resource "google_compute_managed_ssl_certificate" "log_certs" {
   for_each = var.logs
 
-  name = each.key
+  name = "${each.key}-cert-${random_id.suffix[each.key].hex}"
+
+  lifecycle {
+    create_before_destroy = true
+  }
 
   managed {
     domains = [
       each.value.submission_host_suffix,
       "${each.key}.${each.value.submission_host_suffix}"
     ]
-  }
-
-  lifecycle {
-    create_before_destroy = true
   }
 }
