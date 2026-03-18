@@ -66,7 +66,7 @@ resource "google_spanner_instance" "log_spanner" {
 
 resource "google_spanner_database" "log_db" {
   instance = google_spanner_instance.log_spanner.name
-  name     = "${var.base_name}-db"
+  name     = coalesce(var.log_db_name_override, "${var.base_name}-log")
   ddl = [
     "CREATE TABLE IF NOT EXISTS Tessera (id INT64 NOT NULL, compatibilityVersion INT64 NOT NULL) PRIMARY KEY (id)",
     "CREATE TABLE IF NOT EXISTS SeqCoord (id INT64 NOT NULL, next INT64 NOT NULL,) PRIMARY KEY (id)",
@@ -79,7 +79,7 @@ resource "google_spanner_database" "log_db" {
 
 resource "google_spanner_database" "antispam_db" {
   instance = google_spanner_instance.log_spanner.name
-  name     = "${var.base_name}-antispam-db"
+  name     = coalesce(var.antispam_db_name_override, "${var.base_name}-aspam")
   ddl = [
     "CREATE TABLE IF NOT EXISTS FollowCoord (id INT64 NOT NULL, nextIdx INT64 NOT NULL) PRIMARY KEY (id)",
     "CREATE TABLE IF NOT EXISTS IDSeq (h BYTES(32) NOT NULL, idx INT64 NOT NULL) PRIMARY KEY (h)",

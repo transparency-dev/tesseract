@@ -18,6 +18,9 @@ module "storage" {
   ephemeral     = var.ephemeral
   spanner_pu    = var.spanner_pu
   public_bucket = var.public_bucket
+
+  log_db_name_override      = var.log_db_name_override
+  antispam_db_name_override = var.antispam_db_name_override
 }
 
 module "gce" {
