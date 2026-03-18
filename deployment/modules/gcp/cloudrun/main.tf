@@ -60,7 +60,7 @@ resource "google_cloud_run_v2_service" "default" {
         "--trace_fraction=${var.trace_fraction}",
         "--batch_max_size=${var.batch_max_size}",
         "--batch_max_age=${var.batch_max_age}",
-        "--roots_remote_fetch_url=${var.roots_remote_fetch_url}",
+        formatlist("--roots_remote_fetch_url=%s", var.roots_remote_fetch_url),
         "--roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
         "--gcs_use_grpc=true",
       ])

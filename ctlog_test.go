@@ -219,6 +219,7 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 		desc       string
 		cvCfg      ChainValidationConfig
 		rsps       []ccadbRsp
+		rsps2      []ccadbRsp
 		wantNRoots int
 	}{
 		{
@@ -318,12 +319,44 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 			},
 			wantNRoots: 2,
 		},
+		{
+			desc: "two-remote-endpoints",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:             "./internal/testdata/fake-ca.cert",
+				RootsRemoteFetchInterval: fetchInterval,
+			},
+			rsps: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM,
+					},
+				},
+			},
+			rsps2: []ccadbRsp{
+				{
+					code: 200,
+					crts: []string{
+						testdata.CACertPEM, // Same root, shouldn't duplicate
+						testdata.FakeCACertPEM, // New root.
+					},
+				},
+			},
+			wantNRoots: 3, // one from file, one from server 1, one from server 2
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			ts := newCCADBTestServer(t, tc.rsps)
 			ts.Start()
 			defer ts.Close()
-			tc.cvCfg.RootsRemoteFetchURL = ts.URL
+			urls := []string{ts.URL}
+			if len(tc.rsps2) > 0 {
+				ts2 := newCCADBTestServer(t, tc.rsps2)
+				ts2.Start()
+				defer ts2.Close()
+				urls = append(urls, ts2.URL)
+			}
+			tc.cvCfg.RootsRemoteFetchURLs = urls
 			cv, err := newChainValidator(t.Context(), tc.cvCfg)
 			if err == nil && cv == nil {
 				t.Error("err and ValidatedLogConfig are both nil")
@@ -466,7 +499,7 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 			ts := newCCADBTestServer(t, tc.rsps)
 			ts.Start()
 			defer ts.Close()
-			tc.cvCfg.RootsRemoteFetchURL = ts.URL
+			tc.cvCfg.RootsRemoteFetchURLs = []string{ts.URL}
 			tc.cvCfg.RootsRemoteFetchBackup = &memoryRootsStorage{m: make(map[string][]byte)}
 			if err := tc.cvCfg.RootsRemoteFetchBackup.AddIfNotExist(t.Context(), tc.backupRoots); err != nil {
 				t.Fatalf("Can't initialize root backup storage: %v", err)

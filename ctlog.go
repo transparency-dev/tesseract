@@ -41,8 +41,8 @@ type ChainValidationConfig struct {
 	// are acceptable to the log. The certs are served through get-roots
 	// endpoint.
 	RootsPEMFile string
-	// RootsRemoteFetchURL configures an endpoint to fetch additional roots from.
-	RootsRemoteFetchURL string
+	// RootsRemoteFetchURLs configures an endpoint to fetch additional roots from.
+	RootsRemoteFetchURLs []string
 	// RootsRemoteFetchInterval configures the frequency at which to fetch
 	// roots from RootsRemoteEndpoint.
 	RootsRemoteFetchInterval time.Duration
@@ -151,24 +151,24 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 		klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from remote root backup storage", len(certs), parsed, added)
 	}
 
-	if cfg.RootsRemoteFetchInterval > 0 && cfg.RootsRemoteFetchURL != "" {
-		fetchAndAppendRemoteRoots := func() {
-			rr, err := ccadb.Fetch(ctx, cfg.RootsRemoteFetchURL, []string{ccadb.ColPEM})
+	if cfg.RootsRemoteFetchInterval > 0 && len(cfg.RootsRemoteFetchURLs) > 0 {
+		fetchAndAppendRemoteRoots := func(url string) {
+			rr, err := ccadb.Fetch(ctx, url, []string{ccadb.ColPEM})
 			if err != nil {
-				klog.Errorf("Couldn't fetch roots from %q: %s", cfg.RootsRemoteFetchURL, err)
+				klog.Errorf("Couldn't fetch roots from %q: %s", url, err)
 				return
 			}
 			pems := make([][]byte, 0, len(rr))
 			for _, r := range rr {
 				if len(r) < 1 {
-					klog.Errorf("Couldn't parse root from %q: empty row", cfg.RootsRemoteFetchURL)
+					klog.Errorf("Couldn't parse root from %q: empty row", url)
 					continue
 				}
 				pems = append(pems, r[0])
 				if cfg.RootsRemoteFetchBackup != nil {
 					block, _ := pem.Decode(r[0])
 					if block == nil {
-						klog.Errorf("Failed to decode PEM block in data fetched from %q", cfg.RootsRemoteFetchURL)
+						klog.Errorf("Failed to decode PEM block in data fetched from %q", url)
 						continue
 					}
 					sha := sha256.Sum256(block.Bytes)
@@ -180,10 +180,12 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 				}
 			}
 			parsed, added := roots.AppendCertsFromPEMs(pems...)
-			klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from %q", len(pems), parsed, added, cfg.RootsRemoteFetchURL)
+			klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from %q", len(pems), parsed, added, url)
 		}
 
-		fetchAndAppendRemoteRoots()
+		for _, url := range cfg.RootsRemoteFetchURLs {
+			fetchAndAppendRemoteRoots(url)
+		}
 
 		go func() {
 			ticker := time.NewTicker(cfg.RootsRemoteFetchInterval)
@@ -193,7 +195,9 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 				case <-ctx.Done():
 					return
 				case <-ticker.C:
-					fetchAndAppendRemoteRoots()
+					for _, url := range cfg.RootsRemoteFetchURLs {
+						fetchAndAppendRemoteRoots(url)
+					}
 				}
 			}
 		}()

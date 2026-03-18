@@ -39,10 +39,11 @@ mechanisms to add roots, and one to reject roots:
 
 1. Manually, via a PEM file. Use the `root_pem_file` flag to configure its path.
 Roots from this file are read once at startup, and remain trusted thereafter.
-2. Automatically, from a remote endpoint like [CCADB's](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV).
-The URL of that endpoint is set via `roots_remote_fetch_url`. Roots are first
+2. Automatically, from one or more remote endpoints like [CCADB's](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV).
+The URL of each endpoint is set via `roots_remote_fetch_url`. This flag
+accepts a single URL, and can be specified multiple times. Roots are first
 fetched at startup, and then every `roots_remote_fetch_interval`. Each time
-roots are fetched from this remote endpoint, newly found roots become trusted,
+roots are fetched from these remote endpoints, newly found roots become trusted,
 if not rejected with `roots_reject_fingerprints`.
 Newly found roots are backed up in the log's storage, under `roots/`. Roots are
 never removed from this directory. Roots in the `roots/` directory are loaded
