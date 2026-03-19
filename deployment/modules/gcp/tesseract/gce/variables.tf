@@ -168,12 +168,6 @@ variable "roots_reject_fingerprints" {
   default     = []
 }
 
-variable "gcs_use_grpc" {
-  description = "Use gRPC for GCS access."
-  type        = bool
-  default     = true
-}
-
 variable "garbage_collection_interval" {
   description = "Interval between garbage collection runs, e.g. \"10s\"."
   type        = string

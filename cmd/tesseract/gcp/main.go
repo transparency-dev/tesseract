@@ -102,7 +102,6 @@ var (
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
-	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", true, "Use gRPC-based GCS client.")
 	gcsConnections             = flag.Int("gcs_connections", 4, "Size of connection pool for GCS gRPC client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
@@ -167,7 +166,10 @@ func main() {
 		Timeout: *clientHTTPTimeout,
 	}
 
-	gcsClient := gcsClientFromFlags(ctx, hc)
+	gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
+	if err != nil {
+		klog.Exitf("Failed to create gRPC GCS client: %v", err)
+	}
 	fetchedRootsBackupStorage, err := gcp.NewRootsStorage(ctx, *bucket, gcsClient)
 	if err != nil {
 		klog.Exitf("failed to initialize GCS backup storage for remotely fetched roots: %v", err)
@@ -398,20 +400,4 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
-}
-
-func gcsClientFromFlags(ctx context.Context, httpClient *http.Client) *gcs.Client {
-	if *gcsUseGRPC {
-		gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
-		if err != nil {
-			klog.Exitf("Failed to create gRPC GCS client: %v", err)
-		}
-		return gcsClient
-	}
-
-	gcsClient, err := gcs.NewClient(ctx, gcs.WithJSONReads(), option.WithHTTPClient(httpClient))
-	if err != nil {
-		klog.Exitf("Failed to create GCS client: %v", err)
-	}
-	return gcsClient
 }
