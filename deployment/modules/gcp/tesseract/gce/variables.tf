@@ -171,7 +171,7 @@ variable "roots_reject_fingerprints" {
 variable "gcs_use_grpc" {
   description = "Use gRPC for GCS access."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "garbage_collection_interval" {

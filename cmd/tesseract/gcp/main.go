@@ -102,7 +102,7 @@ var (
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the GCS bucket to store the log in.")
-	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", false, "Use gRPC-based GCS client.")
+	gcsUseGRPC                 = flag.Bool("gcs_use_grpc", true, "Use gRPC-based GCS client.")
 	gcsConnections             = flag.Int("gcs_connections", 4, "Size of connection pool for GCS gRPC client.")
 	spannerDB                  = flag.String("spanner_db_path", "", "Spanner database path: projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
 	spannerAntispamDB          = flag.String("spanner_antispam_db_path", "", "Spanner antispam deduplication database path projects/{projectId}/instances/{instanceId}/databases/{databaseId}.")
