@@ -62,7 +62,7 @@ locals {
     "-accept_sha1_signing_algorithms=true",
     "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
     "-rate_limit_dedup=${var.rate_limit_dedup}",
-    "-roots_remote_fetch_url=${var.roots_remote_fetch_url}",
+    length(var.roots_remote_fetch_url) == 0 ? "" : join(" ", formatlist("-roots_remote_fetch_url=%s", var.roots_remote_fetch_url)),
     "-roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
     length(var.roots_reject_fingerprints) == 0 ? "" : join(" ", formatlist("-roots_reject_fingerprints=%s", var.roots_reject_fingerprints)),
     var.witness_policy == "" ? "" : "-witness_policy_file=${local.witness_policy_file}",

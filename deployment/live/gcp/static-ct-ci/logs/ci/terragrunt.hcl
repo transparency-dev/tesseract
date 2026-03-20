@@ -12,6 +12,8 @@ locals {
   log_private_key_secret_name = "projects/223810646869/secrets/${local.safe_origin}-log-secret/versions/1"
   server_docker_image         = "${include.root.locals.location}-docker.pkg.dev/${include.root.locals.project_id}/docker-${local.env}/conformance-gcp:latest"
   ephemeral                   = true
+  rootsRemoteFetchURL         = ["https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesInclusionReportCSV"]
+  rootsRemoteFetchInterval    = "10m"
 }
 
 include "root" {

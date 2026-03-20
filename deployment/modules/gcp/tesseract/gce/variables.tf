@@ -151,9 +151,9 @@ variable "accepted_roots" {
 }
 
 variable "roots_remote_fetch_url" {
-  description = "URL to fetch trusted roots from."
-  type        = string
-  default     = "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV"
+  description = "URLs to fetch trusted roots from."
+  type        = list(string)
+  default     = ["https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV"]
 }
 
 variable "roots_remote_fetch_interval" {

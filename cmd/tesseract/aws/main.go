@@ -51,6 +51,7 @@ func init() {
 	flag.Float64Var(&dedupRL, "rate_limit_dedup", 100, "Rate limit for resolving duplicate submissions, in requests per second - i.e. duplicate requests for already integrated entries, which need to be fetched from the log storage by TesseraCT to extract their timestamp. When 0, all duplicate submissions are rejected. When negative, no rate limit is applied.")
 	// DEPRECATED: will be removed shortly
 	flag.Float64Var(&dedupRL, "pushback_max_dedupe_in_flight", 100, "DEPRECATED: use rate_limit_dedup. Maximum number of in-flight duplicate add requests - i.e. the number of requests matching entries that have already been integrated, but need to be fetched by the client to retrieve their timestamp. When 0, duplicate entries are always pushed back.")
+	flag.Var(&rootsRemoteFetchURLs, "roots_remote_fetch_url", "URL to fetch additional trusted roots from. May be specified multiple times.")
 }
 
 // Global flags that affect all log instances.
@@ -66,7 +67,7 @@ var (
 	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints. This MUST match the log's submission prefix as per https://c2sp.org/static-ct-api.")
 	pathPrefix               = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
 	rootsPemFile             = flag.String("roots_pem_file", "", "Path to the file containing root certificates that are acceptable to the log.")
-	rootsRemoteFetchURL      = flag.String("roots_remote_fetch_url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch additional trusted roots from. Leave empty to disable.")
+	rootsRemoteFetchURLs     multiStringFlag
 	rootsRemoteFetchInterval = flag.Duration("roots_remote_fetch_interval", time.Duration(0), "Interval between two fetches from roots_fetch_url, e.g. \"1h\". Set to \"0s\" to disable.")
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
@@ -140,9 +141,13 @@ func main() {
 		klog.Exitf("failed to initialize S3 backup storage for remotely fetched roots: %v", err)
 	}
 
+	if len(rootsRemoteFetchURLs) == 0 {
+		rootsRemoteFetchURLs = []string{"https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV"}
+	}
+
 	chainValidationConfig := tesseract.ChainValidationConfig{
 		RootsPEMFile:             *rootsPemFile,
-		RootsRemoteFetchURL:      *rootsRemoteFetchURL,
+		RootsRemoteFetchURLs:     rootsRemoteFetchURLs,
 		RootsRemoteFetchInterval: *rootsRemoteFetchInterval,
 		RootsRemoteFetchBackup:   fetchedRootsBackupStorage,
 		RejectExpired:            *rejectExpired,
