@@ -1,4 +1,4 @@
-// Copyright 2025 The Tessera authors. All Rights Reserved.
+// Copyright 2026 The Tessera authors. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -27,6 +27,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
@@ -37,12 +38,12 @@ import (
 )
 
 var (
-	storageDir = flag.String("storage_dir", "", "Path to root of log storage.")
-
-	sourceURL          = flag.String("source_url", "", "Base URL for the source log.")
+	storageDir         = flag.String("storage_dir", "", "Path to directory in which to store the migrated data.")
+	sourceURL          = flag.String("source_url", "", "Base monitoring URL for the source log.")
 	numWorkers         = flag.Uint("num_workers", 30, "Number of migration worker goroutines.")
-	persistentAntispam = flag.Bool("antispam", false, "EXPERIMENTAL: Set to true to enable POSIX-based persistent antispam storage.")
-	antispamBatchSize  = flag.Uint("antispam_batch_size", 1500, "EXPERIMENTAL: maximum number of antispam rows to insert in a batch (1500 gives good performance with 300 Spanner PU and above, smaller values may be required for smaller allocs).")
+	persistentAntispam = flag.Bool("antispam", true, "Set to true to populate antispam storage.")
+	antispamBatchSize  = flag.Uint("antispam_batch_size", 50000, "Maximum number of antispam rows to insert per batch update.")
+	clientHTTPTimeout  = flag.Duration("client_http_timeout", 30*time.Second, "Timeout for outgoing HTTP requests")
 )
 
 func main() {
@@ -58,10 +59,18 @@ func main() {
 	if err != nil {
 		klog.Exitf("Invalid --source_url %q: %v", *sourceURL, err)
 	}
+	hc := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        int(*numWorkers) * 2,
+			MaxIdleConnsPerHost: int(*numWorkers),
+			DisableKeepAlives:   false,
+		},
+		Timeout: *clientHTTPTimeout,
+	}
 	// TODO(phbnf): This is currently built using the Tessera client lib, with a stand-alone func below for
 	// fetching the Static CT entry bundles as they live in an different place.
 	// When there's a Static CT client we can probably switch over to using it in here.
-	src, err := client.NewHTTPFetcher(srcURL, nil)
+	src, err := client.NewHTTPFetcher(srcURL, hc)
 	if err != nil {
 		klog.Exitf("Failed to create HTTP fetcher: %v", err)
 	}
@@ -109,7 +118,7 @@ func main() {
 		klog.Exitf("Failed to create MigrationTarget: %v", err)
 	}
 
-	readEntryBundle := readCTEntryBundle(*sourceURL)
+	readEntryBundle := readCTEntryBundle(*sourceURL, hc)
 	if err := m.Migrate(context.Background(), *numWorkers, sourceSize, sourceRoot, readEntryBundle); err != nil {
 		klog.Exitf("Migrate failed: %v", err)
 	}
@@ -120,7 +129,7 @@ func main() {
 	<-make(chan bool)
 }
 
-func readCTEntryBundle(srcURL string) func(ctx context.Context, i uint64, p uint8) ([]byte, error) {
+func readCTEntryBundle(srcURL string, hc *http.Client) func(ctx context.Context, i uint64, p uint8) ([]byte, error) {
 	return func(ctx context.Context, i uint64, p uint8) ([]byte, error) {
 		up := strings.Replace(layout.EntriesPath(i, p), "entries", "data", 1)
 		reqURL, err := url.JoinPath(srcURL, up)
@@ -131,7 +140,7 @@ func readCTEntryBundle(srcURL string) func(ctx context.Context, i uint64, p uint
 		if err != nil {
 			return nil, err
 		}
-		rsp, err := http.DefaultClient.Do(req)
+		rsp, err := hc.Do(req)
 		if err != nil {
 			return nil, err
 		}
