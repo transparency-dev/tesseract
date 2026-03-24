@@ -19,6 +19,7 @@ require (
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/x/ansi v0.11.6
+	github.com/dgraph-io/badger/v4 v4.9.1
 	github.com/dustin/go-humanize v1.0.1
 	github.com/fsouza/fake-gcs-server v1.54.0
 	github.com/gdamore/tcell/v2 v2.13.8
@@ -90,7 +91,6 @@ require (
 	github.com/clipperhouse/stringish v0.1.1 // indirect
 	github.com/clipperhouse/uax29/v2 v2.5.0 // indirect
 	github.com/cncf/xds/go v0.0.0-20251210132809-ee656c7534f5 // indirect
-	github.com/dgraph-io/badger/v4 v4.9.1 // indirect
 	github.com/dgraph-io/ristretto/v2 v2.2.0 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.36.0 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.3.0 // indirect
