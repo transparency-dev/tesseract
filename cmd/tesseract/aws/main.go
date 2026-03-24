@@ -71,13 +71,13 @@ var (
 	rootsRemoteFetchInterval = flag.Duration("roots_remote_fetch_interval", time.Duration(0), "Interval between two fetches from roots_fetch_url, e.g. \"1h\". Set to \"0s\" to disable.")
 	rejectExpired            = flag.Bool("reject_expired", false, "If true then the certificate validity period will be checked against the current time during the validation of submissions. This will cause expired certificates to be rejected.")
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
-	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default all are accepted. The values specified must be ones known to the x509 package.")
+	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default only 'ServerAuth' certs are accepted. Set to 'Any' to accept all chain. Accepted values are defined in internal/ct.")
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
-	notBeforeRL              = flag.String("rate_limit_old_not_before", "", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
+	notBeforeRL              = flag.String("rate_limit_old_not_before", "28h:500", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
