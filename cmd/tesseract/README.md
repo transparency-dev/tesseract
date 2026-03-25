@@ -83,7 +83,7 @@ per-second rate limit, and `<age>` defines how old a given submission's
 `notBefore` date must be for that submission to be subject to the rate limit.
 `<age>` must be formatted per Go's [time.ParseDuration](https://pkg.go.dev/time#ParseDuration),
 and `<limit>` is a positive real number.
-E.g. `28h=500` means that a rate-limit of 500 submissions/s will be applied to any
+E.g. `28h:500` means that a rate-limit of 500 submissions/s will be applied to any
 certificate, or precertificate, whose `notBefore` date is at least 28 hours old
 at the time of submission.
 
