@@ -18,12 +18,15 @@ import (
 	"context"
 	"errors"
 
+	t_otel "github.com/transparency-dev/tesseract/internal/otel"
 	"go.opentelemetry.io/otel"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 
-	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp"
+	"go.opentelemetry.io/contrib/exporters/autoexport"
+	"go.opentelemetry.io/contrib/instrumentation/runtime"
 
 	"k8s.io/klog/v2"
 )
@@ -31,7 +34,7 @@ import (
 // initOTel initialises the open telemetry support for metrics.
 //
 // Returns a shutdown function which should be called just before exiting the process.
-func initOTel(ctx context.Context, origin string) func(context.Context) {
+func initOTel(ctx context.Context, traceFraction float64, origin string) func(context.Context) {
 	var shutdownFuncs []func(context.Context) error
 	// shutdown combines shutdown functions from multiple OpenTelemetry
 	// components into a single function.
@@ -46,9 +49,9 @@ func initOTel(ctx context.Context, origin string) func(context.Context) {
 		}
 	}
 
-	me, err := otlpmetrichttp.New(ctx)
+	mr, err := autoexport.NewMetricReader(ctx)
 	if err != nil {
-		klog.Exitf("Failed to create the OTLP metric exporter: %v", err)
+		klog.Exitf("Failed to create the OTLP metric reader: %v", err)
 	}
 
 	resources, err := resource.New(ctx,
@@ -64,11 +67,27 @@ func initOTel(ctx context.Context, origin string) func(context.Context) {
 	}
 
 	mp := sdkmetric.NewMeterProvider(
-		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(me)),
+		sdkmetric.WithReader(mr),
 		sdkmetric.WithResource(resources),
 	)
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
 
+	te, err := autoexport.NewSpanExporter(ctx)
+	if err != nil {
+		klog.Exitf("Failed to create the OTLP span exporter: %v", err)
+	}
+	// initialize a TracerProvier that periodically exports to the GCP exporter.
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(t_otel.NewAttributeSampler([]string{"tessera.periodic"}, sdktrace.TraceIDRatioBased(traceFraction))),
+		sdktrace.WithBatcher(te),
+		sdktrace.WithResource(resources),
+	)
+	shutdownFuncs = append(shutdownFuncs, tp.Shutdown)
+	otel.SetTracerProvider(tp)
+
+	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
+		klog.Exitf("Failed to start exporting Go runtime metrics: %v", err)
+	}
 	return shutdown
 }

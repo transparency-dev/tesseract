@@ -99,8 +99,9 @@ var (
 	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
 
 	// Infrastructure setup flags
-	storageDir  = flag.String("storage_dir", "", "Path to root of log storage.")
-	privKeyFile = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	storageDir    = flag.String("storage_dir", "", "Path to root of log storage.")
+	privKeyFile   = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	traceFraction = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 )
 
 func main() {
@@ -108,7 +109,7 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	shutdownOTel := initOTel(ctx, *origin)
+	shutdownOTel := initOTel(ctx, *traceFraction, *origin)
 	defer shutdownOTel(ctx)
 	signer := signerFromFlags()
 
