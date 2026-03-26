@@ -215,8 +215,9 @@ type NotBeforeRL struct {
 }
 
 type LogHandlerOpts struct {
-	NotBeforeRL *NotBeforeRL
-	DedupRL     float64
+	NotBeforeRL       *NotBeforeRL
+	DedupRL           float64
+	MaxCertChainBytes int64
 }
 
 // NewLogHandler creates a Tessera based CT log plugged into HTTP handlers.
@@ -256,7 +257,7 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 	mux := http.NewServeMux()
 	// Register handlers for all the configured logs.
 	for path, handler := range handlers {
-		mux.Handle(path, handler)
+		mux.Handle(path, http.MaxBytesHandler(handler, opts.MaxCertChainBytes))
 	}
 
 	// Health checking endpoint.

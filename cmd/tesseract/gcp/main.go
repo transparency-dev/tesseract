@@ -88,6 +88,7 @@ var (
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	maxCertChainBytes           = flag.Int64("max_cert_chain_bytes", 1<<19, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
 	inMemoryAntispamCacheSize   = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
 	checkpointInterval          = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
 	checkpointRepublishInterval = flag.Duration("checkpoint_republish_interval", 30*time.Second, "Interval between republishing a checkpoint for a log which hasn't grown since the previous checkpoint was published")
@@ -201,8 +202,9 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 
 	hOpts := tesseract.LogHandlerOpts{
-		NotBeforeRL: notBeforeRLFromFlags(),
-		DedupRL:     dedupRL,
+		NotBeforeRL:       notBeforeRLFromFlags(),
+		DedupRL:           dedupRL,
+		MaxCertChainBytes: *maxCertChainBytes,
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage(gcsClient, hc), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
@@ -218,6 +220,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		Addr: *httpEndpoint,
 		// Set timeout for reading headers to avoid a slowloris attack.
 		ReadHeaderTimeout: 5 * time.Second,
+		MaxHeaderBytes:    1 << 13, // 8 KiB
 	}
 	shutdownWG := new(sync.WaitGroup)
 	shutdownWG.Add(1)
