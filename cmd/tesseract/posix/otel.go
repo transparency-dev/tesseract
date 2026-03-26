@@ -79,7 +79,7 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 	}
 	// initialize a TracerProvier that periodically exports to the GCP exporter.
 	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithSampler(t_otel.NewAttributeSampler([]string{"tessera.periodic"}, sdktrace.TraceIDRatioBased(traceFraction))),
+		sdktrace.WithSampler(sdktrace.ParentBased(t_otel.NewAttributeSampler([]string{"tessera.periodic"}, sdktrace.TraceIDRatioBased(traceFraction)))),
 		sdktrace.WithBatcher(te),
 		sdktrace.WithResource(resources),
 	)
