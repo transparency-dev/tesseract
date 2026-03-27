@@ -67,7 +67,7 @@ var (
 
 	// POSIX subdirectory
 	logDir           = "log"
-	maxCertChainSize = int64(8 << 16) // 512 KiB
+	maxCertChainSize = int64(512 << 10) // 512 KiB
 )
 
 func hOpts() *HandlerOptions {
