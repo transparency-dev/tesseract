@@ -186,7 +186,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		Addr: *httpEndpoint,
 		// Set timeout for reading headers to avoid a slowloris attack.
 		ReadHeaderTimeout: 5 * time.Second,
-		MaxHeaderBytes:    1 << 13, // 8 KiB
+		MaxHeaderBytes:    8 << 10, // 8 KiB
 	}
 	shutdownWG := new(sync.WaitGroup)
 	shutdownWG.Add(1)

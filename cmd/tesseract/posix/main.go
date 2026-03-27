@@ -69,7 +69,7 @@ var (
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
-	maxCertChainBytes        = flag.Int64("max_cert_chain_bytes", 1<<19, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
+	maxCertChainBytes        = flag.Int64("max_cert_chain_bytes", 8<<16, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
 	maskInternalErrors       = flag.Bool("mask_internal_errors", false, "Don't return error strings with Internal Server Error HTTP responses.")
 	origin                   = flag.String("origin", "", "Origin of the log, for checkpoints. This MUST match the log's submission prefix as per https://c2sp.org/static-ct-api.")
 	pathPrefix               = flag.String("path_prefix", "", "Prefix to use on endpoints URL paths: HOST:PATH_PREFIX/ct/v1/ENDPOINT.")
@@ -163,7 +163,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		Addr: *httpEndpoint,
 		// Set timeout for reading headers to avoid a slowloris attack.
 		ReadHeaderTimeout: 5 * time.Second,
-		MaxHeaderBytes:    1 << 13, // 8 KiB
+		MaxHeaderBytes:    8 << 10, // 8 KiB
 	}
 	shutdownWG := new(sync.WaitGroup)
 	shutdownWG.Add(1)

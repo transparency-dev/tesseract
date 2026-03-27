@@ -66,8 +66,8 @@ var (
 	prefix = "/" + origin
 
 	// POSIX subdirectory
-	logDir = "log"
-	maxCertChainSize = int64(1<<19) // 512 KiB
+	logDir           = "log"
+	maxCertChainSize = int64(8 << 16) // 512 KiB
 )
 
 func hOpts() *HandlerOptions {
@@ -1099,4 +1099,3 @@ func BenchmarkParseBodyAsJSONChain(b *testing.B) {
 		}
 	}
 }
-
