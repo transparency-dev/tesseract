@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -65,7 +66,8 @@ var (
 	prefix = "/" + origin
 
 	// POSIX subdirectory
-	logDir = "log"
+	logDir           = "log"
+	maxCertChainSize = int64(512 << 10) // 512 KiB
 )
 
 func hOpts() *HandlerOptions {
@@ -279,14 +281,15 @@ func TestGetHandlersRejectPost(t *testing.T) {
 func TestPostHandlersFailure(t *testing.T) {
 	var tests = []struct {
 		descr string
-		body  io.Reader
+		body  string
 		want  int
 	}{
-		{"nil", nil, http.StatusBadRequest},
-		{"''", strings.NewReader(""), http.StatusBadRequest},
-		{"malformed-json", strings.NewReader("{ !$%^& not valid json "), http.StatusBadRequest},
-		{"empty-chain", strings.NewReader(`{ "chain": [] }`), http.StatusBadRequest},
-		{"wrong-chain", strings.NewReader(`{ "chain": [ "test" ] }`), http.StatusBadRequest},
+		{"nil", "", http.StatusBadRequest},
+		{"''", "", http.StatusBadRequest},
+		{"malformed-json", "{ !$%^& not valid json ", http.StatusBadRequest},
+		{"empty-chain", `{ "chain": [] }`, http.StatusBadRequest},
+		{"wrong-chain", `{ "chain": [ "test" ] }`, http.StatusBadRequest},
+		{"too-large-body", fmt.Sprintf(`{ "chain": [ "%s" ] }`, strings.Repeat("A", int(maxCertChainSize+1))), http.StatusRequestEntityTooLarge},
 	}
 
 	log, _ := setupTestLog(t)
@@ -294,10 +297,14 @@ func TestPostHandlersFailure(t *testing.T) {
 
 	for path, handler := range postHandlers(t, handlers) {
 		t.Run(path, func(t *testing.T) {
-			s := httptest.NewServer(handler)
+			s := httptest.NewServer(http.MaxBytesHandler(handler, maxCertChainSize))
 
 			for _, test := range tests {
-				resp, err := http.Post(s.URL+path, "application/json", test.body)
+				var bodyReader io.Reader
+				if test.body != "" {
+					bodyReader = strings.NewReader(test.body)
+				}
+				resp, err := http.Post(s.URL+path, "application/json", bodyReader)
 				if err != nil {
 					t.Errorf("http.Post(%s,%s)=(_,%q); want (_,nil)", path, test.descr, err)
 					continue
@@ -1092,4 +1099,3 @@ func BenchmarkParseBodyAsJSONChain(b *testing.B) {
 		}
 	}
 }
-
