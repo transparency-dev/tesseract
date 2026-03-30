@@ -78,12 +78,22 @@ variable "not_after_start" {
   description = "Start of the range of acceptable NotAfter values, inclusive. Leaving this empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z."
   default     = ""
   type        = string
+
+  validation {
+    condition     = var.not_after_start == "" || can(regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$", var.not_after_start))
+    error_message = "The not_after_start must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
+  }
 }
 
 variable "not_after_limit" {
   description = "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z."
   default     = ""
   type        = string
+
+  validation {
+    condition     = var.not_after_limit == "" || can(regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$", var.not_after_limit))
+    error_message = "The not_after_limit must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
+  }
 }
 
 variable "trace_fraction" {
