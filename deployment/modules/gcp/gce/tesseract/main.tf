@@ -44,6 +44,8 @@ locals {
     "-slog_level=-4",
     "-slog_to_cloud_api=true",
     "-otel_project_id=${var.project_id}",
+    "-container_name=${local.container_name}",
+    "-image_name=${local.cached_docker_image}",
     "-http_endpoint=:80",
     "-bucket=${var.bucket}",
     "-spanner_db_path=${local.spanner_log_db_path}",
