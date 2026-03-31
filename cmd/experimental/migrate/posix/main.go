@@ -29,6 +29,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
+	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/client"
@@ -38,12 +40,15 @@ import (
 )
 
 var (
-	storageDir         = flag.String("storage_dir", "", "Path to directory in which to store the migrated data.")
-	sourceURL          = flag.String("source_url", "", "Base monitoring URL for the source log.")
-	numWorkers         = flag.Uint("num_workers", 30, "Number of migration worker goroutines.")
-	persistentAntispam = flag.Bool("antispam", true, "Set to true to populate antispam storage.")
-	antispamBatchSize  = flag.Uint("antispam_batch_size", 50000, "Maximum number of antispam rows to insert per batch update.")
-	clientHTTPTimeout  = flag.Duration("client_http_timeout", 30*time.Second, "Timeout for outgoing HTTP requests")
+	storageDir                 = flag.String("storage_dir", "", "Path to directory in which to store the migrated data.")
+	sourceURL                  = flag.String("source_url", "", "Base monitoring URL for the source log.")
+	numWorkers                 = flag.Uint("num_workers", 30, "Number of migration worker goroutines.")
+	persistentAntispam         = flag.Bool("antispam", true, "Set to true to populate antispam storage.")
+	antispamBatchSize          = flag.Uint("antispam_batch_size", 10000, "Maximum number of antispam rows to insert per batch update.")
+	antispamBlockCacheSize     = flag.String("antispam_block_cache_size", "768MB", "Amount of RAM to allocate for antispam block cache, set to zero to disable.")
+	antispamIndexCacheSize     = flag.String("antispam_index_cache_size", "768MB", "Amount of RAM to allocate for antispam index cache, set to zero for unlimited.")
+	antispamCompactionInterval = flag.Duration("antispam_compaction_interval", tposix_as.DefaultCompactionInterval, "Interval between GC/compaction runs on the antispam index.")
+	clientHTTPTimeout          = flag.Duration("client_http_timeout", 30*time.Second, "Timeout for outgoing HTTP requests")
 )
 
 func main() {
@@ -103,10 +108,24 @@ func main() {
 	// Configure antispam storage, if necessary
 	var antispam tessera.Antispam
 	if *persistentAntispam {
-		as_opts := tposix_as.AntispamOpts{
-			MaxBatchSize: *antispamBatchSize,
+		antispamIndexCacheBytes, error := humanize.ParseBytes(*antispamIndexCacheSize)
+		if error != nil {
+			klog.Exitf("Invalid antispam index cache size: %v", error)
 		}
-		antispam, err = tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), as_opts)
+		antispamBlockCacheBytes, error := humanize.ParseBytes(*antispamBlockCacheSize)
+		if error != nil {
+			klog.Exitf("Invalid antispam block cache size: %v", error)
+		}
+		asOpts := tposix_as.AntispamOpts{
+			MaxBatchSize:       *antispamBatchSize,
+			CompactionInterval: *antispamCompactionInterval,
+			BadgerOptions: func(o badger.Options) badger.Options {
+				return o.
+					WithIndexCacheSize(int64(antispamIndexCacheBytes)).
+					WithBlockCacheSize(int64(antispamBlockCacheBytes))
+			},
+		}
+		antispam, err = tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), asOpts)
 		if err != nil {
 			klog.Exitf("Failed to create new POSIX antispam storage: %v", err)
 		}

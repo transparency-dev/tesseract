@@ -34,6 +34,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/dgraph-io/badger/v4"
 	"github.com/dustin/go-humanize"
 	"github.com/transparency-dev/tessera"
 	tposix "github.com/transparency-dev/tessera/storage/posix"
@@ -98,6 +99,10 @@ var (
 	clientHTTPMaxIdle           = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
 	clientHTTPMaxIdlePerHost    = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
 	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
+	antispamBatchSize           = flag.Uint("antispam_batch_size", 10000, "Maximum number of antispam rows to insert per batch update.")
+	antispamBlockCacheSize      = flag.String("antispam_block_cache_size", "768MB", "Amount of RAM to allocate for antispam block cache, set to zero to disable.")
+	antispamIndexCacheSize      = flag.String("antispam_index_cache_size", "768MB", "Amount of RAM to allocate for antispam index cache, set to zero for unlimited.")
+	antispamCompactionInterval  = flag.Duration("antispam_compaction_interval", tposix_as.DefaultCompactionInterval, "Interval between GC/compaction runs on the antispam index.")
 
 	// Infrastructure setup flags
 	storageDir    = flag.String("storage_dir", "", "Path to root of log storage.")
@@ -225,8 +230,23 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize POSIX Tessera storage driver: %v", err)
 	}
+	antispamIndexCacheBytes, error := humanize.ParseBytes(*antispamIndexCacheSize)
+	if error != nil {
+		return nil, fmt.Errorf("invalid antispam index cache size: %v", error)
+	}
+	antispamBlockCacheBytes, error := humanize.ParseBytes(*antispamBlockCacheSize)
+	if error != nil {
+		return nil, fmt.Errorf("invalid antispam block cache size: %v", error)
+	}
 	asOpts := tposix_as.AntispamOpts{
-		PushbackThreshold: *pushbackMaxAntispamLag,
+		PushbackThreshold:  *pushbackMaxAntispamLag,
+		MaxBatchSize:       *antispamBatchSize,
+		CompactionInterval: *antispamCompactionInterval,
+		BadgerOptions: func(o badger.Options) badger.Options {
+			return o.
+				WithIndexCacheSize(int64(antispamIndexCacheBytes)).
+				WithBlockCacheSize(int64(antispamBlockCacheBytes))
+		},
 	}
 	antispam, err := tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), asOpts)
 	if err != nil {
