@@ -104,3 +104,47 @@ run "valid_dates_both_empty" {
     not_after_limit = ""
   }
 }
+
+run "valid_dates_fractional_seconds" {
+  command = plan
+
+  variables {
+    not_after_start = "2024-01-01T00:00:00.123Z"
+    not_after_limit = "2024-01-02T00:00:00.456Z"
+  }
+}
+
+run "valid_dates_offsets" {
+  command = plan
+
+  variables {
+    not_after_start = "2024-01-01T00:00:00+01:00"
+    not_after_limit = "2024-01-02T00:00:00-05:00"
+  }
+}
+
+run "invalid_dates_not_after_start_lowercase" {
+  command = plan
+
+  variables {
+    not_after_start = "2024-01-01t00:00:00z"
+    not_after_limit = "2024-01-02T00:00:00Z"
+  }
+
+  expect_failures = [
+    var.not_after_start,
+  ]
+}
+
+run "invalid_dates_not_after_limit_lowercase" {
+  command = plan
+
+  variables {
+    not_after_start = "2024-01-01T00:00:00Z"
+    not_after_limit = "2024-01-02t00:00:00z"
+  }
+
+  expect_failures = [
+    var.not_after_limit,
+  ]
+}
