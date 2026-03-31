@@ -67,10 +67,10 @@ string form (e.g. `2.3.4.5`). Certificates that include one or more of these ext
 will be rejected.
 - `not_after_start`: Start of the range of acceptable NotAfter values,
 inclusive. Leaving this unset or empty implies no lower bound to the range.
-RFC3339 UTC format, e.g: `2024-01-02T15:04:05Z`.
+RFC3339 format, e.g: `2024-01-02T15:04:05Z`.
 - `not_after_limit`: Cut off point of NotAfter dates - only notAfter dates
 strictly _before_ `not_after_limit` will be accepted. Leaving this unset or empty
-means no upper bound on the accepted range. RFC3339 UTC format, e.g:
+means no upper bound on the accepted range. RFC3339 format, e.g:
 `2024-01-02T15:04:05Z`.
 - `accept_sha1_signing_algorithms`: If true, allow chains that use SHA-1 based
 signing algorithms. This flag is a temporary solution to allow chains submitted

@@ -20,13 +20,13 @@ variable "bucket_name" {
 }
 
 variable "not_after_start" {
-  description = "Start of the range of acceptable NotAfter values, inclusive. Leaving this empty implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z."
+  description = "Start of the range of acceptable NotAfter values, inclusive. Leaving this empty implies no lower bound to the range. RFC3339 format, e.g: 2024-01-02T15:04:05Z."
   default     = ""
   type        = string
 }
 
 variable "not_after_limit" {
-  description = "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this empty means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z."
+  description = "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this empty means no upper bound on the accepted range. RFC3339 format, e.g: 2024-01-02T15:04:05Z."
   default     = ""
   type        = string
 }
