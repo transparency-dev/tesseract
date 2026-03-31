@@ -115,8 +115,8 @@ var (
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", true, "Export logs directly to Cloud Logging API. Required --otel_project_id to be set.")
 	slogToStdOut               = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
-	containerName              = flag.String("container_name", "", "Name of the running container.")
-	imageName                  = flag.String("image_name", "", "Name of the cached docker image.")
+	containerName              = flag.String("container_name", "", "Name of the running container. Only used to decorate slog events.")
+	imageName                  = flag.String("image_name", "", "Name of the cached docker image. Only used to decorate slog events.")
 )
 
 // nolint:staticcheck
