@@ -43,7 +43,7 @@ const (
 
 var (
 	outputPath      = flag.String("output_path", "./internal/testdata/", "Output path for private keys and certificates")
-	notBeforeString = flag.String("not_before", "2024-12-05T18:05:50.000Z", "Start of the range of certs to be generated. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	notBeforeString = flag.String("not_before", "2024-12-05T18:05:50.000Z", "Start of the range of certs to be generated. RFC3339 format, e.g: 2024-01-02T15:04:05Z.")
 )
 
 var (
@@ -435,9 +435,6 @@ func (t *timestampFlag) String() string {
 }
 
 func parseTime(w string) (*time.Time, error) {
-	if !strings.HasSuffix(w, "Z") {
-		return nil, fmt.Errorf("timestamps MUST be in UTC, got %v", w)
-	}
 	tt, err := time.Parse(time.RFC3339, w)
 	if err != nil {
 		return nil, fmt.Errorf("can't parse %q as RFC3339 timestamp: %v", w, err)

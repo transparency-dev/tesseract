@@ -49,8 +49,8 @@ import (
 )
 
 func init() {
-	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset implies no lower bound to the range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
-	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset means no upper bound on the accepted range. RFC3339 UTC format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&notAfterStart, "not_after_start", "Start of the range of acceptable NotAfter values, inclusive. Leaving this unset implies no lower bound to the range. RFC3339 format, e.g: 2024-01-02T15:04:05Z.")
+	flag.Var(&notAfterLimit, "not_after_limit", "Cut off point of notAfter dates - only notAfter dates strictly *before* notAfterLimit will be accepted. Leaving this unset means no upper bound on the accepted range. RFC3339 format, e.g: 2024-01-02T15:04:05Z.")
 	flag.Var(&additionalSigners, "additional_signer", "Path to a file containing an additional note Signer formatted keys for checkpoints. May be specified multiple times.")
 	flag.Var(&rootsRejectFingerprints, "roots_reject_fingerprints", "Hex-encoded SHA-256 fingerprint of a root certificate to reject. May be specified multiple times.")
 	flag.Float64Var(&dedupRL, "rate_limit_dedup", 100, "Rate limit for resolving duplicate submissions, in requests per second - i.e. duplicate requests for already integrated entries, which need to be fetched from the log storage by TesseraCT to extract their timestamp. When 0, all duplicate submissions are rejected. When negative, no rate limit is applied.")
@@ -331,8 +331,8 @@ func (t *timestampFlag) String() string {
 }
 
 func (t *timestampFlag) Set(w string) error {
-	if !strings.HasSuffix(w, "Z") {
-		return fmt.Errorf("timestamps MUST be in UTC, got %v", w)
+	if w == "" {
+		return nil
 	}
 	tt, err := time.Parse(time.RFC3339, w)
 	if err != nil {
