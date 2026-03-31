@@ -31,6 +31,7 @@ import (
 	"syscall"
 	"time"
 
+	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"
 	"k8s.io/klog/v2"
 
@@ -114,6 +115,8 @@ var (
 	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is INFO. See https://pkg.go.dev/log/slog#Level.")
 	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", true, "Export logs directly to Cloud Logging API. Required --otel_project_id to be set.")
 	slogToStdOut               = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
+	containerName              = flag.String("container_name", "", "Name of the running container.")
+	imageName                  = flag.String("image_name", "", "Name of the cached docker image.")
 )
 
 // nolint:staticcheck
@@ -122,33 +125,8 @@ func main() {
 	flag.Parse()
 	ctx := context.Background()
 
-	var loggingHandlers []slog.Handler
-	if *slogToStdOut {
-		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-			ReplaceAttr: logger.GCPReplaceAttr,
-			Level:       slog.Level(*slogLevel),
-		}))
-	}
-	if *slogToCloudAPI {
-		if *otelProjectID == "" {
-			klog.Exitf("--otel_project_id is required when --slog_to_cloud_api is true")
-		}
-		var err error
-		loggingClient, err := logging.NewClient(ctx, "projects/"+*otelProjectID)
-		if err != nil {
-			klog.Exitf("Failed to create Cloud Logging client: %v", err)
-		}
-		defer func() {
-			if err := loggingClient.Close(); err != nil {
-				klog.Errorf("Failed to close Cloud Logging client: %v", err)
-			}
-		}()
-		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract"), slog.Level(*slogLevel)))
-	}
-
-	if len(loggingHandlers) > 0 {
-		slog.SetDefault(slog.New(logger.NewEnricher(logger.NewMultiHandler(loggingHandlers...), *otelProjectID)))
-	}
+	cleanup := initLogging(ctx)
+	defer cleanup()
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin, *otelProjectID)
 	defer shutdownOTel(ctx)
@@ -407,4 +385,82 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
+}
+
+func initLogging(ctx context.Context) func() {
+	var staticAttrs []any
+	containerMap := map[string]string{}
+	if *containerName != "" {
+		containerMap["name"] = *containerName
+	}
+	if *imageName != "" {
+		containerMap["imageName"] = *imageName
+	}
+	if len(containerMap) > 0 {
+		staticAttrs = append(staticAttrs, slog.Any("container", containerMap))
+	}
+
+	if metadata.OnGCE() {
+		id, err := metadata.InstanceIDWithContext(ctx)
+		if err != nil {
+			id = "unknown"
+		}
+		name, err := metadata.InstanceNameWithContext(ctx)
+		if err != nil {
+			name = "unknown"
+		}
+		zone, err := metadata.ZoneWithContext(ctx)
+		if err != nil {
+			zone = "unknown"
+		}
+		// Zone from metadata server is full path like projects/.../zones/europe-west3-c. We just want the basename.
+		if idx := strings.LastIndex(zone, "/"); idx != -1 {
+			zone = zone[idx+1:]
+		}
+		staticAttrs = append(staticAttrs, slog.Any("instance", map[string]string{
+			"id":   id,
+			"name": name,
+			"zone": zone,
+		}))
+	}
+
+	var loggingHandlers []slog.Handler
+	if *slogToStdOut {
+		loggingHandlers = append(loggingHandlers, slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+			ReplaceAttr: logger.GCPReplaceAttr,
+			Level:       slog.Level(*slogLevel),
+		}))
+	}
+
+	var cleanup []func()
+	if *slogToCloudAPI {
+		if *otelProjectID == "" {
+			klog.Exitf("--otel_project_id is required when --slog_to_cloud_api is true")
+		}
+		var err error
+		loggingClient, err := logging.NewClient(ctx, "projects/"+*otelProjectID)
+		if err != nil {
+			klog.Exitf("Failed to create Cloud Logging client: %v", err)
+		}
+		cleanup = append(cleanup, func() {
+			if err := loggingClient.Close(); err != nil {
+				klog.Errorf("Failed to close Cloud Logging client: %v", err)
+			}
+		})
+		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract"), slog.Level(*slogLevel)))
+	}
+
+	if len(loggingHandlers) > 0 {
+		l := slog.New(logger.NewEnricher(logger.NewMultiHandler(loggingHandlers...), *otelProjectID))
+		if len(staticAttrs) > 0 {
+			l = l.With(staticAttrs...)
+		}
+		slog.SetDefault(l)
+	}
+
+	return func() {
+		for _, f := range cleanup {
+			f()
+		}
+	}
 }
