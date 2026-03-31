@@ -81,7 +81,7 @@ variable "not_after_start" {
 
   validation {
     condition     = var.not_after_start == "" || can(regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$", var.not_after_start))
-    error_message = "The not_after_start must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
+    error_message = "not_after_start must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
   }
 }
 
@@ -92,12 +92,12 @@ variable "not_after_limit" {
 
   validation {
     condition     = var.not_after_limit == "" || can(regex("^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$", var.not_after_limit))
-    error_message = "The not_after_limit must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
+    error_message = "not_after_limit must be in RFC3339 UTC format (e.g., 2024-01-02T15:04:05Z) or empty."
   }
 
   validation {
     condition     = var.not_after_start == "" || var.not_after_limit == "" || timecmp(var.not_after_start, var.not_after_limit) < 0
-    error_message = "The not_after_start must be strictly before not_after_limit."
+    error_message = "not_after_start must be strictly before not_after_limit."
   }
 }
 
