@@ -64,6 +64,7 @@ module "gce" {
 }
 
 module "ilb" {
+  count = var.create_internal_load_balancer ? 1 : 0
   source = "../../loadbalancer/internal"
 
   env           = var.env
