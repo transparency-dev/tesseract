@@ -76,7 +76,7 @@ If you find any other such chain, [get in touch](/README.md#wave-contact)!
 - [Jerarquia Entitats de Certificacio Catalanes Root certificate](https://crt.sh/?sha256=88497F01602F3154246AE28C4D5AEF10F1D87EBB76626F4AE0B7F95BA7968799):
 This certificate has a negative serial number, which is not allowed starting
 from `go1.23`. At the time of writing, this certificate is trusted by the
-Microsoft Root store, but not not seem to be used to issue certificates used for
+Microsoft Root store, but does not seem to be used to issue certificates used for
 server authentication.
 - [Direccion General de Normatividad Mercantil Root certificate](https://crt.sh/?sha256=B41D516A5351D42DEEA191FA6EDF2A67DEE2F36DC969012C76669E616B900DDF):
 affected by a known [crypto/x509 issue](https://github.com/golang/go/issues/69463).
