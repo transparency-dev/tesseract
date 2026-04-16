@@ -22,6 +22,7 @@ import (
 	gcs "cloud.google.com/go/storage"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tesseract/internal/client"
+	"k8s.io/klog/v2"
 )
 
 // NewGSFetcher creates a new GSFetcher for the Google Cloud Storage bucket, using
@@ -54,12 +55,13 @@ func (f GSFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 	if err != nil {
 		return nil, fmt.Errorf("getObject: failed to create reader for object %q in bucket %q: %w", p, f.bucket, err)
 	}
+	defer func() {
+		if err := r.Close(); err != nil {
+			klog.Errorf("r.Close(): %v", err)
+		}
+	}()
 
-	d, err := io.ReadAll(r)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read %q: %v", p, err)
-	}
-	return d, r.Close()
+	return io.ReadAll(r)
 }
 
 func (f GSFetcher) ReadCheckpoint(ctx context.Context) ([]byte, error) {
