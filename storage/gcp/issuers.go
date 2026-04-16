@@ -149,6 +149,11 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 					if err != nil {
 						return fmt.Errorf("failed to create reader for object %q in bucket %q: %w", objName, s.bucket.BucketName(), err)
 					}
+					defer func() {
+						if err := r.Close(); err != nil {
+							klog.Errorf("r.Close(): %v", err)
+						}
+					}()
 
 					existing, err := io.ReadAll(r)
 					if err != nil {

@@ -170,6 +170,11 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 					if err != nil {
 						return fmt.Errorf("failed to fetch existing object %q: %v", objName, err)
 					}
+					defer func() {
+						if err := existingObj.Body.Close(); err != nil {
+							klog.Errorf("existingObj.Body.Close(): %v", err)
+						}
+					}()
 					existing, err := io.ReadAll(existingObj.Body)
 					if err != nil {
 						return fmt.Errorf("failed to read object %q: %v", objName, err)
