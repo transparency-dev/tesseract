@@ -44,7 +44,10 @@ locals {
     "-slog_level=-4",
     "-slog_to_cloud_api=true",
     "-otel_project_id=${var.project_id}",
-    "-container_name=${local.container_name}",
+    # This is used in GCP logs entries exported via the GCP logging API directly.
+    # Add a forward slash to match the container name of GCP log entries exported
+    # by Docker and the container agent directly. 
+    "-container_name=/${trimprefix(local.container_name, "/")}",
     "-image_name=${local.cached_docker_image}",
     "-http_endpoint=:80",
     "-bucket=${var.bucket}",
