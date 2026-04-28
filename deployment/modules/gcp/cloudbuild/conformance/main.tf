@@ -224,11 +224,10 @@ resource "google_cloudbuild_trigger" "build_trigger" {
           --log_public_key="$(cat /workspace/conformance_log_public_key)" \
           --log_url="https://storage.googleapis.com/$(cat /workspace/conformance_bucket_name)/" \
           --write_log_url="$(cat /workspace/conformance_url)/${local.origin}" \
-          -v=1 \
+          --slog_level=-4 \
           --show_ui=false \
           --bearer_token="$(cat /workspace/cb_access)" \
           --bearer_token_write="$(cat /workspace/cb_identity)" \
-          --logtostderr \
           --num_writers=256 \
           --max_write_ops=256 \
           --num_mmd_verifiers=256 \

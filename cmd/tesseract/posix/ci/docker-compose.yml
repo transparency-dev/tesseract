@@ -10,7 +10,7 @@ services:
     command:
       - "--http_endpoint=0.0.0.0:6962"
       - "--storage_dir=/testlog"
-      - "--v=1"
+      - "--slog_level=-4"
       - "--roots_pem_file=/testdata/test_root_ca_cert.pem"
       - "--origin=example.com/test-ecdsa"
       - "--private_key=/testlog/test-ecdsa-priv.pem"
