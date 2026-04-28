@@ -15,9 +15,12 @@
 package ct
 
 import (
+	"context"
+	"log/slog"
+	"os"
+
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
-	"k8s.io/klog/v2"
 )
 
 const name = "github.com/transparency-dev/tesseract/internal/ct"
@@ -38,7 +41,8 @@ var (
 
 func mustCreate[T any](t T, err error) T {
 	if err != nil {
-		klog.Exit(err.Error())
+		slog.ErrorContext(context.Background(), err.Error())
+		os.Exit(1)
 	}
 	return t
 }

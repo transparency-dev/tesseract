@@ -15,16 +15,16 @@
 package posix
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
-
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -120,7 +120,7 @@ func createEx(name string, d []byte) error {
 		}
 		defer func() {
 			if err := os.Remove(tmpName); err != nil {
-				klog.Warningf("Failed to remove temporary file %q: %v", tmpName, err)
+				slog.WarnContext(context.Background(), "Failed to remove temporary file", slog.String("name", tmpName), slog.Any("error", err))
 			}
 		}()
 

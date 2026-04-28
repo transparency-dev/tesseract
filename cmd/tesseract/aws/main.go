@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -41,7 +42,6 @@ import (
 	"github.com/transparency-dev/tesseract/storage/aws"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
-	"k8s.io/klog/v2"
 )
 
 func init() {
@@ -106,13 +106,14 @@ var (
 	signerPublicKeyFile        = flag.String("signer_public_key_file", "", "Path to public key file for checkpoints and SCTs signer (alternative to secrets manager)")
 	signerPrivateKeyFile       = flag.String("signer_private_key_file", "", "Path to private key file for checkpoints and SCTs signer (alternative to secrets manager)")
 	usePathStyle               = flag.Bool("s3_use_path_style", false, "Whether to force the AWS S3 client to use path-style bucket references, probably only useful for on-prem deployments")
+	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
 )
 
 // nolint:staticcheck
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
 
 	var signer *ECDSAWithSHA256Signer
 	var err error
@@ -121,15 +122,18 @@ func main() {
 	if *signerPublicKeyFile != "" && *signerPrivateKeyFile != "" {
 		signer, err = NewLocalSigner(*signerPublicKeyFile, *signerPrivateKeyFile)
 		if err != nil {
-			klog.Exitf("Can't create local file signer: %v", err)
+			slog.ErrorContext(ctx, "Can't create local file signer", slog.Any("error", err))
+			os.Exit(1)
 		}
 	} else if *signerPublicKeySecretName != "" && *signerPrivateKeySecretName != "" {
 		signer, err = NewSecretsManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 		if err != nil {
-			klog.Exitf("Can't create AWS Secrets Manager signer: %v", err)
+			slog.ErrorContext(ctx, "Can't create AWS Secrets Manager signer", slog.Any("error", err))
+			os.Exit(1)
 		}
 	} else {
-		klog.Exit("Must specify either local key files (--signer_public_key_file and --signer_private_key_file) or secrets manager keys (--signer_public_key_secret_name and --signer_private_key_secret_name)")
+		slog.ErrorContext(ctx, "Must specify either local key files (--signer_public_key_file and --signer_private_key_file) or secrets manager keys (--signer_public_key_secret_name and --signer_private_key_secret_name)")
+		os.Exit(1)
 	}
 
 	awsCfg := storageConfigFromFlags()
@@ -139,7 +143,8 @@ func main() {
 		S3Options: awsCfg.S3Options,
 	})
 	if err != nil {
-		klog.Exitf("failed to initialize S3 backup storage for remotely fetched roots: %v", err)
+		slog.ErrorContext(ctx, "failed to initialize S3 backup storage for remotely fetched roots", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if len(rootsRemoteFetchURLs) == 0 {
@@ -161,7 +166,7 @@ func main() {
 		RejectRoots:              rootsRejectFingerprints,
 	}
 	if *acceptSHA1 {
-		klog.Info(`**** WARNING **** This server will accept chains signed
+		slog.InfoContext(ctx, `**** WARNING **** This server will accept chains signed
 using SHA-1 based algorithms. This feature is available to allow chains
 submitted by Chrome's Merge Delay Monitor Root for the time being, but will
 eventually go away. See /internal/lax509/README.md for more information.`)
@@ -174,11 +179,11 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorageFunc(awsCfg), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
-		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
+		slog.ErrorContext(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	klog.CopyStandardLogTo("WARNING")
-	klog.Info("**** CT HTTP Server Starting ****")
+	slog.InfoContext(ctx, "**** CT HTTP Server Starting ****")
 	http.Handle("/", otelhttp.NewHandler(logHandler, "/"))
 
 	// Bring up the HTTP server and serve until we get a signal not to.
@@ -196,20 +201,19 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel()
-		klog.Info("Shutting down HTTP server...")
+		slog.InfoContext(ctx, "Shutting down HTTP server...")
 		if err := srv.Shutdown(ctx); err != nil {
-			klog.Errorf("srv.Shutdown(): %v", err)
+			slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
 		}
-		klog.Info("HTTP server shutdown")
+		slog.InfoContext(ctx, "HTTP server shutdown")
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		klog.Warningf("Server exited: %v", err)
+		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
 	// in which case it'll block until the HTTP server has gracefully shutdown
 	shutdownWG.Wait()
-	klog.Flush()
 }
 
 // awaitSignal waits for standard termination signals, then runs the given
@@ -221,8 +225,7 @@ func awaitSignal(doneFn func()) {
 
 	// Now block main and wait for a signal
 	sig := <-sigs
-	klog.Warningf("Signal received: %v", sig)
-	klog.Flush()
+	slog.WarnContext(context.Background(), "Signal received", slog.Any("signal", sig))
 
 	doneFn()
 }
@@ -343,23 +346,29 @@ func (ms *multiStringFlag) Set(w string) error {
 // provided via flags.
 func storageConfigFromFlags() taws.Config {
 	if *bucket == "" {
-		klog.Exit("--bucket must be set")
+		slog.ErrorContext(context.Background(), "--bucket must be set")
+		os.Exit(1)
 	}
 	if *dbName == "" {
-		klog.Exit("--db_name must be set")
+		slog.ErrorContext(context.Background(), "--db_name must be set")
+		os.Exit(1)
 	}
 	if *dbHost == "" {
-		klog.Exit("--db_host must be set")
+		slog.ErrorContext(context.Background(), "--db_host must be set")
+		os.Exit(1)
 	}
 	if *dbPort == 0 {
-		klog.Exit("--db_port must be set")
+		slog.ErrorContext(context.Background(), "--db_port must be set")
+		os.Exit(1)
 	}
 	if *dbUser == "" {
-		klog.Exit("--db_user must be set")
+		slog.ErrorContext(context.Background(), "--db_user must be set")
+		os.Exit(1)
 	}
 	// Empty password isn't an option with AuroraDB MySQL.
 	if *dbPassword == "" {
-		klog.Exit("--db_password must be set")
+		slog.ErrorContext(context.Background(), "--db_password must be set")
+		os.Exit(1)
 	}
 
 	c := mysql.Config{
@@ -397,20 +406,25 @@ func storageConfigFromFlags() taws.Config {
 
 func antispamMySQLConfig() *mysql.Config {
 	if *antispamDBName == "" {
-		klog.Exit("--antispam_db_name must be set")
+		slog.ErrorContext(context.Background(), "--antispam_db_name must be set")
+		os.Exit(1)
 	}
 	if *dbHost == "" {
-		klog.Exit("--db_host must be set")
+		slog.ErrorContext(context.Background(), "--db_host must be set")
+		os.Exit(1)
 	}
 	if *dbPort == 0 {
-		klog.Exit("--db_port must be set")
+		slog.ErrorContext(context.Background(), "--db_port must be set")
+		os.Exit(1)
 	}
 	if *dbUser == "" {
-		klog.Exit("--db_user must be set")
+		slog.ErrorContext(context.Background(), "--db_user must be set")
+		os.Exit(1)
 	}
 	// Empty password isn't an option with AuroraDB MySQL.
 	if *dbPassword == "" {
-		klog.Exit("--db_password must be set")
+		slog.ErrorContext(context.Background(), "--db_password must be set")
+		os.Exit(1)
 	}
 
 	return &mysql.Config{
@@ -430,15 +444,18 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 	}
 	bits := strings.Split(*notBeforeRL, ":")
 	if len(bits) != 2 {
-		klog.Exitf("Invalid format for --rate_limit_old_not_before flag")
+		slog.ErrorContext(context.Background(), "Invalid format for --rate_limit_old_not_before flag")
+		os.Exit(1)
 	}
 	a, err := time.ParseDuration(bits[0])
 	if err != nil {
-		klog.Exitf("Invalid age passed to --rate_limit_old_not_before flag %q: %v", bits[0], err)
+		slog.ErrorContext(context.Background(), "Invalid age passed to --rate_limit_old_not_before flag", slog.String("age", bits[0]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	l, err := strconv.ParseFloat(bits[1], 64)
 	if err != nil {
-		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
+		slog.ErrorContext(context.Background(), "Invalid rate limit passed to --rate_limit_old_not_before", slog.String("limit", bits[1]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }

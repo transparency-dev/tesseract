@@ -23,8 +23,10 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"sync"
 	"time"
 
@@ -37,7 +39,6 @@ import (
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -49,6 +50,7 @@ var (
 	userAgentInfo    = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
 	bundleCompressed = flag.Bool("bundle_compressed", false, "Enable decompression of entry bundles, useful for Sunlight logs")
 	ui               = flag.Bool("ui", true, "Set to true to use a TUI to display progress, or false for logging")
+	slogLevel        = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
 )
 
 const (
@@ -61,8 +63,8 @@ type fetcher interface {
 }
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
 	ctx, cancel := context.WithCancel(context.Background())
 	src := fetcherFromFlags()
 	v := verifierFromFlags()
@@ -81,7 +83,7 @@ func main() {
 
 	if *ui {
 		if err := tui.RunApp(ctx, f); err != nil {
-			klog.Errorf("App exited: %v", err)
+			slog.ErrorContext(ctx, "App exited", slog.Any("error", err))
 		}
 		// User may have exited the UI, cancel the context to signal to everything else.
 		cancel()
@@ -91,16 +93,17 @@ func main() {
 			case <-ctx.Done():
 				return
 			case <-time.After(time.Second):
-				klog.V(1).Infof("Ranges:\n%s", f.Status())
+				slog.DebugContext(ctx, "Ranges", slog.Any("status", f.Status()))
 			}
 		}
 	}
 
 	if err := eg.Wait(); err != nil {
-		klog.Exitf("FAILED:\n%v", err)
+		slog.ErrorContext(ctx, "FAILED", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	klog.Info("OK")
+	slog.InfoContext(ctx, "OK")
 }
 
 // logStateCollector tracks state of the target log which needs to be later checked.
@@ -130,7 +133,7 @@ func (l *logStateCollector) Close() {
 // This is a long-running function, it will only exit once Close has been called, and all remaining fingerprints in the
 // issuersToCheck channel have been checked.
 func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer func(context.Context, []byte) ([]byte, error), N uint) error {
-	klog.Infof("Checking issuers CAS")
+	slog.InfoContext(ctx, "Checking issuers CAS")
 
 	// done will be closed when the function is ready to return
 	done := make(chan struct{})
@@ -156,11 +159,11 @@ func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer fun
 			defer wg.Done()
 			for fp := range l.issuersToCheck {
 				if _, err := readIssuer(ctx, fp); err != nil {
-					klog.Warningf("Couldn't fetch issuer FP %x: %v", fp, err)
+					slog.WarnContext(ctx, "Couldn't fetch issuer", slog.String("fp", fmt.Sprintf("%x", fp)), slog.Any("error", err))
 					errC <- fmt.Errorf("couldn't fetch issuer for %x: %v", fp, err)
 					continue
 				}
-				klog.V(2).Infof("Issuer FP %x is present", fp)
+				slog.DebugContext(ctx, "Issuer is present", slog.String("fp", fmt.Sprintf("%x", fp)))
 			}
 		}()
 	}
@@ -182,7 +185,7 @@ func (l *logStateCollector) addIssuers(fpRaw cryptobyte.String) {
 		fp, fpRaw = fpRaw[:32], fpRaw[32:]
 		_, existed := l.issuersSeen.LoadOrStore(string(fp), true)
 		if !existed {
-			klog.V(2).Infof("Found issuer FP %x", fp)
+			slog.DebugContext(context.Background(), "Found issuer", slog.String("fp", fmt.Sprintf("%x", fp)))
 			l.issuersToCheck <- fp
 		}
 	}
@@ -294,7 +297,8 @@ func copyUint24LengthPrefixed(from *cryptobyte.String, to *cryptobyte.Builder) b
 func fetcherFromFlags() fetcher {
 	logURL, err := url.Parse(*monitoringURL)
 	if err != nil {
-		klog.Exitf("Invalid --storage_url %q: %v", *monitoringURL, err)
+		slog.ErrorContext(context.Background(), "Invalid --storage_url", slog.String("url", *monitoringURL), slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if logURL.Scheme == "file" {
@@ -314,7 +318,8 @@ func fetcherFromFlags() fetcher {
 	}
 	src, err := client.NewHTTPFetcher(logURL, hc)
 	if err != nil {
-		klog.Exitf("Failed to create HTTP fetcher: %v", err)
+		slog.ErrorContext(context.Background(), "Failed to create HTTP fetcher", slog.Any("error", err))
+		os.Exit(1)
 	}
 	src.EnableRetries(10)
 	ua := userAgent
@@ -329,31 +334,38 @@ func fetcherFromFlags() fetcher {
 }
 
 func verifierFromFlags() note.Verifier {
+	ctx := context.Background()
 	if *origin == "" {
-		klog.Exitf("Must provide the --origin flag")
+		slog.ErrorContext(ctx, "Must provide the --origin flag")
+		os.Exit(1)
 	}
 	if *pubKey == "" {
-		klog.Exitf("Must provide the --pub_key flag")
+		slog.ErrorContext(ctx, "Must provide the --pub_key flag")
+		os.Exit(1)
 	}
 	derBytes, err := base64.StdEncoding.DecodeString(*pubKey)
 	if err != nil {
-		klog.Exitf("Error decoding public key: %s", err)
+		slog.ErrorContext(ctx, "Error decoding public key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	pub, err := x509.ParsePKIXPublicKey(derBytes)
 	if err != nil {
-		klog.Exitf("Error parsing public key: %v", err)
+		slog.ErrorContext(ctx, "Error parsing public key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	verifierKey, err := tdnote.RFC6962VerifierString(*origin, pub)
 	if err != nil {
-		klog.Exitf("Error creating RFC6962 verifier string: %v", err)
+		slog.ErrorContext(ctx, "Error creating RFC6962 verifier string", slog.Any("error", err))
+		os.Exit(1)
 	}
 	logSigV, err := tdnote.NewVerifier(verifierKey)
 	if err != nil {
-		klog.Exitf("Error creating verifier: %v", err)
+		slog.ErrorContext(ctx, "Error creating verifier", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	klog.Infof("Using verifier string: %v", verifierKey)
+	slog.InfoContext(ctx, "Using verifier", slog.String("key", verifierKey))
 
 	return logSigV
 }

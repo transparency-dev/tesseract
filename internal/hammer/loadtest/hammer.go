@@ -17,12 +17,12 @@ package loadtest
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/client"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
-
-	"k8s.io/klog/v2"
 )
 
 type HammerOpts struct {
@@ -115,17 +115,21 @@ func (h *Hammer) updateCheckpointLoop(ctx context.Context) {
 			size := h.tracker.LatestConsistent.Size
 			_, _, _, err := h.tracker.Update(ctx)
 			if err != nil {
-				klog.Warning(err)
+				slog.WarnContext(ctx, "tracker.Update", slog.Any("error", err))
 				inconsistentErr := client.ErrInconsistency{}
 				if errors.As(err, &inconsistentErr) {
-					klog.Fatalf("Last Good Checkpoint:\n%s\n\nFirst Bad Checkpoint:\n%s\n\n%v", string(inconsistentErr.SmallerRaw), string(inconsistentErr.LargerRaw), inconsistentErr)
+					slog.ErrorContext(ctx, "Inconsistency detected",
+						slog.String("last_good", string(inconsistentErr.SmallerRaw)),
+						slog.String("first_bad", string(inconsistentErr.LargerRaw)),
+						slog.Any("error", inconsistentErr))
+					os.Exit(1)
 				}
 			}
 			newSize := h.tracker.LatestConsistent.Size
 			if newSize > size {
-				klog.V(1).Infof("Updated checkpoint from %d to %d", size, newSize)
+				slog.DebugContext(ctx, "Updated checkpoint", slog.Uint64("from", size), slog.Uint64("to", newSize))
 			} else {
-				klog.V(2).Infof("Checkpoint size unchanged: %d", newSize)
+				slog.DebugContext(ctx, "Checkpoint size unchanged", slog.Uint64("size", newSize))
 			}
 		}
 	}

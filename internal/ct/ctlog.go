@@ -7,14 +7,15 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/url"
+	"os"
 	"strings"
 
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/storage"
-	"k8s.io/klog/v2"
 )
 
 // log provides objects and functions to implement static-ct-api write api.
@@ -100,12 +101,14 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cv ChainVa
 
 	cpSigner, err := NewCpSigner(signer, origin, ts)
 	if err != nil {
-		klog.Exitf("failed to create checkpoint Signer: %v", err)
+		slog.ErrorContext(ctx, "failed to create checkpoint Signer", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	storage, err := cs(ctx, cpSigner)
 	if err != nil {
-		klog.Exitf("failed to initiate storage backend: %v", err)
+		slog.ErrorContext(ctx, "failed to initiate storage backend", slog.Any("error", err))
+		os.Exit(1)
 	}
 	log.storage = storage
 

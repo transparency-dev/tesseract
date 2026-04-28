@@ -26,13 +26,12 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"os"
 	"path"
 	"strings"
 	"time"
-
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -59,46 +58,54 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	notBefore, err := parseTime(*notBeforeString)
 	if err != nil {
-		klog.Fatalf("Failed to parse start time: %v", err)
+		slog.Error("Failed to parse start time", slog.Any("error", err))
+		os.Exit(1)
 	}
 	// Generate root.
 	// Generate a new EC root CA private key.
 	rootPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate root CA private key: %v", err)
+		slog.Error("Failed to generate root CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(rootPrivKey, path.Join(*outputPath, "test_root_ca_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save root CA private key: %v", err)
+		slog.Error("Failed to save root CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new root CA certificate.
 	rootCert, err := rootCACert(rootPrivKey, *notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate root CA certificate: %v", err)
+		slog.Error("Failed to generate root CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(rootCert, path.Join(*outputPath, "test_root_ca_cert.pem")); err != nil {
-		klog.Fatalf("Failed to save root CA certificate: %v", err)
+		slog.Error("Failed to save root CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate CT server private keys (ECDSA, RSA).
 	ctServerECDSAPrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate CT server ECDSA private key: %v", err)
+		slog.Error("Failed to generate CT server ECDSA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(ctServerECDSAPrivKey, path.Join(*outputPath, "test_ct_server_ecdsa_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save CT server ECDSA private key: %v", err)
+		slog.Error("Failed to save CT server ECDSA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	ctServerRSAPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		klog.Fatalf("Failed to generate CT server RSA private key: %v", err)
+		slog.Error("Failed to generate CT server RSA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveRSAPrivateKeyPEM(ctServerRSAPrivKey, path.Join(*outputPath, "test_ct_server_rsa_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save CT server RSA private key: %v", err)
+		slog.Error("Failed to save CT server RSA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	genLeaves(rootCert, rootPrivKey, *notBefore)
@@ -112,26 +119,32 @@ func genLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.PrivateKey, notBef
 	// Generate a new ECDSA leaf certificate signing private key.
 	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
+		slog.Error("Failed to generate leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_root_signing_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
+		slog.Error("Failed to save leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	chainGenerator := newChainGenerator(rootCert, rootPrivKey, leafCertPrivateKey.Public())
 	leafCert, err := chainGenerator.certificate(100, false, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		slog.Error("Failed to generate leaf certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_root.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		slog.Error("Failed to save leaf cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		slog.Error("Failed to generate leaf certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_root.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		slog.Error("Failed to save leaf cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 }
@@ -141,44 +154,54 @@ func genIntermediateAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Pri
 	// Generate a new ECDSA intermediate CA private key.
 	intermediatePrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA private key: %v", err)
+		slog.Error("Failed to generate intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(intermediatePrivKey, path.Join(*outputPath, "test_intermediate_ca_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA private key: %v", err)
+		slog.Error("Failed to save intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new intermediate CA certificate with CT extension.
 	intermediateCert, err := intermediateCACert(rootCert, rootPrivKey, intermediatePrivKey, false, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA certificate: %v", err)
+		slog.Error("Failed to generate intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(intermediateCert, path.Join(*outputPath, "test_intermediate_ca_cert.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
+		slog.Error("Failed to save intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new ECDSA leaf certificate signing private key.
 	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
+		slog.Error("Failed to generate leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_intermediate_signing_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
+		slog.Error("Failed to save leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	chainGenerator := newChainGenerator(intermediateCert, intermediatePrivKey, leafCertPrivateKey.Public())
 	leafCert, err := chainGenerator.certificate(100, false, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		slog.Error("Failed to generate leaf certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_intermediate.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		slog.Error("Failed to save leaf cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf pre-certificate: %v", err)
+		slog.Error("Failed to generate leaf pre-certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_intermediate.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf pre-cert: %v", err)
+		slog.Error("Failed to save leaf pre-cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
 
@@ -188,44 +211,54 @@ func genPreIssuerAndLeaves(rootCert *x509.Certificate, rootPrivKey *ecdsa.Privat
 	// Generate a new ECDSA intermediate CA private key.
 	preIntermediatePrivKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA private key: %v", err)
+		slog.Error("Failed to generate intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(preIntermediatePrivKey, path.Join(*outputPath, "test_pre_intermediate_ca_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA private key: %v", err)
+		slog.Error("Failed to save intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new intermediate CA certificate with CT extension.
 	preIntermediateCert, err := intermediateCACert(rootCert, rootPrivKey, preIntermediatePrivKey, true, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA certificate: %v", err)
+		slog.Error("Failed to generate intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(preIntermediateCert, path.Join(*outputPath, "test_pre_intermediate_ca_cert.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
+		slog.Error("Failed to save intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new ECDSA leaf certificate signing private key.
 	leafCertPrivateKey, err := ecdsa.GenerateKey(elliptic.P384(), rand.Reader)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
+		slog.Error("Failed to generate leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveECDSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_signed_by_pre_intermediate_signing_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
+		slog.Error("Failed to save leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	chainGenerator := newChainGenerator(preIntermediateCert, preIntermediatePrivKey, leafCertPrivateKey.Public())
 	leafCert, err := chainGenerator.certificate(100, false, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		slog.Error("Failed to generate leaf certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafCert, path.Join(*outputPath, "test_leaf_cert_signed_by_pre_intermediate.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		slog.Error("Failed to save leaf cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 	leafPreCert, err := chainGenerator.certificate(200, true, notBefore)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate: %v", err)
+		slog.Error("Failed to generate leaf certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(leafPreCert, path.Join(*outputPath, "test_leaf_pre_cert_signed_by_pre_intermediate.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf cert: %v", err)
+		slog.Error("Failed to save leaf cert", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
 

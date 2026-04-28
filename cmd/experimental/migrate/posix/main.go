@@ -22,8 +22,10 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
+	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -36,7 +38,6 @@ import (
 	"github.com/transparency-dev/tessera/client"
 	"github.com/transparency-dev/tessera/storage/posix"
 	tposix_as "github.com/transparency-dev/tessera/storage/posix/antispam"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -52,17 +53,18 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
 
 	if *storageDir == "" {
-		klog.Exit("--storage_dir must be set")
+		slog.ErrorContext(ctx, "--storage_dir must be set")
+		os.Exit(1)
 	}
 
 	srcURL, err := url.Parse(*sourceURL)
 	if err != nil {
-		klog.Exitf("Invalid --source_url %q: %v", *sourceURL, err)
+		slog.ErrorContext(ctx, "Invalid --source_url", slog.Any("arg", *sourceURL), slog.Any("error", err))
+		os.Exit(1)
 	}
 	hc := &http.Client{
 		Transport: &http.Transport{
@@ -77,22 +79,26 @@ func main() {
 	// When there's a Static CT client we can probably switch over to using it in here.
 	src, err := client.NewHTTPFetcher(srcURL, hc)
 	if err != nil {
-		klog.Exitf("Failed to create HTTP fetcher: %v", err)
+		slog.ErrorContext(ctx, "Failed to create HTTP fetcher", slog.Any("error", err))
+		os.Exit(1)
 	}
 	sourceCP, err := src.ReadCheckpoint(ctx)
 	if err != nil {
-		klog.Exitf("fetch initial source checkpoint: %v", err)
+		slog.ErrorContext(ctx, "fetch initial source checkpoint", slog.Any("error", err))
+		os.Exit(1)
 	}
 	// TODO(AlCutter): We should be properly verifying and opening the checkpoint here with the source log's
 	// public key.
 	bits := strings.Split(string(sourceCP), "\n")
 	sourceSize, err := strconv.ParseUint(bits[1], 10, 64)
 	if err != nil {
-		klog.Exitf("invalid CP size %q: %v", bits[1], err)
+		slog.ErrorContext(ctx, "invalid CP size", slog.Any("arg", bits[1]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	sourceRoot, err := base64.StdEncoding.DecodeString(bits[2])
 	if err != nil {
-		klog.Exitf("invalid checkpoint roothash %q: %v", bits[2], err)
+		slog.ErrorContext(ctx, "invalid checkpoint roothash", slog.Any("arg", bits[2]), slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Create our Tessera storage backend:
@@ -101,7 +107,8 @@ func main() {
 	}
 	driver, err := posix.New(ctx, cfg)
 	if err != nil {
-		klog.Exitf("Failed to create new POSIX storage driver: %v", err)
+		slog.ErrorContext(ctx, "Failed to create new POSIX storage driver", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	opts := tessera.NewMigrationOptions().WithCTLayout()
@@ -110,11 +117,13 @@ func main() {
 	if *persistentAntispam {
 		antispamIndexCacheBytes, error := humanize.ParseBytes(*antispamIndexCacheSize)
 		if error != nil {
-			klog.Exitf("Invalid antispam index cache size: %v", error)
+			slog.ErrorContext(ctx, "Invalid antispam index cache size", slog.Any("error", error))
+		os.Exit(1)
 		}
 		antispamBlockCacheBytes, error := humanize.ParseBytes(*antispamBlockCacheSize)
 		if error != nil {
-			klog.Exitf("Invalid antispam block cache size: %v", error)
+			slog.ErrorContext(ctx, "Invalid antispam block cache size", slog.Any("error", error))
+		os.Exit(1)
 		}
 		asOpts := tposix_as.AntispamOpts{
 			MaxBatchSize:       *antispamBatchSize,
@@ -127,19 +136,22 @@ func main() {
 		}
 		antispam, err = tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), asOpts)
 		if err != nil {
-			klog.Exitf("Failed to create new POSIX antispam storage: %v", err)
+			slog.ErrorContext(ctx, "Failed to create new POSIX antispam storage", slog.Any("error", err))
+		os.Exit(1)
 		}
 		opts.WithAntispam(antispam)
 	}
 
 	m, err := tessera.NewMigrationTarget(ctx, driver, opts)
 	if err != nil {
-		klog.Exitf("Failed to create MigrationTarget: %v", err)
+		slog.ErrorContext(ctx, "Failed to create MigrationTarget", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	readEntryBundle := readCTEntryBundle(*sourceURL, hc)
 	if err := m.Migrate(context.Background(), *numWorkers, sourceSize, sourceRoot, readEntryBundle); err != nil {
-		klog.Exitf("Migrate failed: %v", err)
+		slog.ErrorContext(ctx, "Migrate failed", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// TODO(phbnf): This will need extending to identify and copy over the entries from the intermediate cert storage.
@@ -165,7 +177,7 @@ func readCTEntryBundle(srcURL string, hc *http.Client) func(ctx context.Context,
 		}
 		defer func() {
 			if err := rsp.Body.Close(); err != nil {
-				klog.Warningf("Failed to close response body: %v", err)
+				slog.WarnContext(ctx, "Failed to close response body", slog.Any("error", err))
 			}
 		}()
 		if rsp.StatusCode != http.StatusOK {

@@ -17,6 +17,8 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
+	"os"
 
 	t_otel "github.com/transparency-dev/tesseract/internal/otel"
 	"go.opentelemetry.io/otel"
@@ -27,8 +29,6 @@ import (
 
 	"go.opentelemetry.io/contrib/exporters/autoexport"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
-
-	"k8s.io/klog/v2"
 )
 
 // initOTel initialises the open telemetry support for metrics.
@@ -45,13 +45,14 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 		}
 		shutdownFuncs = nil
 		if err != nil {
-			klog.Errorf("OTel shutdown: %v", err)
+			slog.ErrorContext(ctx, "OTel shutdown", slog.Any("error", err))
 		}
 	}
 
 	mr, err := autoexport.NewMetricReader(ctx)
 	if err != nil {
-		klog.Exitf("Failed to create the OTLP metric reader: %v", err)
+		slog.ErrorContext(ctx, "Failed to create the OTLP metric reader", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	resources, err := resource.New(ctx,
@@ -63,7 +64,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 	)
 	if err != nil {
-		klog.Exitf("Failed to detect resources: %v", err)
+		slog.ErrorContext(ctx, "Failed to detect resources", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	mp := sdkmetric.NewMeterProvider(
@@ -75,7 +77,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 
 	te, err := autoexport.NewSpanExporter(ctx)
 	if err != nil {
-		klog.Exitf("Failed to create the OTLP span exporter: %v", err)
+		slog.ErrorContext(ctx, "Failed to create the OTLP span exporter", slog.Any("error", err))
+		os.Exit(1)
 	}
 	// initialize a TracerProvier that periodically exports to the GCP exporter.
 	tp := sdktrace.NewTracerProvider(
@@ -87,7 +90,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string) func(co
 	otel.SetTracerProvider(tp)
 
 	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
-		klog.Exitf("Failed to start exporting Go runtime metrics: %v", err)
+		slog.ErrorContext(ctx, "Failed to start exporting Go runtime metrics", slog.Any("error", err))
+		os.Exit(1)
 	}
 	return shutdown
 }

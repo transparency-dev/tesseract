@@ -24,12 +24,12 @@ import (
 	"fmt"
 	"hash/crc32"
 	"io"
+	"log/slog"
 	"strings"
 
 	secretmanager "cloud.google.com/go/secretmanager/apiv1"
 	"cloud.google.com/go/secretmanager/apiv1/secretmanagerpb"
 	"golang.org/x/mod/sumdb/note"
-	"k8s.io/klog/v2"
 )
 
 // TODO: Move ECDSAWithSHA256Signer to internal signer package.
@@ -70,12 +70,12 @@ func NewSecretManagerSigner(ctx context.Context, publicKeySecretName, privateKey
 	}
 	defer func() {
 		if err := client.Close(); err != nil {
-			klog.Warningf("Failed to close secret manager client: %v", err)
+			slog.WarnContext(ctx, "Failed to close secret manager client", slog.Any("error", err))
 		}
 	}()
 
 	if strings.HasSuffix(privateKeySecretName, "/latest") {
-		klog.Warning("Secret version configured to use 'latest' alias; log key will change if a newer version is created.")
+		slog.WarnContext(ctx, "Secret version configured to use 'latest' alias; log key will change if a newer version is created.")
 	}
 
 	// Public Key
@@ -169,7 +169,7 @@ func NewSecretManagerNoteSigner(ctx context.Context, privateKeySecretName string
 	}
 	defer func() {
 		if err := client.Close(); err != nil {
-			klog.Warningf("Failed to close secret manager client: %v", err)
+			slog.WarnContext(ctx, "Failed to close secret manager client", slog.Any("error", err))
 		}
 	}()
 

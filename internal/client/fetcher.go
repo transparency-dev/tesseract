@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -30,7 +31,6 @@ import (
 
 	"github.com/cenkalti/backoff/v5"
 	"github.com/transparency-dev/tessera/api/layout"
-	"k8s.io/klog/v2"
 )
 
 // NewHTTPFetcher creates a new HTTPFetcher for the log rooted at the given URL, using
@@ -122,7 +122,7 @@ func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 
 		defer func() {
 			if err := r.Body.Close(); err != nil {
-				klog.Errorf("resp.Body.Close(): %v", err)
+				slog.ErrorContext(ctx, "resp.Body.Close()", slog.Any("error", err))
 			}
 		}()
 		return io.ReadAll(r.Body)

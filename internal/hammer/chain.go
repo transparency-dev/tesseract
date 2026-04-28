@@ -15,14 +15,15 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"log/slog"
 	"math/big"
 	"time"
 
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -75,7 +76,7 @@ func (g *chainGenerator) certificate(serialNumber int64) []byte {
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, g.intermediateCert, g.leafCertPublicKey, g.intermediateKey)
 	if err != nil {
-		klog.Error(err)
+		slog.ErrorContext(context.Background(), "CreateCertificate", slog.Any("error", err))
 		return nil
 	}
 

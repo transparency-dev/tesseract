@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math"
 	"math/rand/v2"
 	"net/http"
@@ -41,7 +42,6 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	"golang.org/x/net/idna"
 	"golang.org/x/time/rate"
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -206,13 +206,13 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Verify that the request was received at an URL starting with the origin, as per https://c2sp.org/static-ct-api.
 	// Don't block requests that don't satisfy this to allow for custom proxy configuration, or custom request routing.
 	if err := receivedAtOrigin(r, a.log.origin); err != nil {
-		klog.Warningf("%s: %s the request was received on a URL which is not prefixed with the configured origin: %v", a.log.origin, a.name, err)
+		slog.WarnContext(logCtx, "the request was received on a URL which is not prefixed with the configured origin", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
 	}
 
-	klog.V(2).Infof("%s: request %v %q => %s", a.log.origin, r.Method, r.URL, a.name)
+	slog.DebugContext(logCtx, "request received", slog.String("origin", a.log.origin), slog.String("method", r.Method), slog.String("url", r.URL.String()), slog.String("name", a.name))
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.method {
-		klog.Warningf("%s: %s wrong HTTP method: %v", a.log.origin, a.name, r.Method)
+		slog.WarnContext(logCtx, "wrong HTTP method", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.String("method", r.Method))
 		a.opts.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
 		a.opts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
 		return
@@ -237,14 +237,14 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	attrs = append(attrs, hattrs...)
 	attrs = append(attrs, codeKey.Int(statusCode))
 	a.opts.RequestLog.status(ctx, statusCode)
-	klog.V(2).Infof("%s: %s <= st=%d", a.log.origin, a.name, statusCode)
+	slog.DebugContext(ctx, "handler response", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
 	rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	if err != nil {
 		if errors.Is(err, context.Canceled) && errors.Is(r.Context().Err(), context.Canceled) {
 			statusCode = ClientClosedRequestStatus
 			err = fmt.Errorf("client closed the connection: %v", err)
 		}
-		klog.Warningf("%s: %s handler error: %v", a.log.origin, a.name, err)
+		slog.WarnContext(ctx, "handler error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
 		a.opts.sendHTTPError(w, statusCode, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
@@ -253,7 +253,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Additional check, for consistency the handler must return an error for non-200 st
 	if statusCode != http.StatusOK {
-		klog.Warningf("%s: %s handler non 200 without error: %d %v", a.log.origin, a.name, statusCode, err)
+		slog.WarnContext(ctx, "handler non 200 without error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode), slog.Any("error", err))
 		a.opts.sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
 		if statusCode >= 500 {
 			span.SetStatus(codes.Error, "handler non-200 without error")
@@ -275,7 +275,7 @@ type RateLimits struct {
 func (r *RateLimits) NotBefore(age time.Duration, limit float64) {
 	r.notBeforeLimit = age
 	r.notBefore = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
-	klog.Infof("Configured NotBefore limiter with %0.2f qps for certs aged >= %s", limit, age)
+	slog.InfoContext(context.Background(), "Configured NotBefore limiter", slog.Float64("qps", limit), slog.Duration("min_age", age))
 }
 
 // Dedup configures a rate limit on entries being deduplicated.
@@ -283,7 +283,7 @@ func (r *RateLimits) NotBefore(age time.Duration, limit float64) {
 // Submissions will be subject to the specified number of entries per second.
 func (r *RateLimits) Dedup(limit float64) {
 	r.dedup = rate.NewLimiter(rate.Limit(limit), int(math.Ceil(limit)))
-	klog.Infof("Configured DedupInFlight limiter with %0.2f qps", limit)
+	slog.InfoContext(context.Background(), "Configured DedupInFlight limiter", slog.Float64("qps", limit))
 }
 
 // AcceptNotBefore returns true if the provided chain should be accepted, and false otherwise.
@@ -391,24 +391,25 @@ func parseBodyAsJSONChain(r *http.Request) (rfc6962.AddChainRequest, error) {
 	buf := getBuffer()
 	defer returnBuffer(buf)
 
+	ctx := r.Context()
 	if _, err := buf.ReadFrom(r.Body); err != nil {
 		if mbe, ok := err.(*http.MaxBytesError); ok {
-			klog.V(1).Infof("Request body exceeds %d-byte limit", mbe.Limit)
+			slog.DebugContext(ctx, "Request body exceeds limit", slog.Int64("limit", mbe.Limit))
 			return rfc6962.AddChainRequest{}, fmt.Errorf("certificate chain exceeds %d-byte limit: %w", mbe.Limit, err)
 		}
-		klog.V(1).Infof("Failed to read request body: %v", err)
+		slog.DebugContext(ctx, "Failed to read request body", slog.Any("error", err))
 		return rfc6962.AddChainRequest{}, err
 	}
 
 	var req rfc6962.AddChainRequest
 	if err := json.Unmarshal(buf.Bytes(), &req); err != nil {
-		klog.V(1).Infof("Failed to parse request body: %v", err)
+		slog.DebugContext(ctx, "Failed to parse request body", slog.Any("error", err))
 		return rfc6962.AddChainRequest{}, err
 	}
 
 	// The cert chain is not allowed to be empty. We'll defer other validation for later
 	if len(req.Chain) == 0 {
-		klog.V(1).Infof("Request chain is empty: %q", buf.Bytes())
+		slog.DebugContext(ctx, "Request chain is empty", slog.String("body", buf.String()))
 		return rfc6962.AddChainRequest{}, errors.New("cert chain was empty")
 	}
 
@@ -478,7 +479,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %s", err)
 	}
 
-	klog.V(2).Infof("%s: %s => storage.Add", log.origin, method)
+	slog.DebugContext(ctx, "storage.Add", slog.String("origin", log.origin), slog.String("method", method))
 	future, err := log.storage.Add(ctx, entry)
 	// helper function to return a 429
 	tooManyRequests := func(reason string) (int, []attribute.KeyValue, error) {
@@ -541,7 +542,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		// reason is logged and http status is already set
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to write response: %s", err)
 	}
-	klog.V(3).Infof("%s: %s <= SCT", log.origin, method)
+	slog.DebugContext(ctx, "SCT issued", slog.String("origin", log.origin), slog.String("method", method))
 	if !index.IsDup {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
 		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))
@@ -580,7 +581,7 @@ func getRoots(ctx context.Context, opts *HandlerOptions, log *log, w http.Respon
 	enc := json.NewEncoder(w)
 	err := enc.Encode(jsonMap)
 	if err != nil {
-		klog.Warningf("%s: get_roots failed: %v", log.origin, err)
+		slog.WarnContext(ctx, "get_roots failed", slog.String("origin", log.origin), slog.Any("error", err))
 		return http.StatusInternalServerError, nil, fmt.Errorf("get-roots failed with: %s", err)
 	}
 

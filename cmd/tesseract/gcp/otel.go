@@ -17,6 +17,7 @@ package main
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 
 	t_otel "github.com/transparency-dev/tesseract/internal/otel"
@@ -32,7 +33,6 @@ import (
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 
 	"github.com/google/uuid"
-	"k8s.io/klog/v2"
 )
 
 // initOTel initialises the open telemetry support for metrics and tracing.
@@ -50,13 +50,13 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		}
 		shutdownFuncs = nil
 		if err != nil {
-			klog.Errorf("OTel shutdown: %v", err)
+			slog.ErrorContext(ctx, "OTel shutdown", slog.Any("error", err))
 		}
 	}
 
 	instanceID, err := os.Hostname()
 	if err != nil {
-		klog.Errorf("os.Hostname() failed, setting OTel service instance ID to UUID. Error: %v", err)
+		slog.ErrorContext(ctx, "os.Hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
 		instanceID = uuid.NewString()
 	}
 	resources, err := resource.New(ctx,
@@ -71,7 +71,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		resource.WithDetectors(gcp.NewDetector()),
 	)
 	if err != nil {
-		klog.Exitf("Failed to detect resources: %v", err)
+		slog.ErrorContext(ctx, "Failed to detect resources", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	mopts := []mexporter.Option{}
@@ -80,7 +81,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	}
 	me, err := mexporter.New(mopts...)
 	if err != nil {
-		klog.Exitf("Failed to create metric exporter: %v", err)
+		slog.ErrorContext(ctx, "Failed to create metric exporter", slog.Any("error", err))
+		os.Exit(1)
 		return nil
 	}
 	// initialize a MeterProvider that periodically exports to the GCP exporter.
@@ -97,7 +99,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	}
 	te, err := texporter.New(topts...)
 	if err != nil {
-		klog.Exitf("Failed to create trace exporter: %v", err)
+		slog.ErrorContext(ctx, "Failed to create trace exporter", slog.Any("error", err))
+		os.Exit(1)
 		return nil
 	}
 	// initialize a TracerProvier that periodically exports to the GCP exporter.
@@ -112,7 +115,8 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	// 	https://github.com/open-telemetry/opentelemetry-go-contrib
 
 	if err := runtime.Start(runtime.WithMeterProvider(mp)); err != nil {
-		klog.Exitf("Failed to start exporting Go runtime metrics: %v", err)
+		slog.ErrorContext(ctx, "Failed to start exporting Go runtime metrics", slog.Any("error", err))
+		os.Exit(1)
 	}
 	return shutdown
 }

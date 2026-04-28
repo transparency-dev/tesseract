@@ -15,17 +15,18 @@
 package x509util
 
 import (
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"sync"
 
 	"github.com/transparency-dev/tesseract/internal/lax509"
-	"k8s.io/klog/v2"
 )
 
 // String for certificate blocks in BEGIN / END PEM headers
@@ -82,7 +83,7 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) int {
 	for _, cert := range certs {
 		fingerprint := sha256.Sum256(cert.Raw)
 		if _, exists := p.rejectedFingerprints[fingerprint]; exists {
-			klog.Warningf("Rejecting certificate with fingerprint %x", fingerprint)
+			slog.WarnContext(context.Background(), "Rejecting certificate", slog.String("fingerprint", hex.EncodeToString(fingerprint[:])))
 			continue
 		}
 		_, ok := p.fingerprintToCertMap[fingerprint]
@@ -133,7 +134,7 @@ func (p *PEMCertPool) AppendCertsFromPEMs(pems ...[]byte) (parsed, added int) {
 			cert, err := x509.ParseCertificate(block.Bytes)
 			if err != nil {
 				crtsh := fmt.Sprintf("https://crt.sh/?sha256=%x", sha256.Sum256(block.Bytes))
-				klog.Warningf("error parsing PEM certificate %s: %v", crtsh, err)
+				slog.WarnContext(context.Background(), "error parsing PEM certificate", slog.String("crtsh", crtsh), slog.Any("error", err))
 				continue
 			}
 

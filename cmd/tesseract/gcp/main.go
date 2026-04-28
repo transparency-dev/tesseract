@@ -34,7 +34,6 @@ import (
 
 	"cloud.google.com/go/compute/metadata"
 	"cloud.google.com/go/logging"
-	"k8s.io/klog/v2"
 
 	"cloud.google.com/go/spanner"
 	gcs "cloud.google.com/go/storage"
@@ -122,7 +121,6 @@ var (
 
 // nolint:staticcheck
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
 
@@ -134,7 +132,8 @@ func main() {
 
 	signer, err := NewSecretManagerSigner(ctx, *signerPublicKeySecretName, *signerPrivateKeySecretName)
 	if err != nil {
-		klog.Exitf("Can't create secret manager signer: %v", err)
+		slog.ErrorContext(ctx, "Can't create secret manager signer", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	hc := &http.Client{
@@ -148,11 +147,13 @@ func main() {
 
 	gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
 	if err != nil {
-		klog.Exitf("Failed to create gRPC GCS client: %v", err)
+		slog.ErrorContext(ctx, "Failed to create gRPC GCS client", slog.Any("error", err))
+		os.Exit(1)
 	}
 	fetchedRootsBackupStorage, err := gcp.NewRootsStorage(ctx, *bucket, gcsClient)
 	if err != nil {
-		klog.Exitf("failed to initialize GCS backup storage for remotely fetched roots: %v", err)
+		slog.ErrorContext(ctx, "failed to initialize GCS backup storage for remotely fetched roots", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if len(rootsRemoteFetchURLs) == 0 {
@@ -174,7 +175,7 @@ func main() {
 		RejectRoots:              rootsRejectFingerprints,
 	}
 	if *acceptSHA1 {
-		klog.Info(`**** WARNING **** This server will accept chains signed
+		slog.InfoContext(ctx, `**** WARNING **** This server will accept chains signed
 using SHA-1 based algorithms. This feature is available to allow chains
 submitted by Chrome's Merge Delay Monitor Root for the time being, but will
 eventually go away. See /internal/lax509/README.md for more information.`)
@@ -187,11 +188,11 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage(gcsClient, hc), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
-		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
+		slog.ErrorContext(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	klog.CopyStandardLogTo("WARNING")
-	klog.Info("**** CT HTTP Server Starting ****")
+	slog.InfoContext(ctx, "**** CT HTTP Server Starting ****")
 	http.Handle("/", otelhttp.NewHandler(logHandler, "/"))
 
 	// Bring up the HTTP server and serve until we get a signal not to.
@@ -209,20 +210,19 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel()
-		klog.Info("Shutting down HTTP server...")
+		slog.InfoContext(ctx, "Shutting down HTTP server...")
 		if err := srv.Shutdown(ctx); err != nil {
-			klog.Errorf("srv.Shutdown(): %v", err)
+			slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
 		}
-		klog.Info("HTTP server shutdown")
+		slog.InfoContext(ctx, "HTTP server shutdown")
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		klog.Warningf("Server exited: %v", err)
+		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
 	// in which case it'll block until the HTTP server has gracefully shutdown
 	shutdownWG.Wait()
-	klog.Flush()
 }
 
 // awaitSignal waits for standard termination signals, then runs the given
@@ -234,8 +234,7 @@ func awaitSignal(doneFn func()) {
 
 	// Now block main and wait for a signal
 	sig := <-sigs
-	klog.Warningf("Signal received: %v", sig)
-	klog.Flush()
+	slog.WarnContext(context.Background(), "Signal received", slog.Any("signal", sig))
 
 	doneFn()
 }
@@ -373,15 +372,18 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 	}
 	bits := strings.Split(*notBeforeRL, ":")
 	if len(bits) != 2 {
-		klog.Exitf("Invalid format for --rate_limit_old_not_before flag")
+		slog.ErrorContext(context.Background(), "Invalid format for --rate_limit_old_not_before flag")
+		os.Exit(1)
 	}
 	a, err := time.ParseDuration(bits[0])
 	if err != nil {
-		klog.Exitf("Invalid age passed to --rate_limit_old_not_before flag %q: %v", bits[0], err)
+		slog.ErrorContext(context.Background(), "Invalid age passed to --rate_limit_old_not_before flag", slog.String("age", bits[0]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	l, err := strconv.ParseFloat(bits[1], 64)
 	if err != nil {
-		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
+		slog.ErrorContext(context.Background(), "Invalid rate limit passed to --rate_limit_old_not_before", slog.String("limit", bits[1]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }
@@ -434,16 +436,18 @@ func initLogging(ctx context.Context) func() {
 	var cleanup []func()
 	if *slogToCloudAPI {
 		if *otelProjectID == "" {
-			klog.Exitf("--otel_project_id is required when --slog_to_cloud_api is true")
+			slog.ErrorContext(ctx, "--otel_project_id is required when --slog_to_cloud_api is true")
+			os.Exit(1)
 		}
 		var err error
 		loggingClient, err := logging.NewClient(ctx, "projects/"+*otelProjectID)
 		if err != nil {
-			klog.Exitf("Failed to create Cloud Logging client: %v", err)
+			slog.ErrorContext(ctx, "Failed to create Cloud Logging client", slog.Any("error", err))
+			os.Exit(1)
 		}
 		cleanup = append(cleanup, func() {
 			if err := loggingClient.Close(); err != nil {
-				klog.Errorf("Failed to close Cloud Logging client: %v", err)
+				slog.ErrorContext(ctx, "Failed to close Cloud Logging client", slog.Any("error", err))
 			}
 		})
 		loggingHandlers = append(loggingHandlers, logger.NewExporter(loggingClient.Logger("tesseract"), slog.Level(*slogLevel)))

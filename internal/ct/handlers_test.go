@@ -48,7 +48,6 @@ import (
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/posix"
 	"golang.org/x/mod/sumdb/note"
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -164,7 +163,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
 		driver, err := tposix.New(ctx, tposix.Config{Path: path.Join(root, logDir)})
 		if err != nil {
-			klog.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
+			t.Fatalf("Failed to initialize POSIX Tessera storage driver: %v", err)
 		}
 
 		asOpts := badger_as.AntispamOpts{
@@ -173,7 +172,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 		}
 		antispam, err := badger_as.NewAntispam(ctx, path.Join(root, "dedup.db"), asOpts)
 		if err != nil {
-			klog.Exitf("Failed to create new GCP antispam storage: %v", err)
+			t.Fatalf("Failed to create new GCP antispam storage: %v", err)
 		}
 
 		opts := tessera.NewAppendOptions().
@@ -184,12 +183,12 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 
 		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
-			klog.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
+			t.Fatalf("Failed to initialize POSIX Tessera appender: %v", err)
 		}
 
 		issuerStorage, err := posix.NewIssuerStorage(ctx, path.Join(root, logDir))
 		if err != nil {
-			klog.Fatalf("failed to initialize InMemory issuer storage: %v", err)
+			t.Fatalf("failed to initialize InMemory issuer storage: %v", err)
 		}
 
 		sopts := storage.CTStorageOptions{
@@ -200,7 +199,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
-			klog.Fatalf("Failed to initialize CTStorage: %v", err)
+			t.Fatalf("Failed to initialize CTStorage: %v", err)
 		}
 		return s, nil
 	}

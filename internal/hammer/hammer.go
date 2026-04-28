@@ -31,6 +31,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"math/rand/v2"
 	"net"
 	"net/http"
@@ -50,8 +51,6 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/net/http2"
-
-	"k8s.io/klog/v2"
 )
 
 func init() {
@@ -91,13 +90,14 @@ var (
 
 	httpTimeout = flag.Duration("http_timeout", 30*time.Second, "Timeout for HTTP requests")
 	forceHTTP2  = flag.Bool("force_http2", false, "Use HTTP/2 connections *only*")
+	slogLevel   = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
 
 	hc *http.Client
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
 
 	hc = &http.Client{
 		Transport: &http.Transport{
@@ -128,7 +128,8 @@ func main() {
 
 	logSigV, err := logSigVerifier(*origin, *logPubKey)
 	if err != nil {
-		klog.Exitf("Failed to create verifier: %v", err)
+		slog.ErrorContext(ctx, "Failed to create verifier", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	r := mustCreateReaders(ctx, logURL)
@@ -141,12 +142,14 @@ func main() {
 	cons := client.UnilateralConsensus(r.ReadCheckpoint)
 	tracker, err := client.NewLogStateTracker(ctx, r.ReadCheckpoint, r.ReadTile, cpRaw, logSigV, logSigV.Name(), cons)
 	if err != nil {
-		klog.Exitf("Failed to create LogStateTracker: %v", err)
+		slog.ErrorContext(ctx, "Failed to create LogStateTracker", slog.Any("error", err))
+		os.Exit(1)
 	}
 	// Fetch initial state of log
 	_, _, _, err = tracker.Update(ctx)
 	if err != nil {
-		klog.Exitf("Failed to get initial state of the log: %v", err)
+		slog.ErrorContext(ctx, "Failed to get initial state of the log", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	ha := loadtest.NewHammerAnalyser(func() uint64 { return tracker.LatestConsistent.Size })
@@ -154,21 +157,26 @@ func main() {
 
 	intermediateCACert, err := loadIntermediateCACert(*intermediateCACertPath)
 	if err != nil {
-		klog.Exitf("Failed to load intermediate CA certificate from %s: %v", *intermediateCACertPath, err)
+		slog.ErrorContext(ctx, "Failed to load intermediate CA certificate", slog.String("path", *intermediateCACertPath), slog.Any("error", err))
+		os.Exit(1)
 	}
 	intermediateCAKey, err := loadPrivateKey(*intermediateCAKeyPath)
 	if err != nil {
-		klog.Exitf("Failed to load intermediate CA private key from %s: %v", *intermediateCAKeyPath, err)
+		slog.ErrorContext(ctx, "Failed to load intermediate CA private key", slog.String("path", *intermediateCAKeyPath), slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := verifySupportedKeyAlgorithm(intermediateCAKey); err != nil {
-		klog.Exitf("Failed to support intermediate CA key algorithm for generating deterministic certificate: %v", err)
+		slog.ErrorContext(ctx, "Failed to support intermediate CA key algorithm for generating deterministic certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	privateKey, err := loadPrivateKey(*certSigningPrivateKeyPath)
 	if err != nil {
-		klog.Exitf("Failed to load certificate signing private key from %s: %v", *certSigningPrivateKeyPath, err)
+		slog.ErrorContext(ctx, "Failed to load certificate signing private key", slog.String("path", *certSigningPrivateKeyPath), slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := verifySupportedKeyAlgorithm(privateKey); err != nil {
-		klog.Exitf("Failed to support certificate signing private key algorithm for generating deterministic certificate: %v", err)
+		slog.ErrorContext(ctx, "Failed to support certificate signing private key algorithm for generating deterministic certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	gen := newLeafGenerator(tracker.LatestConsistent.Size, *dupChance, intermediateCACert, intermediateCAKey, privateKey)
@@ -188,7 +196,7 @@ func main() {
 		go func() {
 			startTime := time.Now()
 			goal := tracker.LatestConsistent.Size + uint64(*leafWriteGoal)
-			klog.Infof("Will exit once tree size is at least %d", goal)
+			slog.InfoContext(ctx, "Will exit once tree size is at least", slog.Uint64("goal", goal))
 			tick := time.NewTicker(1 * time.Second)
 			for {
 				select {
@@ -197,7 +205,7 @@ func main() {
 				case <-tick.C:
 					if tracker.LatestConsistent.Size >= goal {
 						elapsed := time.Since(startTime)
-						klog.Infof("Reached tree size goal of %d after %s; exiting", goal, elapsed)
+						slog.InfoContext(ctx, "Reached tree size goal; exiting", slog.Uint64("goal", goal), slog.Duration("elapsed", elapsed))
 						cancel()
 						return
 					}
@@ -207,13 +215,13 @@ func main() {
 	}
 	if *maxRunTime > 0 {
 		go func() {
-			klog.Infof("Will fail after %s", *maxRunTime)
+			slog.InfoContext(ctx, "Will fail after timeout", slog.Duration("timeout", *maxRunTime))
 			for {
 				select {
 				case <-ctx.Done():
 					return
 				case <-time.After(*maxRunTime):
-					klog.Infof("Max runtime reached; exiting")
+					slog.InfoContext(ctx, "Max runtime reached; exiting")
 					exitCode = 1
 					cancel()
 					return
@@ -327,7 +335,7 @@ func loadIntermediateCACert(path string) (*x509.Certificate, error) {
 		return nil, fmt.Errorf("expected PEM block type 'CERTIFICATE', got '%s'", block.Type)
 	}
 	if len(rest) > 0 {
-		klog.Info("Warning: More than one PEM block found. Parsing only the first.")
+		slog.InfoContext(context.Background(), "Warning: More than one PEM block found. Parsing only the first.")
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
@@ -348,7 +356,8 @@ func publicKey(privKey any) any {
 	case *ed25519.PrivateKey:
 		return k.Public()
 	default:
-		klog.Fatalf("Unknown private key type: %T", privKey)
+		slog.ErrorContext(context.Background(), "Unknown private key type", slog.String("type", fmt.Sprintf("%T", privKey)))
+		os.Exit(1)
 		return nil // Or panic, or return an error
 	}
 }
@@ -417,14 +426,16 @@ func mustCreateReaders(ctx context.Context, us []string) loadtest.LogReader {
 		}
 		rURL, err := url.Parse(u)
 		if err != nil {
-			klog.Exitf("Invalid log reader URL %q: %v", u, err)
+			slog.ErrorContext(ctx, "Invalid log reader URL", slog.String("url", u), slog.Any("error", err))
+			os.Exit(1)
 		}
 
 		switch rURL.Scheme {
 		case "http", "https":
 			c, err := client.NewHTTPFetcher(rURL, hc)
 			if err != nil {
-				klog.Exitf("Failed to create HTTP fetcher for %q: %v", u, err)
+				slog.ErrorContext(ctx, "Failed to create HTTP fetcher", slog.String("url", u), slog.Any("error", err))
+				os.Exit(1)
 			}
 			c.EnableRetries(5)
 			if *bearerToken != "" {
@@ -436,11 +447,13 @@ func mustCreateReaders(ctx context.Context, us []string) loadtest.LogReader {
 		case "gs":
 			c, err := gcp.NewGSFetcher(ctx, rURL.Host, nil)
 			if err != nil {
-				klog.Exitf("NewGSFetcher: %v", err)
+				slog.ErrorContext(ctx, "NewGSFetcher", slog.Any("error", err))
+				os.Exit(1)
 			}
 			r = append(r, c)
 		default:
-			klog.Exitf("Unsupported scheme %s on log URL", rURL.Scheme)
+			slog.ErrorContext(ctx, "Unsupported scheme on log URL", slog.String("scheme", rURL.Scheme))
+			os.Exit(1)
 		}
 	}
 	return loadtest.NewRoundRobinReader(r)
@@ -455,7 +468,8 @@ func mustCreateWriters(us []string) loadtest.LeafWriter {
 		u += "ct/v1/add-chain"
 		wURL, err := url.Parse(u)
 		if err != nil {
-			klog.Exitf("Invalid log writer URL %q: %v", u, err)
+			slog.ErrorContext(context.Background(), "Invalid log writer URL", slog.String("url", u), slog.Any("error", err))
+			os.Exit(1)
 		}
 		w = append(w, httpWriter(wURL, hc, *bearerTokenWrite))
 	}
@@ -464,7 +478,9 @@ func mustCreateWriters(us []string) loadtest.LeafWriter {
 
 func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWriter {
 	cTrace := &httptrace.ClientTrace{
-		GotConn: func(info httptrace.GotConnInfo) { klog.Infof("connection established %#v", info) },
+		GotConn: func(info httptrace.GotConnInfo) {
+			slog.InfoContext(context.Background(), "connection established", slog.String("info", fmt.Sprintf("%#v", info)))
+		},
 	}
 	return func(ctx context.Context, newLeaf []byte) (uint64, uint64, error) {
 		req, err := http.NewRequest(http.MethodPost, u.String(), bytes.NewReader(newLeaf))
@@ -475,7 +491,7 @@ func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWr
 			req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", bearerToken))
 		}
 		reqCtx := req.Context()
-		if klog.V(2).Enabled() {
+		if slog.Default().Enabled(ctx, slog.LevelDebug) {
 			reqCtx = httptrace.WithClientTrace(req.Context(), cTrace)
 		}
 		resp, err := hc.Do(req.WithContext(reqCtx))
