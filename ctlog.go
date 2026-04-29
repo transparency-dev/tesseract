@@ -24,6 +24,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -32,7 +33,6 @@ import (
 	"github.com/transparency-dev/tesseract/internal/ct"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/tesseract/storage"
-	"k8s.io/klog/v2"
 )
 
 // ChainValidationConfig contains parameters to configure chain validation.
@@ -148,39 +148,39 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 			certs = append(certs, kv.V)
 		}
 		parsed, added := roots.AppendCertsFromPEMs(certs...)
-		klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from remote root backup storage", len(certs), parsed, added)
+		slog.InfoContext(ctx, "Fetched roots from remote root backup storage", slog.Int("fetched", len(certs)), slog.Int("parsed", parsed), slog.Int("added", added))
 	}
 
 	if cfg.RootsRemoteFetchInterval > 0 && len(cfg.RootsRemoteFetchURLs) > 0 {
 		fetchAndAppendRemoteRoots := func(url string) {
 			rr, err := ccadb.Fetch(ctx, url, []string{ccadb.ColPEM})
 			if err != nil {
-				klog.Errorf("Couldn't fetch roots from %q: %s", url, err)
+				slog.ErrorContext(ctx, "Couldn't fetch roots", slog.String("url", url), slog.Any("error", err))
 				return
 			}
 			pems := make([][]byte, 0, len(rr))
 			for _, r := range rr {
 				if len(r) < 1 {
-					klog.Errorf("Couldn't parse root from %q: empty row", url)
+					slog.ErrorContext(ctx, "Couldn't parse root: empty row", slog.String("url", url))
 					continue
 				}
 				pems = append(pems, r[0])
 				if cfg.RootsRemoteFetchBackup != nil {
 					block, _ := pem.Decode(r[0])
 					if block == nil {
-						klog.Errorf("Failed to decode PEM block in data fetched from %q", url)
+						slog.ErrorContext(ctx, "Failed to decode PEM block in fetched data", slog.String("url", url))
 						continue
 					}
 					sha := sha256.Sum256(block.Bytes)
 					key := []byte(hex.EncodeToString(sha[:]))
 					if err := cfg.RootsRemoteFetchBackup.AddIfNotExist(ctx, []storage.KV{{K: key, V: r[0]}}); err != nil {
-						klog.Errorf("Couldn't store roots %q: %v", string(key), err)
+						slog.ErrorContext(ctx, "Couldn't store roots", slog.String("key", string(key)), slog.Any("error", err))
 						continue
 					}
 				}
 			}
 			parsed, added := roots.AppendCertsFromPEMs(pems...)
-			klog.Infof("Fetched %d roots, parsed %d, and loaded %d new ones from %q", len(pems), parsed, added, url)
+			slog.InfoContext(ctx, "Fetched roots", slog.Int("fetched", len(pems)), slog.Int("parsed", parsed), slog.Int("added", added), slog.String("url", url))
 		}
 
 		for _, url := range cfg.RootsRemoteFetchURLs {

@@ -23,12 +23,11 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
+	"log/slog"
 	"math/big"
 	"os"
 	"path"
 	"time"
-
-	"k8s.io/klog/v2"
 )
 
 const (
@@ -42,51 +41,60 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	// Generate a new RSA root CA private key.
 	rootPrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		klog.Fatalf("Failed to generate root CA private key: %v", err)
+		slog.Error("Failed to generate root CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveRSAPrivateKeyPEM(rootPrivKey, path.Join(*outputPath, "test_root_ca_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save root CA private key: %v", err)
+		slog.Error("Failed to save root CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new root CA certificate.
 	rootCert, err := rootCACert(rootPrivKey)
 	if err != nil {
-		klog.Fatalf("Failed to generate root CA certificate: %v", err)
+		slog.Error("Failed to generate root CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(rootCert, path.Join(*outputPath, "test_root_ca_cert.pem")); err != nil {
-		klog.Fatalf("Failed to save root CA certificate: %v", err)
+		slog.Error("Failed to save root CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new RSA intermediate CA private key.
 	intermediatePrivKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA private key: %v", err)
+		slog.Error("Failed to generate intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveRSAPrivateKeyPEM(intermediatePrivKey, path.Join(*outputPath, "test_intermediate_ca_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA private key: %v", err)
+		slog.Error("Failed to save intermediate CA private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new Intermediate CA certificate.
 	intermediateCert, err := intermediateCACert(rootCert, rootPrivKey, intermediatePrivKey)
 	if err != nil {
-		klog.Fatalf("Failed to generate intermediate CA certificate: %v", err)
+		slog.Error("Failed to generate intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveCertificatePEM(intermediateCert, path.Join(*outputPath, "test_intermediate_ca_cert.pem")); err != nil {
-		klog.Fatalf("Failed to save intermediate CA certificate: %v", err)
+		slog.Error("Failed to save intermediate CA certificate", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	// Generate a new RSA leaf certificate signing private key.
 	leafCertPrivateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		klog.Fatalf("Failed to generate leaf certificate signing private key: %v", err)
+		slog.Error("Failed to generate leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	if err := saveRSAPrivateKeyPEM(leafCertPrivateKey, path.Join(*outputPath, "test_leaf_cert_signing_private_key.pem")); err != nil {
-		klog.Fatalf("Failed to save leaf certificate signing private key: %v", err)
+		slog.Error("Failed to save leaf certificate signing private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 }
 

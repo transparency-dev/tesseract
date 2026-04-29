@@ -18,11 +18,11 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"log/slog"
 
 	gcs "cloud.google.com/go/storage"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tesseract/internal/client"
-	"k8s.io/klog/v2"
 )
 
 // NewGSFetcher creates a new GSFetcher for the Google Cloud Storage bucket, using
@@ -57,7 +57,7 @@ func (f GSFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 	}
 	defer func() {
 		if err := r.Close(); err != nil {
-			klog.Errorf("r.Close(): %v", err)
+			slog.ErrorContext(ctx, "r.Close()", slog.Any("error", err))
 		}
 	}()
 

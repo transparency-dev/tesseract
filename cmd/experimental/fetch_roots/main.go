@@ -20,17 +20,18 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/transparency-dev/tesseract/internal/ccadb"
-	"k8s.io/klog/v2"
 )
 
 var (
 	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
 	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
+	slogLevel      = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
 )
 
 var (
@@ -39,27 +40,31 @@ var (
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
-	roots, err := ccadb.Fetch(context.Background(), *url, allColumns)
+	ctx := context.Background()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
+
+	roots, err := ccadb.Fetch(ctx, *url, allColumns)
 	if err != nil {
-		klog.Exitf("Error fetching roots: %s", err)
+		slog.ErrorContext(ctx, "Error fetching roots", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	outFile, err := createFile(*outputFilename)
 	if err != nil {
-		klog.Exitf("Error creating output file: %v", err)
+		slog.ErrorContext(ctx, "Error creating output file", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	defer func() {
 		if err := outFile.Close(); err != nil {
-			klog.Errorf("Error closing %q: %v", outFile.Name(), err)
+			slog.ErrorContext(ctx, "Error closing output file", slog.String("name", outFile.Name()), slog.Any("error", err))
 		}
 	}()
 
 	for _, row := range roots {
 		if len(row) != len(allColumns) {
-			klog.Errorf("Unexpected number of columns in row: got %d, want %d", len(row), len(allColumns))
+			slog.ErrorContext(ctx, "Unexpected number of columns in row", slog.Int("got", len(row)), slog.Int("want", len(allColumns)))
 		}
 
 		sha256 := formatBase64(string(row[2]), ":", 2)
@@ -68,11 +73,12 @@ func main() {
 			row[0], row[1], sha256, row[3])
 
 		if _, err := outFile.WriteString(output); err != nil {
-			klog.Exitf("Error writing to output file: %v", err)
+			slog.ErrorContext(ctx, "Error writing to output file", slog.Any("error", err))
+			os.Exit(1)
 		}
 	}
 
-	klog.Infof("Successfully extracted certificates to %s", *outputFilename)
+	slog.InfoContext(ctx, "Successfully extracted certificates", slog.String("output", *outputFilename))
 }
 
 // createFile creates a file at path p, and creates necessary parent directories.

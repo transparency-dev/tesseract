@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"path"
 	"strings"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"github.com/transparency-dev/tesseract/storage"
 	"golang.org/x/sync/errgroup"
-	"k8s.io/klog/v2"
 )
 
 // IssuersStorage is a key value store backed by S3 on AWS to store issuer chains.
@@ -129,7 +129,7 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 
 			data, err := io.ReadAll(resp.Body)
 			if errC := resp.Body.Close(); errC != nil {
-				klog.Errorf("resp.Body.Close(): %v", errC)
+				slog.ErrorContext(ctx, "resp.Body.Close()", slog.Any("error", errC))
 			}
 			if err != nil {
 				errs = append(errs, fmt.Errorf("failed to read object body %q: %w", *obj.Key, err))
@@ -172,7 +172,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 					}
 					defer func() {
 						if err := existingObj.Body.Close(); err != nil {
-							klog.Errorf("existingObj.Body.Close(): %v", err)
+							slog.ErrorContext(ctx, "existingObj.Body.Close()", slog.Any("error", err))
 						}
 					}()
 					existing, err := io.ReadAll(existingObj.Body)
@@ -180,14 +180,14 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 						return fmt.Errorf("failed to read object %q: %v", objName, err)
 					}
 					if !bytes.Equal(existing, kv.V) {
-						klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
+						slog.ErrorContext(ctx, "Resource non-idempotent write", slog.String("name", objName), slog.String("diff", cmp.Diff(existing, kv.V)))
 						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
 					}
 					return nil
 				}
 				return fmt.Errorf("failed to write object %q to bucket %q: %w", objName, s.bucket, err)
 			}
-			klog.Infof("AddIfNotExist: added %q in bucket %q", objName, s.bucket)
+			slog.InfoContext(ctx, "AddIfNotExist: added", slog.String("name", objName), slog.String("bucket", s.bucket))
 			return nil
 		})
 	}

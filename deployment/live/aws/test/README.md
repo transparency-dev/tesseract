@@ -143,7 +143,7 @@ go run ./cmd/tesseract/aws \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --v=1
+  --slog_level=-4
 ```
 
 Confirm that TesseraCT is running properly by fetching a checkpoint from
@@ -243,7 +243,7 @@ go run ./cmd/tesseract/aws \
   --antispam_db_name=antispam_db \
   --signer_public_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PUBLIC_KEY_ID} \
   --signer_private_key_secret_name=${TESSERACT_SIGNER_ECDSA_P256_PRIVATE_KEY_ID} \
-  --v=1
+  --slog_level=-4
 ```
 
 Confirm that TesseraCT is running properly by fetching a checkpoint from
@@ -263,7 +263,7 @@ go run github.com/google/certificate-transparency-go/preload/preloader@master \
   --num_workers=8 \
   --parallel_fetch=4 \
   --parallel_submit=4 \
-  --v=1
+  --slog_level=-4
 ```
 
 Since the source and destination log

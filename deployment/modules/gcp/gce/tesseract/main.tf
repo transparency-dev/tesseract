@@ -39,8 +39,6 @@ locals {
 
   # tesseract_args are provided to the tesseract command.
   tesseract_args = concat([
-    "-logtostderr",
-    "-v=0",
     "-slog_level=-4",
     "-slog_to_cloud_api=true",
     "-otel_project_id=${var.project_id}",

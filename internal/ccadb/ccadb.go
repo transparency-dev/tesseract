@@ -19,11 +19,10 @@ import (
 	"encoding/csv"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
-
-	"k8s.io/klog/v2"
 )
 
 var (
@@ -58,7 +57,7 @@ func Fetch(ctx context.Context, url string, fetchHeaders []string) ([][][]byte, 
 
 	defer func() {
 		if err := rsp.Body.Close(); err != nil {
-			klog.Errorf("resp.Body.Close(): %v", err)
+			slog.ErrorContext(ctx, "resp.Body.Close()", slog.Any("error", err))
 		}
 	}()
 

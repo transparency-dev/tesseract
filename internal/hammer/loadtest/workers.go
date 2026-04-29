@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"math/rand/v2"
 	"time"
 
@@ -31,7 +32,6 @@ import (
 	"github.com/transparency-dev/tesseract/internal/client"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/x509util"
-	"k8s.io/klog/v2"
 )
 
 // LeafWriter is the signature of a function which can write arbitrary data to a log.
@@ -93,7 +93,7 @@ func (r *LeafReader) Run(ctx context.Context) {
 		if i >= size {
 			continue
 		}
-		klog.V(2).Infof("LeafReader getting %d", i)
+		slog.DebugContext(ctx, "LeafReader getting", slog.Uint64("index", i))
 		_, err := r.getLeaf(ctx, i, size)
 		if err != nil {
 			r.errChan <- fmt.Errorf("failed to get leaf %d: %v", i, err)
@@ -107,7 +107,7 @@ func (r *LeafReader) getLeaf(ctx context.Context, i uint64, logSize uint64) ([]b
 		return nil, fmt.Errorf("requested leaf %d >= log size %d", i, logSize)
 	}
 	if cached, _ := r.c.get(i); cached != nil {
-		klog.V(2).Infof("Using cached result for index %d", i)
+		slog.DebugContext(ctx, "Using cached result", slog.Uint64("index", i))
 		return cached, nil
 	}
 
@@ -230,7 +230,7 @@ func (w *LogWriter) Run(ctx context.Context) {
 		}
 		reqBody, err := json.Marshal(newLeaf)
 		if err != nil {
-			klog.Errorf("Failed to json.Marshal add chain request body: %v", err)
+			slog.ErrorContext(ctx, "Failed to json.Marshal add chain request body", slog.Any("error", err))
 			continue
 		}
 
@@ -260,11 +260,11 @@ func (w *LogWriter) Run(ctx context.Context) {
 			case w.leafMMDChan <- LeafMMD{chain, index, timestamp}:
 			default:
 				// Drop if leafMMDChan is full. This could happen if the MMD verifiers are falling behind.
-				klog.V(3).Infof("leafMMDChan is full: dropping leaf index: %d", index)
+				slog.DebugContext(ctx, "leafMMDChan is full: dropping leaf", slog.Uint64("index", index))
 			}
 		}
 
-		klog.V(2).Infof("Wrote leaf at index %d", index)
+		slog.DebugContext(ctx, "Wrote leaf", slog.Uint64("index", index))
 		newLeaf = w.gen()
 	}
 }

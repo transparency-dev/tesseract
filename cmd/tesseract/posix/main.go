@@ -23,6 +23,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -43,7 +44,6 @@ import (
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/posix"
 	"golang.org/x/mod/sumdb/note"
-	"k8s.io/klog/v2"
 
 	_ "expvar" // Registers /debug/vars, with BadgerDB metrics.
 )
@@ -108,12 +108,13 @@ var (
 	storageDir    = flag.String("storage_dir", "", "Path to root of log storage.")
 	privKeyFile   = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 	traceFraction = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
+	slogLevel     = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
 )
 
 func main() {
-	klog.InitFlags(nil)
 	flag.Parse()
 	ctx := context.Background()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
 
 	shutdownOTel := initOTel(ctx, *traceFraction, *origin)
 	defer shutdownOTel(ctx)
@@ -121,7 +122,8 @@ func main() {
 
 	fetchedRootsBackupStorage, err := posix.NewRootsStorage(ctx, *storageDir)
 	if err != nil {
-		klog.Exitf("failed to initialize POSIX backup storage for remotely fetched roots: %v", err)
+		slog.ErrorContext(ctx, "failed to initialize POSIX backup storage for remotely fetched roots", slog.Any("error", err))
+		os.Exit(1)
 	}
 
 	if len(rootsRemoteFetchURLs) == 0 {
@@ -143,7 +145,7 @@ func main() {
 		RejectRoots:              rootsRejectFingerprints,
 	}
 	if *acceptSHA1 {
-		klog.Info(`**** WARNING **** This server will accept chains signed
+		slog.InfoContext(ctx, `**** WARNING **** This server will accept chains signed
 using SHA-1 based algorithms. This feature is available to allow chains
 submitted by Chrome's Merge Delay Monitor Root for the time being, but will
 eventually go away. See /internal/lax509/README.md for more information.`)
@@ -156,11 +158,11 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newStorage, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
-		klog.Exitf("Can't initialize CT HTTP Server: %v", err)
+		slog.ErrorContext(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
+		os.Exit(1)
 	}
 
-	klog.CopyStandardLogTo("WARNING")
-	klog.Info("**** CT HTTP Server Starting ****")
+	slog.InfoContext(ctx, "**** CT HTTP Server Starting ****")
 	http.Handle("/", logHandler)
 
 	// Bring up the HTTP server and serve until we get a signal not to.
@@ -178,20 +180,19 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
 		defer cancel()
-		klog.Info("Shutting down HTTP server...")
+		slog.InfoContext(ctx, "Shutting down HTTP server...")
 		if err := srv.Shutdown(ctx); err != nil {
-			klog.Errorf("srv.Shutdown(): %v", err)
+			slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
 		}
-		klog.Info("HTTP server shutdown")
+		slog.InfoContext(ctx, "HTTP server shutdown")
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
-		klog.Warningf("Server exited: %v", err)
+		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
 	// in which case it'll block until the HTTP server has gracefully shutdown
 	shutdownWG.Wait()
-	klog.Flush()
 }
 
 // awaitSignal waits for standard termination signals, then runs the given
@@ -203,8 +204,7 @@ func awaitSignal(doneFn func()) {
 
 	// Now block main and wait for a signal
 	sig := <-sigs
-	klog.Warningf("Signal received: %v", sig)
-	klog.Flush()
+	slog.WarnContext(context.Background(), "Signal received", slog.Any("signal", sig))
 
 	doneFn()
 }
@@ -360,19 +360,23 @@ func signerFromFlags() crypto.Signer {
 		kf = os.Getenv("LOG_PRIVATE_KEY")
 	}
 	if kf == "" {
-		klog.Exitf("Must specify --priv_key or LOG_PRIVATE_KEY environment variable.")
+		slog.ErrorContext(context.Background(), "Must specify --priv_key or LOG_PRIVATE_KEY environment variable.")
+		os.Exit(1)
 	}
 	r, err := os.ReadFile(kf)
 	if err != nil {
-		klog.Exitf("Failed to read private key from %q: %v", kf, err)
+		slog.ErrorContext(context.Background(), "Failed to read private key", slog.String("path", kf), slog.Any("error", err))
+		os.Exit(1)
 	}
 	block, _ := pem.Decode(r)
 	if err != nil {
-		klog.Exitf("Failed to parse PEM private key: %v", err)
+		slog.ErrorContext(context.Background(), "Failed to parse PEM private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	k, err := x509.ParseECPrivateKey(block.Bytes)
 	if err != nil {
-		klog.Exitf("Failed to parse private key: %v", err)
+		slog.ErrorContext(context.Background(), "Failed to parse private key", slog.Any("error", err))
+		os.Exit(1)
 	}
 	return k
 }
@@ -396,15 +400,18 @@ func notBeforeRLFromFlags() *tesseract.NotBeforeRL {
 	}
 	bits := strings.Split(*notBeforeRL, ":")
 	if len(bits) != 2 {
-		klog.Exitf("Invalid format for --rate_limit_old_not_before flag")
+		slog.ErrorContext(context.Background(), "Invalid format for --rate_limit_old_not_before flag")
+		os.Exit(1)
 	}
 	a, err := time.ParseDuration(bits[0])
 	if err != nil {
-		klog.Exitf("Invalid age passed to --rate_limit_old_not_before flag %q: %v", bits[0], err)
+		slog.ErrorContext(context.Background(), "Invalid age passed to --rate_limit_old_not_before flag", slog.String("age", bits[0]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	l, err := strconv.ParseFloat(bits[1], 64)
 	if err != nil {
-		klog.Exitf("Invalid rate limit passed to --rate_limit_old_not_before %q: %v", bits[1], err)
+		slog.ErrorContext(context.Background(), "Invalid rate limit passed to --rate_limit_old_not_before", slog.String("limit", bits[1]), slog.Any("error", err))
+		os.Exit(1)
 	}
 	return &tesseract.NotBeforeRL{AgeThreshold: a, RateLimit: l}
 }

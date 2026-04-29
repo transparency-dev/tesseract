@@ -40,8 +40,6 @@ resource "google_cloud_run_v2_service" "default" {
       image = var.server_docker_image
       name  = "tesseract"
       args = flatten([
-        "--logtostderr",
-        "--v=1",
         "--otel_project_id=${var.project_id}",
         "--slog_level=-4",
         "--http_endpoint=:6962",

@@ -20,6 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -33,7 +34,6 @@ import (
 	"google.golang.org/api/iterator"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"k8s.io/klog/v2"
 )
 
 // IssuersStorage is a key value store backed by GCS on GCP to store issuer chains.
@@ -106,7 +106,7 @@ func (s *IssuersStorage) LoadAll(ctx context.Context) ([]storage.KV, error) {
 
 		root, err := io.ReadAll(r)
 		if errC := r.Close(); errC != nil {
-			klog.Errorf("r.Close(): %v", errC)
+			slog.ErrorContext(ctx, "r.Close()", slog.Any("error", errC))
 		}
 		if err != nil {
 			errs = append(errs, fmt.Errorf("failed to read object %q: %v", attr.Name, err))
@@ -151,7 +151,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 					}
 					defer func() {
 						if err := r.Close(); err != nil {
-							klog.Errorf("r.Close(): %v", err)
+							slog.ErrorContext(ctx, "r.Close()", slog.Any("error", err))
 						}
 					}()
 
@@ -161,17 +161,17 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 					}
 
 					if !bytes.Equal(existing, kv.V) {
-						klog.Errorf("Resource %q non-idempotent write:\n%s", objName, cmp.Diff(existing, kv.V))
+						slog.ErrorContext(ctx, "Resource non-idempotent write", slog.String("name", objName), slog.String("diff", cmp.Diff(existing, kv.V)))
 						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
 					}
-					klog.V(2).Infof("AddIssuersIfNotExist: object %q with same data already exists in bucket %q, continuing", objName, s.bucket.BucketName())
+					slog.DebugContext(ctx, "AddIssuersIfNotExist: object with same data already exists, continuing", slog.String("name", objName), slog.String("bucket", s.bucket.BucketName()))
 					return nil
 				}
 
 				return fmt.Errorf("failed to close write on %q: %v", objName, err)
 			}
 
-			klog.Infof("AddIfNotExist: added %q in bucket %q", objName, s.bucket.BucketName())
+			slog.InfoContext(ctx, "AddIfNotExist: added", slog.String("name", objName), slog.String("bucket", s.bucket.BucketName()))
 			return nil
 		})
 	}

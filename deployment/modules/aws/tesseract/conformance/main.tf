@@ -178,7 +178,7 @@ resource "aws_ecs_task_definition" "conformance" {
       "--enable_publication_awaiter=true",
       formatlist("--roots_remote_fetch_url=%s", var.roots_remote_fetch_url),
       "--roots_remote_fetch_interval=${var.roots_remote_fetch_interval}",
-      "-v=2",
+      "--slog_level=-4",
     ]),
     "logConfiguration" : {
       "logDriver" : "awslogs",
@@ -258,12 +258,11 @@ resource "aws_ecs_task_definition" "hammer" {
       "--log_url=https://${module.storage.s3_bucket_regional_domain_name}",
       "--write_log_url=http://${aws_service_discovery_service.conformance.name}.${aws_service_discovery_private_dns_namespace.internal.name}:${local.port}/ci-static-ct",
       "--show_ui=false",
-      "--logtostderr",
       "--num_writers=256",
       "--max_write_ops=256",
       "--num_mmd_verifiers=1024",
       "--leaf_write_goal=10000",
-      "-v=3",
+      "--slog_level=-4",
     ],
     "logConfiguration" : {
       "logDriver" : "awslogs",

@@ -16,11 +16,13 @@ package ct
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strconv"
 	"strings"
 	"time"
@@ -28,7 +30,6 @@ import (
 	"github.com/transparency-dev/tesseract/internal/lax509"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/x509util"
-	"k8s.io/klog/v2"
 )
 
 var stringToKeyUsage = map[string]x509.ExtKeyUsage{
@@ -56,7 +57,7 @@ func ParseExtKeyUsages(kus []string) ([]x509.ExtKeyUsage, error) {
 			// If "Any" is specified, then we can ignore the entire list and
 			// just disable EKU checking.
 			if ku == x509.ExtKeyUsageAny {
-				klog.Info("Found ExtKeyUsageAny, allowing all EKUs")
+				slog.InfoContext(context.Background(), "Found ExtKeyUsageAny, allowing all EKUs")
 				lExtKeyUsages = nil
 				break
 			}
@@ -306,9 +307,9 @@ func (cv chainValidator) Validate(unverifiedChain []*x509.Certificate, expecting
 	// The type of the leaf must match the one the handler expects
 	if isPrecert != expectingPrecert {
 		if expectingPrecert {
-			klog.Warningf("Cert (or precert with invalid CT ext) submitted as precert chain: %v", unverifiedChain)
+			slog.WarnContext(context.Background(), "Cert (or precert with invalid CT ext) submitted as precert chain", slog.Any("chain", unverifiedChain))
 		} else {
-			klog.Warningf("Precert (or cert with invalid CT ext) submitted as cert chain: %v", unverifiedChain)
+			slog.WarnContext(context.Background(), "Precert (or cert with invalid CT ext) submitted as cert chain", slog.Any("chain", unverifiedChain))
 		}
 		return nil, fmt.Errorf("cert / precert mismatch: %T", expectingPrecert)
 	}

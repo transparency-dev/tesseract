@@ -18,12 +18,9 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/hex"
+	"log/slog"
 	"time"
-
-	"k8s.io/klog/v2"
 )
-
-const vLevel = 9
 
 // requestLog allows implementations to do structured logging of TesseraCT
 // request parameters, submitted chains and other internal details that
@@ -66,37 +63,37 @@ type DefaultRequestLog struct {
 
 // start logs the start of request processing.
 func (dlr *DefaultRequestLog) start(ctx context.Context) context.Context {
-	klog.V(vLevel).Info("RL: Start")
+	slog.DebugContext(ctx, "RL: Start")
 	return ctx
 }
 
 // origin logs the origin of the CT log that this request is for.
-func (dlr *DefaultRequestLog) origin(_ context.Context, p string) {
-	klog.V(vLevel).Infof("RL: LogOrigin: %s", p)
+func (dlr *DefaultRequestLog) origin(ctx context.Context, p string) {
+	slog.DebugContext(ctx, "RL: LogOrigin", slog.String("origin", p))
 }
 
 // addDERToChain logs the raw bytes of a submitted certificate.
-func (dlr *DefaultRequestLog) addDERToChain(_ context.Context, d []byte) {
+func (dlr *DefaultRequestLog) addDERToChain(ctx context.Context, d []byte) {
 	// Explicit hex encoding below to satisfy CodeQL:
-	klog.V(vLevel).Infof("RL: Cert DER: %s", hex.EncodeToString(d))
+	slog.DebugContext(ctx, "RL: Cert DER", slog.String("der", hex.EncodeToString(d)))
 }
 
 // addCertToChain logs some issuer / subject / timing fields from a
 // certificate that is part of a submitted chain.
-func (dlr *DefaultRequestLog) addCertToChain(_ context.Context, cert *x509.Certificate) {
-	klog.V(vLevel).Infof("RL: Cert: Sub: %s Iss: %s notBef: %s notAft: %s",
-		cert.Subject,
-		cert.Issuer,
-		cert.NotBefore.Format(time.RFC1123Z),
-		cert.NotAfter.Format(time.RFC1123Z))
+func (dlr *DefaultRequestLog) addCertToChain(ctx context.Context, cert *x509.Certificate) {
+	slog.DebugContext(ctx, "RL: Cert",
+		slog.String("subject", cert.Subject.String()),
+		slog.String("issuer", cert.Issuer.String()),
+		slog.String("not_before", cert.NotBefore.Format(time.RFC1123Z)),
+		slog.String("not_after", cert.NotAfter.Format(time.RFC1123Z)))
 }
 
 // issueSCT logs an SCT that will be issued to a client.
-func (dlr *DefaultRequestLog) issueSCT(_ context.Context, sct []byte) {
-	klog.V(vLevel).Infof("RL: Issuing SCT: %x", sct)
+func (dlr *DefaultRequestLog) issueSCT(ctx context.Context, sct []byte) {
+	slog.DebugContext(ctx, "RL: Issuing SCT", slog.String("sct", hex.EncodeToString(sct)))
 }
 
 // status logs the response HTTP status code after processing completes.
-func (dlr *DefaultRequestLog) status(_ context.Context, s int) {
-	klog.V(vLevel).Infof("RL: Status: %d", s)
+func (dlr *DefaultRequestLog) status(ctx context.Context, s int) {
+	slog.DebugContext(ctx, "RL: Status", slog.Int("status", s))
 }

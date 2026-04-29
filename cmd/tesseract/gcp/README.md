@@ -47,18 +47,8 @@ the format described by https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/mai
 
 ## Logging
 
-TesseraCT on GCP uses two logging systems as it transitions to structured logging:
-
-### Standard `klog` (Legacy)
-Many internal libraries and older code use `klog`. 
-- **Routing**: `klog` is configured to write to `stderr` (`-logtostderr`). When running in GCE/COS, the Docker daemon intercepts `stderr` because it is configured with `--log-driver=gcplogs`. 
-- **Expected Fields**: Because Docker's `gcplogs` driver handles the transmission, it automatically decorates logs with:
-  - `container`: name, id, image name, etc.
-  - `instance`: VM name, id, zone.
-
-### Structured `slog` (Recommended)
-Newer code and the main server logs use `log/slog`.
-- **Routing**: By default, `slog` bakes OpenTelemetry trace context and exports logs **directly to the Cloud Logging API** (bypassing `stderr`). 
+TesseraCT uses Go's `log/slog` for structured logging.
+- **Routing**: By default, `slog` bakes OpenTelemetry trace context and exports logs **directly to the Cloud Logging API** (bypassing `stderr`). The cut-off level can be tuned via `--slog_level` (default `0` = INFO; `-4` = DEBUG).
 - **Expected Fields**: Because it bypasses `stderr` and the Docker `gcplogs` driver, it does not get automatic container/instance decoration by Docker. Instead, at startup, TesseraCT queries the GCE Metadata Server and reads flags to manually bake these fields into the default `slog` logger. You can expect:
   - `message`
   - `severity`
