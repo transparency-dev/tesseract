@@ -74,7 +74,7 @@ var (
 	extKeyUsages             = flag.String("ext_key_usages", "", "If set, will restrict the set of such usages that the server will accept. By default only 'ServerAuth' certs are accepted. Set to 'Any' to accept all chain. Accepted values are defined in internal/ct.")
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
 	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
-	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true then the certificate is integrated into log before returning the response.")
+	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true, waits for the submitted certificate to be covered by a published checkpoint before responding to an add-* request.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "28h:500", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
@@ -90,6 +90,7 @@ var (
 	pushbackMaxOutstanding      = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
 	pushbackMaxAntispamLag      = flag.Uint("pushback_max_antispam_lag", aws_as.DefaultPushbackThreshold, "Maximum permitted lag for antispam follower, before log starts returning pushback.")
 	garbageCollectionInterval   = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
+	awaiterPollInterval         = flag.Duration("awaiter_poll_interval", storage.DefaultAwaiterPollInterval, "Interval between two checkpoint polls by the awaiter. Used for antispam, and if enable_publication_awaiter is set, to block add-* requests responses. Must be strictly positive or defaults to DefaultAwaiterPollInterval.")
 
 	// Infrastructure setup flags
 	bucket                     = flag.String("bucket", "", "Name of the S3 bucket to store the log in.")
@@ -296,10 +297,11 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 		}
 
 		sopts := storage.CTStorageOptions{
-			Appender:      appender,
-			Reader:        reader,
-			IssuerStorage: issuerStorage,
-			EnableAwaiter: *enablePublicationAwaiter,
+			Appender:            appender,
+			Reader:              reader,
+			IssuerStorage:       issuerStorage,
+			AwaiterPollInterval: *awaiterPollInterval,
+			EnablePubAwaiter:    *enablePublicationAwaiter,
 		}
 
 		return storage.NewCTStorage(ctx, &sopts)
