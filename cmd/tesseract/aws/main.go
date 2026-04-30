@@ -106,7 +106,7 @@ var (
 	signerPublicKeyFile        = flag.String("signer_public_key_file", "", "Path to public key file for checkpoints and SCTs signer (alternative to secrets manager)")
 	signerPrivateKeyFile       = flag.String("signer_private_key_file", "", "Path to private key file for checkpoints and SCTs signer (alternative to secrets manager)")
 	usePathStyle               = flag.Bool("s3_use_path_style", false, "Whether to force the AWS S3 client to use path-style bucket references, probably only useful for on-prem deployments")
-	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
+	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See Logging section in cmd/tesseract/README.md.")
 )
 
 // nolint:staticcheck

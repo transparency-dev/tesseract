@@ -108,7 +108,7 @@ var (
 	storageDir    = flag.String("storage_dir", "", "Path to root of log storage.")
 	privKeyFile   = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
 	traceFraction = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
-	slogLevel     = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
+	slogLevel     = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See Logging section in cmd/tesseract/README.md.")
 )
 
 func main() {

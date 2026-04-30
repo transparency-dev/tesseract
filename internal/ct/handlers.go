@@ -33,7 +33,9 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/otel"
+
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
@@ -209,7 +211,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		slog.WarnContext(logCtx, "the request was received on a URL which is not prefixed with the configured origin", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
 	}
 
-	slog.DebugContext(logCtx, "request received", slog.String("origin", a.log.origin), slog.String("method", r.Method), slog.String("url", r.URL.String()), slog.String("name", a.name))
+	logger.DebugExtraContext(logCtx, "request received", slog.String("origin", a.log.origin), slog.String("method", r.Method), slog.String("url", r.URL.String()), slog.String("name", a.name))
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.method {
 		slog.WarnContext(logCtx, "wrong HTTP method", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.String("method", r.Method))
@@ -237,7 +239,7 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	attrs = append(attrs, hattrs...)
 	attrs = append(attrs, codeKey.Int(statusCode))
 	a.opts.RequestLog.status(ctx, statusCode)
-	slog.DebugContext(ctx, "handler response", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
+	logger.DebugExtraContext(ctx, "handler response", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
 	rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	if err != nil {
 		if errors.Is(err, context.Canceled) && errors.Is(r.Context().Err(), context.Canceled) {
@@ -479,7 +481,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %s", err)
 	}
 
-	slog.DebugContext(ctx, "storage.Add", slog.String("origin", log.origin), slog.String("method", method))
+	logger.DebugExtraContext(ctx, "storage.Add", slog.String("origin", log.origin), slog.String("method", method))
 	future, err := log.storage.Add(ctx, entry)
 	// helper function to return a 429
 	tooManyRequests := func(reason string) (int, []attribute.KeyValue, error) {
@@ -542,7 +544,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		// reason is logged and http status is already set
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to write response: %s", err)
 	}
-	slog.DebugContext(ctx, "SCT issued", slog.String("origin", log.origin), slog.String("method", method))
+	logger.DebugExtraContext(ctx, "SCT issued", slog.String("origin", log.origin), slog.String("method", method))
 	if !index.IsDup {
 		lastSCTTimestamp.Record(ctx, otel.Clamp64(sct.Timestamp), metric.WithAttributes(originKey.String(log.origin)))
 		lastSCTIndex.Record(ctx, otel.Clamp64(index.Index), metric.WithAttributes(originKey.String(log.origin)))

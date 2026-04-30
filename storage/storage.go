@@ -31,7 +31,9 @@ import (
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
+
 	"golang.org/x/mod/sumdb/note"
 )
 
@@ -181,7 +183,7 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 			_, ok := m[string(kv.K)]
 			mu.RUnlock()
 			if ok {
-				slog.DebugContext(ctx, "cachedStoreIssuers wrapper: found in local key cache", slog.String("key", string(kv.K)))
+				logger.DebugExtraContext(ctx, "cachedStoreIssuers wrapper: found in local key cache", slog.String("key", string(kv.K)))
 				continue
 			}
 			req = append(req, kv)
@@ -191,7 +193,7 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 		}
 		for _, kv := range req {
 			if len(m) >= maxCachedIssuerKeys {
-				slog.DebugContext(ctx, "cachedStoreIssuers wrapper: local issuer cache full, will stop caching issuers.")
+				logger.DebugExtraContext(ctx, "cachedStoreIssuers wrapper: local issuer cache full, will stop caching issuers.")
 				return nil
 			}
 			mu.Lock()

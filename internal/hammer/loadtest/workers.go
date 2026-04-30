@@ -30,7 +30,9 @@ import (
 	hasher "github.com/transparency-dev/merkle/rfc6962"
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+
 	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
@@ -93,7 +95,7 @@ func (r *LeafReader) Run(ctx context.Context) {
 		if i >= size {
 			continue
 		}
-		slog.DebugContext(ctx, "LeafReader getting", slog.Uint64("index", i))
+		logger.DebugExtraContext(ctx, "LeafReader getting", slog.Uint64("index", i))
 		_, err := r.getLeaf(ctx, i, size)
 		if err != nil {
 			r.errChan <- fmt.Errorf("failed to get leaf %d: %v", i, err)
@@ -107,7 +109,7 @@ func (r *LeafReader) getLeaf(ctx context.Context, i uint64, logSize uint64) ([]b
 		return nil, fmt.Errorf("requested leaf %d >= log size %d", i, logSize)
 	}
 	if cached, _ := r.c.get(i); cached != nil {
-		slog.DebugContext(ctx, "Using cached result", slog.Uint64("index", i))
+		logger.DebugExtraContext(ctx, "Using cached result", slog.Uint64("index", i))
 		return cached, nil
 	}
 
@@ -260,11 +262,11 @@ func (w *LogWriter) Run(ctx context.Context) {
 			case w.leafMMDChan <- LeafMMD{chain, index, timestamp}:
 			default:
 				// Drop if leafMMDChan is full. This could happen if the MMD verifiers are falling behind.
-				slog.DebugContext(ctx, "leafMMDChan is full: dropping leaf", slog.Uint64("index", index))
+				logger.DebugExtraContext(ctx, "leafMMDChan is full: dropping leaf", slog.Uint64("index", index))
 			}
 		}
 
-		slog.DebugContext(ctx, "Wrote leaf", slog.Uint64("index", index))
+		logger.DebugExtraContext(ctx, "Wrote leaf", slog.Uint64("index", index))
 		newLeaf = w.gen()
 	}
 }

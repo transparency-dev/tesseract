@@ -231,7 +231,7 @@ func mapSeverity(l slog.Level) logging.Severity {
 		return logging.Warning
 	case l >= slog.LevelInfo:
 		return logging.Info
-	case l >= slog.LevelDebug:
+	case l >= LevelExtreme:
 		return logging.Debug
 	default:
 		return logging.Default
@@ -257,7 +257,7 @@ func GCPReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 			a.Value = slog.StringValue("WARNING")
 		case level >= slog.LevelInfo:
 			a.Value = slog.StringValue("INFO")
-		case level >= slog.LevelDebug:
+		case level >= LevelExtreme:
 			a.Value = slog.StringValue("DEBUG")
 		default:
 			a.Value = slog.StringValue("DEFAULT")
@@ -265,3 +265,4 @@ func GCPReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 	}
 	return a
 }
+
