@@ -295,3 +295,16 @@ being used.
 To run multiple logs, run multiple TesseraCT instances configured with different
 Tessera resources. For simplicity, it is not possible to serve multiple logs
 from a single TesseraCT instance.
+
+### Logging
+
+TesseraCT uses `slog` for its structured logging. The `--slog_level` command-line flag allows you to configure the verbosity threshold of log messages. It mostly follows the standard levels defined in [slog.Level](https://pkg.go.dev/log/slog#Level), but it also introduces repository-specific custom debug levels:
+
+| Level Value | Level Name    | Purpose |
+| ----------- | ------------- | ------- |
+| `8`         | `ERROR`       | Application errors that require immediate attention. |
+| `4`         | `WARN`        | Warnings for recoverable errors. |
+| `0`         | `INFO`        | High-level and default informational messages. |
+| `-4`        | `DEBUG`       | General debugging logs (formerly `klog.V(1)`). |
+| `-8`        | `DEBUG_EXTRA` | More granular and frequent debugging logs (formerly `klog.V(2)` and `klog.V(3)`). |
+| `-12`       | `EXTREME`     | Extremely verbose logging, intended for deep dives (formerly `klog.V(4+)`). |

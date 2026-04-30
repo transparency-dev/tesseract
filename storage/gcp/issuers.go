@@ -27,7 +27,9 @@ import (
 
 	gcs "cloud.google.com/go/storage"
 	"github.com/google/go-cmp/cmp"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
+
 	"github.com/transparency-dev/tesseract/storage"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/api/googleapi"
@@ -164,7 +166,7 @@ func (s *IssuersStorage) AddIfNotExist(ctx context.Context, kv []storage.KV) err
 						slog.ErrorContext(ctx, "Resource non-idempotent write", slog.String("name", objName), slog.String("diff", cmp.Diff(existing, kv.V)))
 						return fmt.Errorf("precondition failed: resource content for %q differs from data to-be-written", objName)
 					}
-					slog.DebugContext(ctx, "AddIssuersIfNotExist: object with same data already exists, continuing", slog.String("name", objName), slog.String("bucket", s.bucket.BucketName()))
+					logger.DebugExtraContext(ctx, "AddIssuersIfNotExist: object with same data already exists, continuing", slog.String("name", objName), slog.String("bucket", s.bucket.BucketName()))
 					return nil
 				}
 

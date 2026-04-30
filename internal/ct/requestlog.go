@@ -19,7 +19,9 @@ import (
 	"crypto/x509"
 	"encoding/hex"
 	"log/slog"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"time"
+
 )
 
 // requestLog allows implementations to do structured logging of TesseraCT
@@ -63,25 +65,25 @@ type DefaultRequestLog struct {
 
 // start logs the start of request processing.
 func (dlr *DefaultRequestLog) start(ctx context.Context) context.Context {
-	slog.DebugContext(ctx, "RL: Start")
+	logger.ExtremeContext(ctx, "RL: Start")
 	return ctx
 }
 
 // origin logs the origin of the CT log that this request is for.
 func (dlr *DefaultRequestLog) origin(ctx context.Context, p string) {
-	slog.DebugContext(ctx, "RL: LogOrigin", slog.String("origin", p))
+	logger.ExtremeContext(ctx, "RL: LogOrigin", slog.String("origin", p))
 }
 
 // addDERToChain logs the raw bytes of a submitted certificate.
 func (dlr *DefaultRequestLog) addDERToChain(ctx context.Context, d []byte) {
 	// Explicit hex encoding below to satisfy CodeQL:
-	slog.DebugContext(ctx, "RL: Cert DER", slog.String("der", hex.EncodeToString(d)))
+	logger.ExtremeContext(ctx, "RL: Cert DER", slog.String("der", hex.EncodeToString(d)))
 }
 
 // addCertToChain logs some issuer / subject / timing fields from a
 // certificate that is part of a submitted chain.
 func (dlr *DefaultRequestLog) addCertToChain(ctx context.Context, cert *x509.Certificate) {
-	slog.DebugContext(ctx, "RL: Cert",
+	logger.ExtremeContext(ctx, "RL: Cert",
 		slog.String("subject", cert.Subject.String()),
 		slog.String("issuer", cert.Issuer.String()),
 		slog.String("not_before", cert.NotBefore.Format(time.RFC1123Z)),
@@ -90,10 +92,10 @@ func (dlr *DefaultRequestLog) addCertToChain(ctx context.Context, cert *x509.Cer
 
 // issueSCT logs an SCT that will be issued to a client.
 func (dlr *DefaultRequestLog) issueSCT(ctx context.Context, sct []byte) {
-	slog.DebugContext(ctx, "RL: Issuing SCT", slog.String("sct", hex.EncodeToString(sct)))
+	logger.ExtremeContext(ctx, "RL: Issuing SCT", slog.String("sct", hex.EncodeToString(sct)))
 }
 
 // status logs the response HTTP status code after processing completes.
 func (dlr *DefaultRequestLog) status(ctx context.Context, s int) {
-	slog.DebugContext(ctx, "RL: Status", slog.Int("status", s))
+	logger.ExtremeContext(ctx, "RL: Status", slog.Int("status", s))
 }

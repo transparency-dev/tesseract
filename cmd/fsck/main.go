@@ -36,7 +36,9 @@ import (
 	"github.com/transparency-dev/tessera/fsck"
 	"github.com/transparency-dev/tesseract/cmd/fsck/internal/tui"
 	"github.com/transparency-dev/tesseract/internal/client"
+	"github.com/transparency-dev/tesseract/internal/logger"
 	"golang.org/x/crypto/cryptobyte"
+
 	"golang.org/x/mod/sumdb/note"
 	"golang.org/x/sync/errgroup"
 )
@@ -50,7 +52,7 @@ var (
 	userAgentInfo    = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
 	bundleCompressed = flag.Bool("bundle_compressed", false, "Enable decompression of entry bundles, useful for Sunlight logs")
 	ui               = flag.Bool("ui", true, "Set to true to use a TUI to display progress, or false for logging")
-	slogLevel        = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. Default is 0 (INFO). See https://pkg.go.dev/log/slog#Level for other levels.")
+	slogLevel        = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See cmd/tesseract/README.md#Logging.")
 )
 
 const (
@@ -163,7 +165,7 @@ func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer fun
 					errC <- fmt.Errorf("couldn't fetch issuer for %x: %v", fp, err)
 					continue
 				}
-				slog.DebugContext(ctx, "Issuer is present", slog.String("fp", fmt.Sprintf("%x", fp)))
+				logger.DebugExtraContext(ctx, "Issuer is present", slog.String("fp", fmt.Sprintf("%x", fp)))
 			}
 		}()
 	}
@@ -185,7 +187,7 @@ func (l *logStateCollector) addIssuers(fpRaw cryptobyte.String) {
 		fp, fpRaw = fpRaw[:32], fpRaw[32:]
 		_, existed := l.issuersSeen.LoadOrStore(string(fp), true)
 		if !existed {
-			slog.DebugContext(context.Background(), "Found issuer", slog.String("fp", fmt.Sprintf("%x", fp)))
+			logger.DebugExtraContext(context.Background(), "Found issuer", slog.String("fp", fmt.Sprintf("%x", fp)))
 			l.issuersToCheck <- fp
 		}
 	}
