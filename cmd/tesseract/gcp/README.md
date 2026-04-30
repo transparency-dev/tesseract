@@ -48,7 +48,7 @@ the format described by https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/mai
 ## Logging
 
 TesseraCT uses Go's `log/slog` for structured logging.
-- **Routing**: By default, `slog` bakes OpenTelemetry trace context and exports logs **directly to the Cloud Logging API** (bypassing `stderr`). The cut-off level can be tuned via `--slog_level` (default `0` = INFO; `-4` = DEBUG).
+- **Routing**: By default, `slog` bakes OpenTelemetry trace context and exports logs **directly to the Cloud Logging API** (bypassing `stderr`). The cut-off level can be tuned via `--slog_level` (default `0` = INFO; `-4` = DEBUG). See the [parent README](../README.md#Logging) for more details.
 - **Expected Fields**: Because it bypasses `stderr` and the Docker `gcplogs` driver, it does not get automatic container/instance decoration by Docker. Instead, at startup, TesseraCT queries the GCE Metadata Server and reads flags to manually bake these fields into the default `slog` logger. You can expect:
   - `message`
   - `severity`

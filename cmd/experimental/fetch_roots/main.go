@@ -31,7 +31,7 @@ import (
 var (
 	url            = flag.String("url", "https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV", "URL to fetch the CSV from.")
 	outputFilename = flag.String("output_filename", "roots.pem", "Path of the output file.")
-	slogLevel      = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See Logging section in cmd/tesseract/README.md.")
+	slogLevel      = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See cmd/tesseract/README.md#Logging.")
 )
 
 var (

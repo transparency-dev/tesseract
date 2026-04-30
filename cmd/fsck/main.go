@@ -52,7 +52,7 @@ var (
 	userAgentInfo    = flag.String("user_agent_info", "", "Optional string to append to the user agent (e.g. email address for Sunlight logs)")
 	bundleCompressed = flag.Bool("bundle_compressed", false, "Enable decompression of entry bundles, useful for Sunlight logs")
 	ui               = flag.Bool("ui", true, "Set to true to use a TUI to display progress, or false for logging")
-	slogLevel        = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See Logging section in cmd/tesseract/README.md.")
+	slogLevel        = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See cmd/tesseract/README.md#Logging.")
 )
 
 const (
