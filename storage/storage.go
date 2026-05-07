@@ -44,8 +44,9 @@ const (
 	// Each key is 64 bytes long, so this will take up to 64MB.
 	// A CT log references ~15k unique issuer certifiates in 2024, so this gives plenty of space
 	// if we ever run into this limit, we should re-think how it works.
-	maxCachedIssuerKeys = 1 << 20
-	RootsPrefix         = "roots/"
+	maxCachedIssuerKeys        = 1 << 20
+	RootsPrefix                = "roots/"
+	DefaultAwaiterPollInterval = 200 * time.Millisecond
 )
 
 type KV struct {
@@ -65,30 +66,35 @@ type RootsStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender      *tessera.Appender
-	Reader        tessera.LogReader
-	IssuerStorage IssuerStorage
-	EnableAwaiter bool
+	Appender            *tessera.Appender
+	Reader              tessera.LogReader
+	IssuerStorage       IssuerStorage
+	AwaiterPollInterval time.Duration
+	EnablePubAwaiter    bool
 }
 
 // CTStorage implements ct.Storage and tessera.LogReader.
 type CTStorage struct {
-	storeData     func(context.Context, *ctonly.Entry) tessera.IndexFuture
-	storeIssuers  func(context.Context, []KV) error
-	reader        tessera.LogReader
-	awaiter       *tessera.PublicationAwaiter
-	enableAwaiter bool
+	storeData        func(context.Context, *ctonly.Entry) tessera.IndexFuture
+	storeIssuers     func(context.Context, []KV) error
+	reader           tessera.LogReader
+	awaiter          *tessera.PublicationAwaiter
+	enablePubAwaiter bool
 }
 
 // NewCTStorage instantiates a CTStorage object.
 func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, error) {
-	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, 200*time.Millisecond)
+	pollInterval := opts.AwaiterPollInterval
+	if pollInterval <= 0 {
+		pollInterval = DefaultAwaiterPollInterval
+	}
+	awaiter := tessera.NewPublicationAwaiter(ctx, opts.Reader.ReadCheckpoint, pollInterval)
 	ctStorage := &CTStorage{
-		storeData:     tessera.NewCertificateTransparencyAppender(opts.Appender),
-		storeIssuers:  cachedStoreIssuers(opts.IssuerStorage),
-		reader:        opts.Reader,
-		awaiter:       awaiter,
-		enableAwaiter: opts.EnableAwaiter,
+		storeData:        tessera.NewCertificateTransparencyAppender(opts.Appender),
+		storeIssuers:     cachedStoreIssuers(opts.IssuerStorage),
+		reader:           opts.Reader,
+		awaiter:          awaiter,
+		enablePubAwaiter: opts.EnablePubAwaiter,
 	}
 
 	return ctStorage, nil
@@ -139,7 +145,7 @@ func (cts *CTStorage) Add(ctx context.Context, entry *ctonly.Entry) (tessera.Ind
 	return trace1(ctx, "tesseract.storage.Add", func(ctx context.Context) (tessera.IndexFuture, error) {
 		future := cts.storeData(ctx, entry)
 
-		if cts.enableAwaiter {
+		if cts.enablePubAwaiter {
 			_, _, err := cts.awaiter.Await(ctx, future)
 			if err != nil {
 				return future, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
