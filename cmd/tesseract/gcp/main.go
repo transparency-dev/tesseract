@@ -269,6 +269,7 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			return nil, errors.New("missing spannerDB")
 		}
 
+		spanner.EnableOpenTelemetryMetrics()
 		spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
