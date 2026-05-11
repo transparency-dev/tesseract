@@ -184,7 +184,13 @@ func (h *Exporter) Handle(ctx context.Context, r slog.Record) error {
 		// in the entry.
 		case slog.LevelKey, slog.TimeKey:
 		default:
-			target[a.Key] = a.Value.Any()
+			v := a.Value.Any()
+			// Map types to something JSON serialisable.
+			if err, ok := v.(error); ok {
+				target[a.Key] = err.Error()
+			} else {
+				target[a.Key] = v
+			}
 		}
 		return true
 	})
