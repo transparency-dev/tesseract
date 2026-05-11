@@ -48,6 +48,7 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"golang.org/x/mod/sumdb/note"
 	"google.golang.org/api/option"
+	"google.golang.org/grpc"
 )
 
 func init() {
@@ -120,6 +121,25 @@ var (
 	imageName                  = flag.String("image_name", "", "Name of the cached docker image. Only used to decorate slog events.")
 )
 
+// grpcServiceConfig is a gRPC service config in JSON format which explicitly specifies hedging for GCS ReadObject calls.
+const grpcServiceConfig = `{
+  "methodConfig": [
+    {
+      "name": [
+        {
+          "service": "google.storage.v2.Storage",
+          "method": "ReadObject"
+        }
+      ],
+      "hedgingPolicy": {
+        "maxAttempts": 3,
+        "hedgingDelay": "0.08s",
+        "nonFatalStatusCodes": ["UNAVAILABLE", "RESOURCE_EXHAUSTED"]
+      }
+    }
+  ]
+}`
+
 // nolint:staticcheck
 func main() {
 	flag.Parse()
@@ -145,7 +165,10 @@ func main() {
 		Timeout: *clientHTTPTimeout,
 	}
 
-	gcsClient, err := gcs.NewGRPCClient(ctx, option.WithGRPCConnectionPool(*gcsConnections))
+	gcsClient, err := gcs.NewGRPCClient(ctx,
+		option.WithGRPCConnectionPool(*gcsConnections),
+		option.WithGRPCDialOption(grpc.WithDefaultServiceConfig(grpcServiceConfig)),
+	)
 	if err != nil {
 		fatal(ctx, "Failed to create gRPC GCS client", slog.Any("error", err))
 	}
