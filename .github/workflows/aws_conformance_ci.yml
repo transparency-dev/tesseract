@@ -71,7 +71,7 @@ jobs:
       # Destroy any pre-existing deployment/live/aws/conformance/ci env.
       # This might happen if a previous integration test workflow has failed.
       - name: Terragrunt destroy pre conformance test
-        uses: gruntwork-io/terragrunt-action@ad66bd184abd991249047d1f61bce1f29aaed2a6 # v3.3.0
+        uses: gruntwork-io/terragrunt-action@4ed5b7344c80315e5357f28f36159fc980bc2d5a # v3.4.0
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
@@ -83,7 +83,7 @@ jobs:
 
       # Apply the deployment/live/aws/conformance/ci terragrunt config.
       - name: Terragrunt apply
-        uses: gruntwork-io/terragrunt-action@ad66bd184abd991249047d1f61bce1f29aaed2a6 # v3.3.0
+        uses: gruntwork-io/terragrunt-action@4ed5b7344c80315e5357f28f36159fc980bc2d5a # v3.4.0
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
@@ -118,7 +118,7 @@ jobs:
 
       # Destroy the deployment/live/aws/conformance/ci env.
       - name: Terragrunt destroy pre conformance test
-        uses: gruntwork-io/terragrunt-action@ad66bd184abd991249047d1f61bce1f29aaed2a6 # v3.3.0
+        uses: gruntwork-io/terragrunt-action@4ed5b7344c80315e5357f28f36159fc980bc2d5a # v3.4.0
         with:
           tofu_version: ${{ env.TOFU_VERSION }}
           tg_version: ${{ env.TG_VERSION }}
