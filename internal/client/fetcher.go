@@ -99,6 +99,8 @@ func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
 			return nil, fmt.Errorf("get(%q): %v", u.String(), err)
 		}
 		defer func() {
+			// Drain all bytes left in the body and close it to allow socket reuse
+			_, _ = io.Copy(io.Discard, r.Body)
 			if err := r.Body.Close(); err != nil {
 				slog.ErrorContext(ctx, "resp.Body.Close()", slog.Any("error", err))
 			}

@@ -499,6 +499,8 @@ func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWr
 			return 0, 0, fmt.Errorf("failed to write leaf: %v", err)
 		}
 		defer func() {
+			// Drain all bytes left in the body and close it to allow socket reuse
+			_, _ = io.Copy(io.Discard, resp.Body)
 			_ = resp.Body.Close()
 		}()
 		body, err := io.ReadAll(resp.Body)
