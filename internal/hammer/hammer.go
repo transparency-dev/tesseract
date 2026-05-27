@@ -498,8 +498,12 @@ func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWr
 		if err != nil {
 			return 0, 0, fmt.Errorf("failed to write leaf: %v", err)
 		}
+		defer func() {
+			// Drain all bytes left in the body and close it to allow socket reuse
+			_, _ = io.Copy(io.Discard, resp.Body)
+			_ = resp.Body.Close()
+		}()
 		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
 		if err != nil {
 			return 0, 0, fmt.Errorf("failed to read body: %v", err)
 		}
