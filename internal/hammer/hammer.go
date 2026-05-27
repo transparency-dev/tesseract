@@ -498,8 +498,10 @@ func httpWriter(u *url.URL, hc *http.Client, bearerToken string) loadtest.LeafWr
 		if err != nil {
 			return 0, 0, fmt.Errorf("failed to write leaf: %v", err)
 		}
+		defer func() {
+			_ = resp.Body.Close()
+		}()
 		body, err := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
 		if err != nil {
 			return 0, 0, fmt.Errorf("failed to read body: %v", err)
 		}
