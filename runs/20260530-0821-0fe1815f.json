@@ -1,0 +1,17 @@
+{
+  "id": "20260530-0821-0fe1815f",
+  "prompt": "Create `.klaus/context.md` at the root of this repo. This file is a fact-based briefing that future AI coding agents will read before they start work on the repo. Anything you write becomes ambient context every future agent trusts, so it must be ACCURATE and verifiable from the code — never aspirational, speculative, or invented.\n\nProcess:\n1. Read README.md, CLAUDE.md (if present), AGENTS.md (if present), package manifests (go.mod, package.json, pyproject.toml, Cargo.toml, etc.), Makefile / scripts/, and a top-level directory listing.\n2. Open the primary entry-point file(s) and skim the largest top-level packages enough to characterise each in one line.\n3. If you are unsure about a fact, OMIT it. Do not guess.\n4. Write `.klaus/context.md` using the schema below.\n5. Open a PR. Do not modify any file outside `.klaus/`.\n\nSchema — use these exact H2 headings; omit a whole section if you have no verified facts for it:\n\n```\n# Repository context\n\n## Purpose\nOne short paragraph: what this project does and who/what consumes it. No marketing copy.\n\n## Tech stack\n- Language(s) and version (cite go.mod / package.json / etc.)\n- Major frameworks / libraries actually used (cite imports or manifests)\n- Build tooling and runtime\n\n## Entry points\nBullet list of `path/to/file` — one-line description for each binary / server / library entry point.\n\n## Layout\nTop-level directory tour. One line per directory that actually exists at repo root: `dirname/` — purpose. Skip obvious dirs (e.g. `.git/`, `node_modules/`).\n\n## Build, test, run\nExact shell commands a contributor runs locally. Include any prerequisites or env vars. Verify each command by looking at the Makefile / package.json scripts / etc.; do not invent commands. If a command genuinely does not exist, omit it.\n\n## Conventions\nRules a contributor must follow that are not enforced by the compiler — e.g. \"all DB access goes through internal/store\", \"handlers must not contain business logic\", \"errors are wrapped with %w\". Only include conventions you can verify from existing code.\n\n## Gotchas\nNon-obvious things that have burned past contributors (race conditions, lockfile rules, env quirks, surprising defaults). Empty section is fine — do not invent gotchas.\n\n## External dependencies\nServices, databases, queues, APIs this depends on at runtime.\n```\n\nHard rules:\n- Facts only. If you cannot verify it from code or config in this repo, omit it.\n- Cite specific file paths for anything concrete.\n- Keep the file under ~3000 words total. Terse is better than long.\n- Do NOT modify or create any file other than `.klaus/context.md` (and the `.klaus/` directory if needed).\n- Do NOT add to .gitignore, change CI, or touch unrelated config.\n- PR title: `Add .klaus/context.md (repo context bootstrap for agents)`\n- PR body: 2-3 sentences saying what the file is for and which sources you read to build it.",
+  "issue": null,
+  "branch": "agent/20260530-0821-0fe1815f",
+  "worktree": "/tmp/klaus-sessions/tesseract/20260530-0821-0fe1815f",
+  "tmux_pane": "%26",
+  "budget": "5.00",
+  "log_file": "/home/patrick/.klaus/sessions/session-20260530-0808-f07cafaf/logs/20260530-0821-0fe1815f.jsonl",
+  "created_at": "2026-05-30T08:21:06-04:00",
+  "cost_usd": 1.812873,
+  "duration_ms": 214946,
+  "pr_url": "https://github.com/transparency-dev/tesseract/pull/866",
+  "target_repo": "tesseract",
+  "clone_dir": "/home/patrick/hack/tesseract",
+  "session_name": "20260530-0821-0fe1815f"
+}
