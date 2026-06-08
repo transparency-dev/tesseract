@@ -1,5 +1,5 @@
 
-FROM golang:1.25.5-alpine3.21@sha256:b4dbd292a0852331c89dfd64e84d16811f3e3aae4c73c13d026c4d200715aff6 AS builder
+FROM golang:1.25.8-alpine3.23@sha256:8e02eb337d9e0ea459e041f1ee5eece41cbb61f1d83e7d883a3e2fb4862063fa AS builder
 
 ARG GOFLAGS="-trimpath -buildvcs=false -buildmode=exe"
 ENV GOFLAGS=$GOFLAGS
