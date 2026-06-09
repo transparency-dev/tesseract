@@ -276,7 +276,11 @@ are kept in memory
 sequenced in a batch
 - [The number of cached issuers keys](https://github.com/transparency-dev/tesseract/blob/main/storage/storage.go)
 - `enable_publication_awaiter` and `http_deadline`: they impact the number of
-concurrent requests, hence the amount of RAM being used
+  concurrent requests, hence the amount of RAM being used
+
+> [!IMPORTANT]
+> **GOMEMLIMIT Configuration Notice**
+> Setting GOMEMLIMIT can greatly improve the stability of at least the POSIX implementation when using BadgerDB. See the [POSIX docmentation](./posix/README.md) for more details.
 
 #### Frontend redundancy
 

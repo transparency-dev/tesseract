@@ -35,6 +35,19 @@ work too, `CephFS` may work, but `NFS` will almost certainly not.
 > semantics is overwhelmingly likely to result in a broken log!
 
 
+## Memory Considerations & GOMEMLIMIT
+
+Since the POSIX storage implementation utilizes BadgerDB, it is susceptible to memory spikes during LSM tree compaction. Under standard Go GC rules, these spikes can reach up to 10GB, leading to container OOM (Out Of Memory) crashes.
+
+To ensure service stability, we strongly recommend setting the `GOMEMLIMIT` environment variable.
+
+> [!IMPORTANT]
+> **GOMEMLIMIT Recommendation**
+> - **Why it is needed**: BadgerDB compaction spikes Go heap allocations, causing container OOMs due to standard Go GC lag.
+> - **How it helps**: It forces the Go runtime to trigger GC aggressively when approaching the limit, preventing OOMs.
+> - **Recommended setting**: 80-90% of the container's total memory limit (e.g., `GOMEMLIMIT=1.8GiB` for a 2GiB container).
+
+
 ## Witnessing
 
 > [!WARNING]
