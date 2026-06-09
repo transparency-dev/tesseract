@@ -337,7 +337,7 @@ func TestNewChainValidatorRootsRemoteFetch(t *testing.T) {
 				{
 					code: 200,
 					crts: []string{
-						testdata.CACertPEM, // Same root, shouldn't duplicate
+						testdata.CACertPEM,     // Same root, shouldn't duplicate
 						testdata.FakeCACertPEM, // New root.
 					},
 				},

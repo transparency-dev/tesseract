@@ -114,7 +114,7 @@ func main() {
 		antispam, err = gcp_as.NewAntispam(ctx, fmt.Sprintf("%s-antispam", *spanner), as_opts)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to create new GCP antispam storage", slog.Any("error", err))
-		os.Exit(1)
+			os.Exit(1)
 		}
 		opts.WithAntispam(antispam)
 	}

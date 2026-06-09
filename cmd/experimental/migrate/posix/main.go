@@ -118,12 +118,12 @@ func main() {
 		antispamIndexCacheBytes, error := humanize.ParseBytes(*antispamIndexCacheSize)
 		if error != nil {
 			slog.ErrorContext(ctx, "Invalid antispam index cache size", slog.Any("error", error))
-		os.Exit(1)
+			os.Exit(1)
 		}
 		antispamBlockCacheBytes, error := humanize.ParseBytes(*antispamBlockCacheSize)
 		if error != nil {
 			slog.ErrorContext(ctx, "Invalid antispam block cache size", slog.Any("error", error))
-		os.Exit(1)
+			os.Exit(1)
 		}
 		asOpts := tposix_as.AntispamOpts{
 			MaxBatchSize:       *antispamBatchSize,
@@ -137,7 +137,7 @@ func main() {
 		antispam, err = tposix_as.NewAntispam(ctx, filepath.Join(*storageDir, ".state", "antispam"), asOpts)
 		if err != nil {
 			slog.ErrorContext(ctx, "Failed to create new POSIX antispam storage", slog.Any("error", err))
-		os.Exit(1)
+			os.Exit(1)
 		}
 		opts.WithAntispam(antispam)
 	}
