@@ -271,4 +271,3 @@ func GCPReplaceAttr(groups []string, a slog.Attr) slog.Attr {
 	}
 	return a
 }
-

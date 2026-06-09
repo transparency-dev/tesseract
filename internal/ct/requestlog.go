@@ -18,10 +18,9 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/hex"
-	"log/slog"
 	"github.com/transparency-dev/tesseract/internal/logger"
+	"log/slog"
 	"time"
-
 )
 
 // requestLog allows implementations to do structured logging of TesseraCT
