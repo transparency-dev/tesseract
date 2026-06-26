@@ -21,6 +21,7 @@ import (
 	"math"
 
 	"github.com/transparency-dev/tessera/api/layout"
+	"github.com/transparency-dev/tessera/ctonly"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -112,11 +113,11 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	return nil
 }
 
-// ExtractTimestampFromBundle extracts the timestamp from the Nth entry in the provided serialised entry bundle.
+// ExtractEntryFromBundle extracts the entry fields of the Nth entry from the provided serialised entry bundle.
 //
-// This implementation attempts to avoid any unecessary allocation or parsing other than whatever is
-// necessary to skip over uninteresting bytes to find the requested ExtractTimestampFromBundle.
-func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
+// This implementation avoids unnecessary parsing and allocation by skipping over
+// uninteresting bytes and ignoring extensions and fingerprints.
+func ExtractEntryFromBundle(ebRaw []byte, N uint64) (*ctonly.Entry, error) {
 	s := cryptobyte.String(ebRaw)
 
 	i := uint64(0)
@@ -124,47 +125,65 @@ func ExtractTimestampFromBundle(ebRaw []byte, N uint64) (uint64, error) {
 		var timestamp uint64
 		var entryType uint16
 		if !s.ReadUint64(&timestamp) || !s.ReadUint16(&entryType) || timestamp > math.MaxInt64 {
-			return 0, fmt.Errorf("invalid data tile when reading entry %d", i)
-		}
-		if i == N {
-			return timestamp, nil
+			return nil, fmt.Errorf("invalid data tile when reading entry %d", i)
 		}
 
 		var l32 uint32
 		var l16 uint16
 		switch entryType {
 		case 0: // x509_entry
-			if
-			// entry
-			!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
-				// extensions
+			if i == N {
+				var entry, extensions, fingerprints cryptobyte.String
+				if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+					!s.ReadUint16LengthPrefixed(&extensions) ||
+					!s.ReadUint16LengthPrefixed(&fingerprints) {
+					return nil, fmt.Errorf("invalid data tile x509_entry at index %d", i)
+				}
+				return &ctonly.Entry{
+					Timestamp:   timestamp,
+					IsPrecert:   false,
+					Certificate: bytes.Clone(entry),
+				}, nil
+			}
+			if !s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
-				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
-				return 0, fmt.Errorf("invalid data tile x509_entry when reading index %d", i)
+				return nil, fmt.Errorf("invalid data tile x509_entry when reading index %d", i)
 			}
 
 		case 1: // precert_entry
-			if
-			// issuer key hash
-			!s.Skip(32) ||
-				// defangedCrt
+			if i == N {
+				issuerKeyHash := [32]byte{}
+				var defangedCrt, extensions, fingerprints cryptobyte.String
+				var entry []byte
+				if !s.CopyBytes(issuerKeyHash[:]) ||
+					!s.ReadUint24LengthPrefixed(&defangedCrt) ||
+					!s.ReadUint16LengthPrefixed(&extensions) ||
+					!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+					!s.ReadUint16LengthPrefixed(&fingerprints) {
+					return nil, fmt.Errorf("invalid data tile precert_entry at index %d", i)
+				}
+				return &ctonly.Entry{
+					Timestamp:     timestamp,
+					IsPrecert:     true,
+					Certificate:   bytes.Clone(defangedCrt),
+					IssuerKeyHash: bytes.Clone(issuerKeyHash[:]),
+				}, nil
+			}
+			if !s.Skip(32) ||
 				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
-				// extensions
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
-				// entry
 				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
-				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
-				return 0, fmt.Errorf("invalid data tile precert_entry when reading index %d", i)
+				return nil, fmt.Errorf("invalid data tile precert_entry when reading index %d", i)
 			}
 		default:
-			return 0, fmt.Errorf("invalid data tile: unknown type %d", entryType)
+			return nil, fmt.Errorf("invalid data tile: unknown type %d", entryType)
 		}
 		i++
 	}
 
-	return 0, fmt.Errorf("requested entry index %d, but found only %d entries", N, i)
+	return nil, fmt.Errorf("requested entry index %d, but found only %d entries", N, i)
 }
 
 // parseCTExtensions parses CTExtensions into an index.

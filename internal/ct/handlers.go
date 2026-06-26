@@ -17,6 +17,7 @@ package ct
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -33,6 +34,7 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/otel"
 
@@ -512,10 +514,14 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 			return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
 		}
-		entry.Timestamp, err = log.storage.DedupFuture(ctx, future)
+		dupEntry, err := log.storage.DedupFuture(ctx, future)
 		if err != nil {
 			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve duplicate: %v", err)
 		}
+		if err := entryMatches(dupEntry, entry); err != nil {
+			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("deduplicated entry in storage does not match submitted entry: %w", err)
+		}
+		entry = dupEntry
 	}
 
 	// Always use the returned leaf as the basis for an SCT.
@@ -551,6 +557,19 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, nil
+}
+
+func entryMatches(stored, submitted *ctonly.Entry) error {
+	if stored.IsPrecert != submitted.IsPrecert {
+		return fmt.Errorf("IsPrecert mismatch: stored=%v, submitted=%v", stored.IsPrecert, submitted.IsPrecert)
+	}
+	if !bytes.Equal(stored.Certificate, submitted.Certificate) {
+		return fmt.Errorf("Certificate mismatch: stored(len=%d, sha256=%x) != submitted(len=%d, sha256=%x)", len(stored.Certificate), sha256.Sum256(stored.Certificate), len(submitted.Certificate), sha256.Sum256(submitted.Certificate))
+	}
+	if !bytes.Equal(stored.IssuerKeyHash, submitted.IssuerKeyHash) {
+		return fmt.Errorf("IssuerKeyHash mismatch: stored=issuer/%x != submitted=issuer/%x", stored.IssuerKeyHash, submitted.IssuerKeyHash)
+	}
+	return nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {

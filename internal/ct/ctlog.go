@@ -40,7 +40,7 @@ type Storage interface {
 	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
 	Add(context.Context, *ctonly.Entry) (tessera.IndexFuture, error)
 	// DedupFuture fetches a duplicate tessera ctlog entry from the log and extracts its timestamp.
-	DedupFuture(context.Context, tessera.IndexFuture) (uint64, error)
+	DedupFuture(context.Context, tessera.IndexFuture) (*ctonly.Entry, error)
 	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
 	AddIssuerChain(context.Context, []*x509.Certificate) error
 }

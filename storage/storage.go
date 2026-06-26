@@ -106,37 +106,37 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 // extracts the timestamp from it.
 //
 // TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
-	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (uint64, error) {
+func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (*ctonly.Entry, error) {
+	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (*ctonly.Entry, error) {
 		idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 		if err != nil {
-			return 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+			return nil, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
 
 		// A https://c2sp.org/static-ct-api logsize is on the second line
 		l := bytes.SplitN(cpRaw, []byte("\n"), 3)
 		if len(l) < 2 {
-			return 0, errors.New("invalid checkpoint - no size")
+			return nil, errors.New("invalid checkpoint - no size")
 		}
 		ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+			return nil, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
 		}
 
 		eBIdx := idx.Index / layout.EntryBundleWidth
 		eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+				return nil, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
 			}
-			return 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
+			return nil, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 		}
 		eIdx := idx.Index % layout.EntryBundleWidth
-		t, err := timestamp(eBRaw, eIdx)
+		entry, err := staticct.ExtractEntryFromBundle(eBRaw, eIdx)
 		if err != nil {
-			return 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+			return nil, fmt.Errorf("failed to extract entry %d in bundle index %d: %v", eIdx, eBIdx, err)
 		}
-		return t, nil
+		return entry, nil
 	})
 }
 
@@ -210,10 +210,3 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 	}
 }
 
-// timestamp extracts the timestamp from the Nth entry in the provided serialised entry bundle.
-//
-// This implementation attempts to avoid any unecessary allocation or parsing other than whatever is
-// necessary to skip over uninteresting bytes to find the requested timestamp.
-func timestamp(ebRaw []byte, N uint64) (uint64, error) {
-	return staticct.ExtractTimestampFromBundle(ebRaw, N)
-}
