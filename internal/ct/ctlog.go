@@ -33,14 +33,14 @@ type log struct {
 }
 
 // signSCT builds an SCT for a leaf.
-type signSCT func(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error)
+type signSCT func(sctInput *rfc6962.CertificateTimestamp) (*rfc6962.SignedCertificateTimestamp, error)
 
 // Storage provides functions to store certificates in a static-ct-api log.
 type Storage interface {
 	// Add assigns an index to the provided Entry, stages the entry for integration, and returns a future for the assigned index.
 	Add(context.Context, *ctonly.Entry) (tessera.IndexFuture, error)
-	// DedupFuture fetches a duplicate tessera ctlog entry from the log and extracts its timestamp.
-	DedupFuture(context.Context, tessera.IndexFuture) (*ctonly.Entry, error)
+	// DedupFuture fetches the SCT input fields for a duplicate entry from the log.
+	DedupFuture(context.Context, tessera.IndexFuture) (*rfc6962.CertificateTimestamp, error)
 	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
 	AddIssuerChain(context.Context, []*x509.Certificate) error
 }

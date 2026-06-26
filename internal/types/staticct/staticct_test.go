@@ -13,69 +13,50 @@
 // limitations under the License.
 
 package staticct
-
 import (
 	"bytes"
-	"fmt"
-	"math/rand/v2"
 	"testing"
 
-	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/testdata"
 )
 
-func oldExtractEntryFromBundle(ebRaw []byte, eIdx uint64) (*ctonly.Entry, error) {
+func TestExtractSCTInputFromBundle(t *testing.T) {
 	eb := EntryBundle{}
-	if err := eb.UnmarshalText(ebRaw); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal entry bundle: %v", err)
+	if err := eb.UnmarshalText(testdata.ExampleFullTile); err != nil {
+		t.Fatalf("failed to unmarshal full tile: %v", err)
 	}
-
-	if l := uint64(len(eb.Entries)); l <= eIdx {
-		return nil, fmt.Errorf("entry bundle has only %d entries, but wanted at least %d", l, eIdx)
-	}
-	e := Entry{}
-	if err := e.UnmarshalText([]byte(eb.Entries[eIdx])); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal entry %d in entry bundle: %v", eIdx, err)
-	}
-	return &ctonly.Entry{
-		Timestamp:     e.Timestamp,
-		IsPrecert:     e.IsPrecert,
-		Certificate:   e.Certificate,
-		IssuerKeyHash: e.IssuerKeyHash,
-	}, nil
-}
-
-func BenchmarkExtractEntryFromBundle(b *testing.B) {
-	for b.Loop() {
-		i := rand.Uint64N(256)
-		_, err := ExtractEntryFromBundle(testdata.ExampleFullTile, i)
+	for i := uint64(0); i < uint64(len(eb.Entries)); i++ {
+		entry, err := ExtractSCTInputFromBundle(testdata.ExampleFullTile, i)
 		if err != nil {
-			b.Fatalf("ExtractEntryFromBundle: %v", err)
+			t.Fatalf("ExtractSCTInputFromBundle(%d): %v", i, err)
 		}
-	}
-}
-
-func TestExtractEntryFromBundle(t *testing.T) {
-	for i := uint64(0); i < 256; i++ {
-		expected, err := oldExtractEntryFromBundle(testdata.ExampleFullTile, i)
-		if err != nil {
-			t.Fatalf("oldExtractEntryFromBundle: %v", err)
+		expected := Entry{}
+		if err := expected.UnmarshalText(eb.Entries[i]); err != nil {
+			t.Fatalf("UnmarshalText(%d): %v", i, err)
 		}
-		entry, err := ExtractEntryFromBundle(testdata.ExampleFullTile, i)
-		if err != nil {
-			t.Fatalf("ExtractEntryFromBundle: %v", err)
+		extractedIdx, err := ParseCTExtensionsBytes(entry.Extensions)
+		if err != nil || extractedIdx != expected.LeafIndex {
+			t.Errorf("%d: extracted index %d != expected %d", i, extractedIdx, expected.LeafIndex)
 		}
 		if entry.Timestamp != expected.Timestamp {
-			t.Errorf("%d: timestamp mismatch", i)
+			t.Errorf("%d: entry.Timestamp %d != expected %d", i, entry.Timestamp, expected.Timestamp)
 		}
-		if entry.IsPrecert != expected.IsPrecert {
-			t.Errorf("%d: IsPrecert mismatch", i)
+		isPrecert := entry.EntryType == rfc6962.PrecertLogEntryType
+		if isPrecert != expected.IsPrecert {
+			t.Errorf("%d: isPrecert %v != expected %v", i, isPrecert, expected.IsPrecert)
 		}
-		if !bytes.Equal(entry.Certificate, expected.Certificate) {
-			t.Errorf("%d: Certificate mismatch", i)
+		var cert []byte
+		if isPrecert {
+			cert = entry.PrecertEntry.TBSCertificate
+			if !bytes.Equal(entry.PrecertEntry.IssuerKeyHash[:], expected.IssuerKeyHash) {
+				t.Errorf("%d: entry.IssuerKeyHash mismatch", i)
+			}
+		} else {
+			cert = entry.X509Entry.Data
 		}
-		if !bytes.Equal(entry.IssuerKeyHash, expected.IssuerKeyHash) {
-			t.Errorf("%d: IssuerKeyHash mismatch", i)
+		if !bytes.Equal(cert, expected.Certificate) {
+			t.Errorf("%d: entry.Certificate mismatch", i)
 		}
 	}
 }

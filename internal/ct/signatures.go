@@ -35,43 +35,8 @@ type sctSigner struct {
 	signer crypto.Signer
 }
 
-// serializeSCTSignatureInput serializes the passed in sct and log entry into
-// the correct format for signing.
-func serializeSCTSignatureInput(sct rfc6962.SignedCertificateTimestamp, entry rfc6962.LogEntry) ([]byte, error) {
-	switch sct.SCTVersion {
-	case rfc6962.V1:
-		input := rfc6962.CertificateTimestamp{
-			SCTVersion:    sct.SCTVersion,
-			SignatureType: rfc6962.CertificateTimestampSignatureType,
-			Timestamp:     sct.Timestamp,
-			EntryType:     entry.Leaf.TimestampedEntry.EntryType,
-			Extensions:    sct.Extensions,
-		}
-		switch entry.Leaf.TimestampedEntry.EntryType {
-		case rfc6962.X509LogEntryType:
-			input.X509Entry = entry.Leaf.TimestampedEntry.X509Entry
-		case rfc6962.PrecertLogEntryType:
-			input.PrecertEntry = &rfc6962.PreCert{
-				IssuerKeyHash:  entry.Leaf.TimestampedEntry.PrecertEntry.IssuerKeyHash,
-				TBSCertificate: entry.Leaf.TimestampedEntry.PrecertEntry.TBSCertificate,
-			}
-		default:
-			return nil, fmt.Errorf("unsupported entry type %s", entry.Leaf.TimestampedEntry.EntryType)
-		}
-		return tls.Marshal(input)
-	default:
-		return nil, fmt.Errorf("unknown SCT version %d", sct.SCTVersion)
-	}
-}
-
-func (sctSigner *sctSigner) Sign(leaf *rfc6962.MerkleTreeLeaf) (*rfc6962.SignedCertificateTimestamp, error) {
-	// Serialize SCT signature input to get the bytes that need to be signed
-	sctInput := rfc6962.SignedCertificateTimestamp{
-		SCTVersion: rfc6962.V1,
-		Timestamp:  leaf.TimestampedEntry.Timestamp,
-		Extensions: leaf.TimestampedEntry.Extensions,
-	}
-	data, err := serializeSCTSignatureInput(sctInput, rfc6962.LogEntry{Leaf: *leaf})
+func (sctSigner *sctSigner) Sign(sctInput *rfc6962.CertificateTimestamp) (*rfc6962.SignedCertificateTimestamp, error) {
+	data, err := tls.Marshal(*sctInput)
 	if err != nil {
 		return nil, fmt.Errorf("failed to serialize SCT data: %v", err)
 	}

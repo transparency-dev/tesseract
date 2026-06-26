@@ -17,11 +17,13 @@ package staticct
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 
 	"github.com/transparency-dev/tessera/api/layout"
-	"github.com/transparency-dev/tessera/ctonly"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
+	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"golang.org/x/crypto/cryptobyte"
 )
 
@@ -113,11 +115,55 @@ func (t *EntryBundle) UnmarshalText(raw []byte) error {
 	return nil
 }
 
-// ExtractEntryFromBundle extracts the entry fields of the Nth entry from the provided serialised entry bundle.
+// NewCertificateTimestamp creates an rfc6962.CertificateTimestamp with the provided RFC6962 CTExtensions byte slice.
+func NewCertificateTimestamp(ext []byte, timestamp uint64, isPrecert bool, cert []byte, ikh [32]byte) *rfc6962.CertificateTimestamp {
+	ct := &rfc6962.CertificateTimestamp{
+		SCTVersion:    rfc6962.V1,
+		SignatureType: rfc6962.CertificateTimestampSignatureType,
+		Timestamp:     timestamp,
+		Extensions:    ext,
+	}
+	if isPrecert {
+		ct.EntryType = rfc6962.PrecertLogEntryType
+		ct.PrecertEntry = &rfc6962.PreCert{
+			IssuerKeyHash:  ikh,
+			TBSCertificate: cert,
+		}
+	} else {
+		ct.EntryType = rfc6962.X509LogEntryType
+		ct.X509Entry = &rfc6962.ASN1Cert{Data: cert}
+	}
+	return ct
+}
+
+// ExtractCertificateTimestampFromLeaf parses a TLS-encoded MerkleTreeLeaf byte slice
+// and returns the corresponding CertificateTimestamp.
+func ExtractCertificateTimestampFromLeaf(leafBytes []byte) (*rfc6962.CertificateTimestamp, error) {
+	var leaf rfc6962.MerkleTreeLeaf
+	if rest, err := tls.Unmarshal(leafBytes, &leaf); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal MerkleTreeLeaf: %w", err)
+	} else if len(rest) > 0 {
+		return nil, fmt.Errorf("extra data (%d bytes) after MerkleTreeLeaf", len(rest))
+	}
+	if leaf.TimestampedEntry == nil {
+		return nil, errors.New("nil TimestampedEntry in MerkleTreeLeaf")
+	}
+	return &rfc6962.CertificateTimestamp{
+		SCTVersion:    rfc6962.V1,
+		SignatureType: rfc6962.CertificateTimestampSignatureType,
+		Timestamp:     leaf.TimestampedEntry.Timestamp,
+		EntryType:     leaf.TimestampedEntry.EntryType,
+		X509Entry:     leaf.TimestampedEntry.X509Entry,
+		PrecertEntry:  leaf.TimestampedEntry.PrecertEntry,
+		Extensions:    leaf.TimestampedEntry.Extensions,
+	}, nil
+}
+
+// ExtractSCTInputFromBundle extracts the SCT input fields of the Nth entry from the provided serialised entry bundle.
 //
 // This implementation avoids unnecessary parsing and allocation by skipping over
 // uninteresting bytes and ignoring extensions and fingerprints.
-func ExtractEntryFromBundle(ebRaw []byte, N uint64) (*ctonly.Entry, error) {
+func ExtractSCTInputFromBundle(ebRaw []byte, N uint64) (*rfc6962.CertificateTimestamp, error) {
 	s := cryptobyte.String(ebRaw)
 
 	i := uint64(0)
@@ -133,20 +179,25 @@ func ExtractEntryFromBundle(ebRaw []byte, N uint64) (*ctonly.Entry, error) {
 		switch entryType {
 		case 0: // x509_entry
 			if i == N {
-				var entry, extensions, fingerprints cryptobyte.String
-				if !s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+				var entry []byte
+				var extensions, fingerprints cryptobyte.String
+				if
+				// entry
+				!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+					// extensions
 					!s.ReadUint16LengthPrefixed(&extensions) ||
+					// fingerprints
 					!s.ReadUint16LengthPrefixed(&fingerprints) {
 					return nil, fmt.Errorf("invalid data tile x509_entry at index %d", i)
 				}
-				return &ctonly.Entry{
-					Timestamp:   timestamp,
-					IsPrecert:   false,
-					Certificate: bytes.Clone(entry),
-				}, nil
+				return NewCertificateTimestamp([]byte(extensions), timestamp, false, bytes.Clone(entry), [32]byte{}), nil
 			}
-			if !s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+			if
+			// entry
+			!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// extensions
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
+				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
 				return nil, fmt.Errorf("invalid data tile x509_entry when reading index %d", i)
 			}
@@ -156,24 +207,31 @@ func ExtractEntryFromBundle(ebRaw []byte, N uint64) (*ctonly.Entry, error) {
 				issuerKeyHash := [32]byte{}
 				var defangedCrt, extensions, fingerprints cryptobyte.String
 				var entry []byte
-				if !s.CopyBytes(issuerKeyHash[:]) ||
+				if
+				// issuer key hash
+				!s.CopyBytes(issuerKeyHash[:]) ||
+					// defangedCrt
 					!s.ReadUint24LengthPrefixed(&defangedCrt) ||
+					// extensions
 					!s.ReadUint16LengthPrefixed(&extensions) ||
+					// entry
 					!s.ReadUint24LengthPrefixed((*cryptobyte.String)(&entry)) ||
+					// fingerprints
 					!s.ReadUint16LengthPrefixed(&fingerprints) {
 					return nil, fmt.Errorf("invalid data tile precert_entry at index %d", i)
 				}
-				return &ctonly.Entry{
-					Timestamp:     timestamp,
-					IsPrecert:     true,
-					Certificate:   bytes.Clone(defangedCrt),
-					IssuerKeyHash: bytes.Clone(issuerKeyHash[:]),
-				}, nil
+				return NewCertificateTimestamp([]byte(extensions), timestamp, true, bytes.Clone(defangedCrt), issuerKeyHash), nil
 			}
-			if !s.Skip(32) ||
+			if
+			// issuer key hash
+			!s.Skip(32) ||
+				// defangedCrt
 				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// extensions
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) ||
+				// entry
 				!s.ReadUint24(&l32) || !s.Skip(int(l32)) ||
+				// fingerprints
 				!s.ReadUint16(&l16) || !s.Skip(int(l16)) {
 				return nil, fmt.Errorf("invalid data tile precert_entry when reading index %d", i)
 			}
@@ -186,14 +244,9 @@ func ExtractEntryFromBundle(ebRaw []byte, N uint64) (*ctonly.Entry, error) {
 	return nil, fmt.Errorf("requested entry index %d, but found only %d entries", N, i)
 }
 
-// parseCTExtensions parses CTExtensions into an index.
-// Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
-func ParseCTExtensions(ext string) (uint64, error) {
-	extensionBytes, err := base64.StdEncoding.DecodeString(ext)
-	if err != nil {
-		return 0, fmt.Errorf("can't decode extensions: %v", err)
-	}
-	extensions := cryptobyte.String(extensionBytes)
+// ParseCTExtensionsBytes parses binary CTExtensions into an index.
+func ParseCTExtensionsBytes(ext []byte) (uint64, error) {
+	extensions := cryptobyte.String(ext)
 	var extensionType uint8
 	var extensionData cryptobyte.String
 	var leafIdx uint64
@@ -211,9 +264,19 @@ func ParseCTExtensions(ext string) (uint64, error) {
 	}
 	if !extensionData.Empty() ||
 		!extensions.Empty() {
-		return 0, fmt.Errorf("invalid SCT extension data: %v", ext)
+		return 0, fmt.Errorf("invalid SCT extension data: %x", ext)
 	}
 	return leafIdx, nil
+}
+
+// ParseCTExtensions parses base64-encoded CTExtensions into an index.
+// Code is inspired by https://github.com/FiloSottile/sunlight/blob/main/tile.go.
+func ParseCTExtensions(ext string) (uint64, error) {
+	extensionBytes, err := base64.StdEncoding.DecodeString(ext)
+	if err != nil {
+		return 0, fmt.Errorf("can't decode extensions: %v", err)
+	}
+	return ParseCTExtensionsBytes(extensionBytes)
 }
 
 // readUint40 decodes a big-endian, 40-bit value into out and advances over it.
@@ -245,20 +308,6 @@ type Entry struct {
 	LeafIndex         uint64
 }
 
-// UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
-// which are encoded using the Static CT API spec.
-func UnmarshalTimestamp(raw []byte) (uint64, error) {
-	s := cryptobyte.String(raw)
-	var t uint64
-
-	if !s.ReadUint64(&t) {
-		return 0, fmt.Errorf("invalid data tile: timestamp can't be extracted")
-	}
-	if t > math.MaxInt64 {
-		return 0, fmt.Errorf("invalid data tile: timestamp %d > math.MaxInt64", t)
-	}
-	return t, nil
-}
 
 // UnmarshalText implements encoding/TextUnmarshaler and reads EntryBundles
 // which are encoded using the Static CT API spec.
@@ -332,7 +381,7 @@ func (t *Entry) UnmarshalText(raw []byte) error {
 	}
 
 	var err error
-	t.LeafIndex, err = ParseCTExtensions(base64.StdEncoding.EncodeToString([]byte(t.RawExtensions)))
+	t.LeafIndex, err = ParseCTExtensionsBytes([]byte(t.RawExtensions))
 	if err != nil {
 		return fmt.Errorf("can't parse extensions: %v", err)
 	}

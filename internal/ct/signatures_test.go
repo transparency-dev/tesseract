@@ -29,6 +29,7 @@ import (
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 )
 
 var (
@@ -41,9 +42,7 @@ var (
 )
 
 const (
-	defaultSCTLogIDString          string = "iamapublickeyshatwofivesixdigest"
 	defaultSCTTimestamp            uint64 = 1234
-	defaultSCTSignatureString      string = "\x04\x03\x00\x09signature"
 	defaultCertifictateString      string = "certificate"
 	defaultPrecertIssuerHashString string = "iamapublickeyshatwofivesixdigest"
 	defaultPrecertTBSString        string = "tbs"
@@ -100,28 +99,6 @@ const (
 		"696d757374626565786163746c7974686972747974776f62797465736c6f6e67"
 )
 
-func defaultSCTLogID() rfc6962.LogID {
-	var id rfc6962.LogID
-	copy(id.KeyID[:], defaultSCTLogIDString)
-	return id
-}
-
-func defaultSCTSignature() rfc6962.DigitallySigned {
-	var ds rfc6962.DigitallySigned
-	if _, err := tls.Unmarshal([]byte(defaultSCTSignatureString), &ds); err != nil {
-		panic(err)
-	}
-	return ds
-}
-
-func defaultSCT() rfc6962.SignedCertificateTimestamp {
-	return rfc6962.SignedCertificateTimestamp{
-		SCTVersion: rfc6962.V1,
-		LogID:      defaultSCTLogID(),
-		Timestamp:  defaultSCTTimestamp,
-		Extensions: []byte{},
-		Signature:  defaultSCTSignature()}
-}
 
 func defaultCertificate() []byte {
 	return []byte(defaultCertifictateString)
@@ -136,19 +113,8 @@ func defaultCertificateSCTSignatureInput(t *testing.T) []byte {
 	return r
 }
 
-func defaultCertificateLogEntry() rfc6962.LogEntry {
-	return rfc6962.LogEntry{
-		Index: 1,
-		Leaf: rfc6962.MerkleTreeLeaf{
-			Version:  rfc6962.V1,
-			LeafType: rfc6962.TimestampedEntryLeafType,
-			TimestampedEntry: &rfc6962.TimestampedEntry{
-				Timestamp: defaultSCTTimestamp,
-				EntryType: rfc6962.X509LogEntryType,
-				X509Entry: &rfc6962.ASN1Cert{Data: defaultCertificate()},
-			},
-		},
-	}
+func defaultCertificateSCTInput() *rfc6962.CertificateTimestamp {
+	return staticct.NewCertificateTimestamp([]byte{}, defaultSCTTimestamp, false, defaultCertificate(), [32]byte{})
 }
 
 func defaultPrecertSCTSignatureInput(t *testing.T) []byte {
@@ -170,22 +136,9 @@ func defaultPrecertIssuerHash() [32]byte {
 	return b
 }
 
-func defaultPrecertLogEntry() rfc6962.LogEntry {
-	return rfc6962.LogEntry{
-		Index: 1,
-		Leaf: rfc6962.MerkleTreeLeaf{
-			Version:  rfc6962.V1,
-			LeafType: rfc6962.TimestampedEntryLeafType,
-			TimestampedEntry: &rfc6962.TimestampedEntry{
-				Timestamp: defaultSCTTimestamp,
-				EntryType: rfc6962.PrecertLogEntryType,
-				PrecertEntry: &rfc6962.PreCert{
-					IssuerKeyHash:  defaultPrecertIssuerHash(),
-					TBSCertificate: defaultPrecertTBS(),
-				},
-			},
-		},
-	}
+func defaultPrecertSCTInput() *rfc6962.CertificateTimestamp {
+	ikh := defaultPrecertIssuerHash()
+	return staticct.NewCertificateTimestamp([]byte{}, defaultSCTTimestamp, true, defaultPrecertTBS(), ikh)
 }
 
 func defaultSTH() rfc6962.SignedTreeHead {
@@ -214,7 +167,7 @@ func mustDehex(t *testing.T, h string) []byte {
 }
 
 func TestSerializeV1SCTSignatureInputForCertificateKAT(t *testing.T) {
-	serialized, err := serializeSCTSignatureInput(defaultSCT(), defaultCertificateLogEntry())
+	serialized, err := tls.Marshal(*defaultCertificateSCTInput())
 	if err != nil {
 		t.Fatalf("Failed to serialize SCT for signing: %v", err)
 	}
@@ -224,7 +177,7 @@ func TestSerializeV1SCTSignatureInputForCertificateKAT(t *testing.T) {
 }
 
 func TestSerializeV1SCTSignatureInputForPrecertKAT(t *testing.T) {
-	serialized, err := serializeSCTSignatureInput(defaultSCT(), defaultPrecertLogEntry())
+	serialized, err := tls.Marshal(*defaultPrecertSCTInput())
 	if err != nil {
 		t.Fatalf("Failed to serialize SCT for signing: %v", err)
 	}
@@ -268,7 +221,11 @@ func TestBuildV1MerkleTreeLeafForCert(t *testing.T) {
 	} else if len(rest) > 0 {
 		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
-	got, err := sctSigner.Sign(&leaf)
+	input, err := staticct.ExtractCertificateTimestampFromLeaf(leafValue)
+	if err != nil {
+		t.Fatalf("ExtractCertificateTimestampFromLeaf()=nil,%v; want _,nil", err)
+	}
+	got, err := sctSigner.Sign(input)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}
@@ -333,8 +290,11 @@ func TestSignV1SCTForPrecertificate(t *testing.T) {
 	} else if len(rest) > 0 {
 		t.Fatalf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
 	}
-
-	got, err := sctSigner.Sign(&leaf)
+	input, err := staticct.ExtractCertificateTimestampFromLeaf(leafValue)
+	if err != nil {
+		t.Fatalf("ExtractCertificateTimestampFromLeaf()=nil,%v; want _,nil", err)
+	}
+	got, err := sctSigner.Sign(input)
 	if err != nil {
 		t.Fatalf("buildV1SCT()=nil,%v; want _,nil", err)
 	}

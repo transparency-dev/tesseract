@@ -32,6 +32,7 @@ import (
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/logger"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 
 	"golang.org/x/mod/sumdb/note"
@@ -53,6 +54,7 @@ type KV struct {
 	K []byte
 	V []byte
 }
+
 
 // IssuerStorage issuer certificates under their hex encoded sha256.
 type IssuerStorage interface {
@@ -100,14 +102,14 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 	return ctStorage, nil
 }
 
-// DedupFuture returns the timestamp matching a future.
+// DedupFuture returns the SCT input matching a future.
 //
 // It waits for the entry matching the future to be integrated, fetches it and
-// extracts the timestamp from it.
+// extracts the SCT input fields from it.
 //
-// TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (*ctonly.Entry, error) {
-	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (*ctonly.Entry, error) {
+// TODO(phbnf): cache entries (or more) to avoid reparsing the entire leaf bundle
+func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (*rfc6962.CertificateTimestamp, error) {
+	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (*rfc6962.CertificateTimestamp, error) {
 		idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 		if err != nil {
 			return nil, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
@@ -132,11 +134,18 @@ func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (*
 			return nil, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 		}
 		eIdx := idx.Index % layout.EntryBundleWidth
-		entry, err := staticct.ExtractEntryFromBundle(eBRaw, eIdx)
+		sct, err := staticct.ExtractSCTInputFromBundle(eBRaw, eIdx)
 		if err != nil {
-			return nil, fmt.Errorf("failed to extract entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+			return nil, fmt.Errorf("failed to extract SCT input for entry %d in bundle index %d: %v", eIdx, eBIdx, err)
 		}
-		return entry, nil
+		extractedIdx, err := staticct.ParseCTExtensionsBytes(sct.Extensions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract index from extensions: %v", err)
+		}
+		if extractedIdx != idx.Index {
+			return nil, fmt.Errorf("extracted index %d does not match expected index %d", extractedIdx, idx.Index)
+		}
+		return sct, nil
 	})
 }
 
