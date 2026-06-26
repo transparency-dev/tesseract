@@ -31,8 +31,8 @@ require (
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.42.0
 	github.com/transparency-dev/formats v0.1.1
-	github.com/transparency-dev/merkle v0.0.2
-	github.com/transparency-dev/tessera v1.0.3-0.20260603133317-c800941a982c
+	github.com/transparency-dev/merkle v0.0.3-0.20240919113952-3c979d16ee14
+	github.com/transparency-dev/tessera v1.0.3-0.20260626060438-f54442cf4a85
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
@@ -47,7 +47,7 @@ require (
 	golang.org/x/net v0.56.0
 	golang.org/x/sync v0.21.0
 	golang.org/x/time v0.15.0
-	google.golang.org/api v0.285.0
+	google.golang.org/api v0.286.0
 	google.golang.org/grpc v1.81.1
 )
 
