@@ -115,28 +115,56 @@ func (c *tuiController) updateStatsLoop(ctx context.Context, interval time.Durat
 	}
 
 	ticker := time.NewTicker(interval)
-	lastSize := c.hammer.tracker.LatestConsistent.Size
-	maSlots := int((30 * time.Second) / interval)
-	growth := movingaverage.New(maSlots)
+	startTime := time.Now()
+	type sizeSample struct {
+		t    time.Time
+		size uint64
+	}
+	var samples []sizeSample
+	samples = append(samples, sizeSample{t: startTime, size: c.hammer.tracker.LatestConsistent.Size})
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			now := time.Now()
 			s := c.hammer.tracker.LatestConsistent.Size
-			growth.Add(float64(s - lastSize))
-			lastSize = s
-			qps := growth.Avg() * float64(time.Second/interval)
+			samples = append(samples, sizeSample{t: now, size: s})
+
+			cutoff := now.Add(-30 * time.Second)
+			keepIdx := 0
+			for i, sample := range samples {
+				if sample.t.After(cutoff) {
+					keepIdx = i
+					break
+				}
+			}
+			if keepIdx > 0 {
+				samples = samples[keepIdx-1:]
+			}
+
+			var qps float64
+			windowDur := 0 * time.Second
+			if len(samples) >= 2 {
+				oldest := samples[0]
+				latest := samples[len(samples)-1]
+				windowDur = latest.t.Sub(oldest.t)
+				if windowDur > 0 {
+					qps = float64(latest.size-oldest.size) / windowDur.Seconds()
+				}
+			}
+
 			readWorkersLine := fmt.Sprintf("Read (%d workers): %s",
 				c.hammer.fullReaders.Size()+c.hammer.randomReaders.Size(),
 				c.hammer.readThrottle.String())
 			writeWorkersLine := fmt.Sprintf("Write (%d workers): %s",
 				c.hammer.writers.Size(),
 				c.hammer.writeThrottle.String())
-			treeSizeLine := fmt.Sprintf("TreeSize: %d (Δ %.0fqps over %ds)",
+			treeSizeLine := fmt.Sprintf("TreeSize: %d (Δ %.0fqps over %s)",
 				s,
 				qps,
-				time.Duration(maSlots*int(interval))/time.Second)
+				windowDur.Round(time.Second))
 			queueLine := fmt.Sprintf("Time-in-queue: %s",
 				formatMovingAverage(c.analyser.QueueTime))
 			integrateLine := fmt.Sprintf("Observed-time-to-integrate: %s",
