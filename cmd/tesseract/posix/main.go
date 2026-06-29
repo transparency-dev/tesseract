@@ -105,8 +105,8 @@ var (
 	antispamIndexCacheSize      = flag.String("antispam_index_cache_size", "768MB", "Amount of RAM to allocate for antispam index cache, set to zero for unlimited.")
 	antispamCompactionInterval  = flag.Duration("antispam_compaction_interval", tposix_as.DefaultCompactionInterval, "Interval between GC/compaction runs on the antispam index.")
 	antispamNumCompactors       = flag.Int("antispam_num_compactors", 2, "Number of BadgerDB compactors to run.")
-	antispamMemTableSize        = flag.Int64("antispam_mem_table_size", 256<<20, "Size of BadgerDB memtables.")
-	antispamBaseTableSize       = flag.Int64("antispam_base_table_size", 16<<20, "Size of BadgerDB base tables.")
+	antispamMemTableSize        = flag.Int64("antispam_mem_table_size", 256<<18, "Size of BadgerDB memtables.")
+	antispamBaseTableSize       = flag.Int64("antispam_base_table_size", 16<<18, "Size of BadgerDB base tables.")
 	awaiterPollInterval         = flag.Duration("awaiter_poll_interval", storage.DefaultAwaiterPollInterval, "Interval between two checkpoint polls by the awaiter. Used for antispam, and if enable_publication_awaiter is set, to block add-* requests responses. Must be strictly positive or defaults to DefaultAwaiterPollInterval.")
 
 	// Infrastructure setup flags
@@ -249,10 +249,10 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 		CompactionInterval: *antispamCompactionInterval,
 		BadgerOptions: func(o badger.Options) badger.Options {
 			return o.
-				WithCompression(options.None).				// Off as this appears to cause memory issues when compacting large indices.
-				WithMemTableSize(*antispamMemTableSize).	// Default tunes memtables for high write throughput
-				WithBaseTableSize(*antispamBaseTableSize).	// Default tunes to reduce file count
-				WithNumCompactors(*antispamNumCompactors).	// Default tunes to be able keep up with high throughput of LSM merges
+				WithCompression(options.None).             // Off as this appears to cause memory issues when compacting large indices.
+				WithMemTableSize(*antispamMemTableSize).   // Default tunes memtables for high write throughput
+				WithBaseTableSize(*antispamBaseTableSize). // Default tunes to reduce file count
+				WithNumCompactors(*antispamNumCompactors). // Default tunes to be able keep up with high throughput of LSM merges
 				WithIndexCacheSize(int64(antispamIndexCacheBytes)).
 				WithBlockCacheSize(int64(antispamBlockCacheBytes))
 		},
