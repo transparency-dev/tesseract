@@ -32,6 +32,7 @@ import (
 	"github.com/transparency-dev/tessera/api/layout"
 	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/logger"
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/staticct"
 
 	"golang.org/x/mod/sumdb/note"
@@ -53,6 +54,7 @@ type KV struct {
 	K []byte
 	V []byte
 }
+
 
 // IssuerStorage issuer certificates under their hex encoded sha256.
 type IssuerStorage interface {
@@ -100,43 +102,50 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 	return ctStorage, nil
 }
 
-// DedupFuture returns the timestamp matching a future.
+// DedupFuture returns the SCT input matching a future.
 //
 // It waits for the entry matching the future to be integrated, fetches it and
-// extracts the timestamp from it.
+// extracts the SCT input fields from it.
 //
-// TODO(phbnf): cache timestamps (or more) to avoid reparsing the entire leaf bundle
-func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (uint64, error) {
-	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (uint64, error) {
+// TODO(phbnf): cache entries (or more) to avoid reparsing the entire leaf bundle
+func (cts *CTStorage) DedupFuture(ctx context.Context, f tessera.IndexFuture) (*rfc6962.CertificateTimestamp, error) {
+	return trace1(ctx, "tesseract.storage.DedupFuture", func(ctx context.Context) (*rfc6962.CertificateTimestamp, error) {
 		idx, cpRaw, err := cts.awaiter.Await(ctx, f)
 		if err != nil {
-			return 0, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
+			return nil, fmt.Errorf("error waiting for Tessera index future and its integration: %w", err)
 		}
 
 		// A https://c2sp.org/static-ct-api logsize is on the second line
 		l := bytes.SplitN(cpRaw, []byte("\n"), 3)
 		if len(l) < 2 {
-			return 0, errors.New("invalid checkpoint - no size")
+			return nil, errors.New("invalid checkpoint - no size")
 		}
 		ckptSize, err := strconv.ParseUint(string(l[1]), 10, 64)
 		if err != nil {
-			return 0, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
+			return nil, fmt.Errorf("invalid checkpoint - can't extract size: %v", err)
 		}
 
 		eBIdx := idx.Index / layout.EntryBundleWidth
 		eBRaw, err := cts.reader.ReadEntryBundle(ctx, eBIdx, layout.PartialTileSize(0, eBIdx, ckptSize))
 		if err != nil {
 			if errors.Is(err, os.ErrNotExist) {
-				return 0, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
+				return nil, fmt.Errorf("leaf bundle at index %d not found: %v", eBIdx, err)
 			}
-			return 0, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
+			return nil, fmt.Errorf("failed to fetch entry bundle at index %d: %v", eBIdx, err)
 		}
 		eIdx := idx.Index % layout.EntryBundleWidth
-		t, err := timestamp(eBRaw, eIdx)
+		sct, err := staticct.ExtractSCTInputFromBundle(eBRaw, eIdx)
 		if err != nil {
-			return 0, fmt.Errorf("failed to extract timestamp of entry %d in bundle index %d: %v", eIdx, eBIdx, err)
+			return nil, fmt.Errorf("failed to extract SCT input for entry %d in bundle index %d: %v", eIdx, eBIdx, err)
 		}
-		return t, nil
+		extractedIdx, err := staticct.ParseCTExtensionsBytes(sct.Extensions)
+		if err != nil {
+			return nil, fmt.Errorf("failed to extract index from extensions: %v", err)
+		}
+		if extractedIdx != idx.Index {
+			return nil, fmt.Errorf("extracted index %d does not match expected index %d", extractedIdx, idx.Index)
+		}
+		return sct, nil
 	})
 }
 
@@ -210,10 +219,3 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 	}
 }
 
-// timestamp extracts the timestamp from the Nth entry in the provided serialised entry bundle.
-//
-// This implementation attempts to avoid any unecessary allocation or parsing other than whatever is
-// necessary to skip over uninteresting bytes to find the requested timestamp.
-func timestamp(ebRaw []byte, N uint64) (uint64, error) {
-	return staticct.ExtractTimestampFromBundle(ebRaw, N)
-}

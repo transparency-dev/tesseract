@@ -13,71 +13,50 @@
 // limitations under the License.
 
 package staticct
-
 import (
-	"fmt"
-	"math/rand/v2"
+	"bytes"
 	"testing"
 
+	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/testdata"
 )
 
-// oldExtractTimestampFromBundle extracts the timestamp from the Nth entry in the provided serialised entry bundle.
-//
-// This is the original naive implementation which works by parsing and extrating everything from the bundle,
-// and pulling out only the 64bit timestamp we're actually interested in.
-//
-// This is only being kept around for comparison with the faster implementation in ExtractTimestampFromBundle,
-// this func & the benchmark which references it can be removed shortly.
-func oldExtractTimestampFromBundle(ebRaw []byte, eIdx uint64) (uint64, error) {
+func TestExtractSCTInputFromBundle(t *testing.T) {
 	eb := EntryBundle{}
-	if err := eb.UnmarshalText(ebRaw); err != nil {
-		return 0, fmt.Errorf("failed to unmarshal entry bundle: %v", err)
+	if err := eb.UnmarshalText(testdata.ExampleFullTile); err != nil {
+		t.Fatalf("failed to unmarshal full tile: %v", err)
 	}
-
-	if l := uint64(len(eb.Entries)); l <= eIdx {
-		return 0, fmt.Errorf("entry bundle has only %d entries, but wanted at least %d", l, eIdx)
-	}
-	e := Entry{}
-	t, err := UnmarshalTimestamp([]byte(eb.Entries[eIdx]))
-	if err != nil {
-		return 0, fmt.Errorf("failed to extract timestamp from entry %d in entry bundle: %v", eIdx, e)
-	}
-	return t, nil
-}
-
-func BenchmarkOldExtractTimestampFromBundle(b *testing.B) {
-	for b.Loop() {
-		i := rand.Uint64N(256)
-		_, err := oldExtractTimestampFromBundle(testdata.ExampleFullTile, i)
+	for i := uint64(0); i < uint64(len(eb.Entries)); i++ {
+		entry, err := ExtractSCTInputFromBundle(testdata.ExampleFullTile, i)
 		if err != nil {
-			b.Fatalf("timestampOld: %v", err)
+			t.Fatalf("ExtractSCTInputFromBundle(%d): %v", i, err)
 		}
-	}
-}
-
-func BenchmarkExtractTimestampFromBundle(b *testing.B) {
-	for b.Loop() {
-		i := rand.Uint64N(256)
-		_, err := ExtractTimestampFromBundle(testdata.ExampleFullTile, i)
-		if err != nil {
-			b.Fatalf("timestamp: %v", err)
+		expected := Entry{}
+		if err := expected.UnmarshalText(eb.Entries[i]); err != nil {
+			t.Fatalf("UnmarshalText(%d): %v", i, err)
 		}
-	}
-}
-
-func TestExtractTimestampFromBundle(t *testing.T) {
-	for i := uint64(0); i < 256; i++ {
-		ts1, err := oldExtractTimestampFromBundle(testdata.ExampleFullTile, i)
-		if err != nil {
-			t.Fatalf("timestampOld: %v", err)
+		extractedIdx, err := ParseCTExtensionsBytes(entry.Extensions)
+		if err != nil || extractedIdx != expected.LeafIndex {
+			t.Errorf("%d: extracted index %d != expected %d", i, extractedIdx, expected.LeafIndex)
 		}
-		ts2, err := ExtractTimestampFromBundle(testdata.ExampleFullTile, i)
-		if err != nil {
-			t.Fatalf("timestampOld: %v", err)
+		if entry.Timestamp != expected.Timestamp {
+			t.Errorf("%d: entry.Timestamp %d != expected %d", i, entry.Timestamp, expected.Timestamp)
 		}
-		if ts1 != ts2 {
-			t.Errorf("%d: timestampOld %d != timestamp %d", i, ts1, ts2)
+		isPrecert := entry.EntryType == rfc6962.PrecertLogEntryType
+		if isPrecert != expected.IsPrecert {
+			t.Errorf("%d: isPrecert %v != expected %v", i, isPrecert, expected.IsPrecert)
+		}
+		var cert []byte
+		if isPrecert {
+			cert = entry.PrecertEntry.TBSCertificate
+			if !bytes.Equal(entry.PrecertEntry.IssuerKeyHash[:], expected.IssuerKeyHash) {
+				t.Errorf("%d: entry.IssuerKeyHash mismatch", i)
+			}
+		} else {
+			cert = entry.X509Entry.Data
+		}
+		if !bytes.Equal(cert, expected.Certificate) {
+			t.Errorf("%d: entry.Certificate mismatch", i)
 		}
 	}
 }

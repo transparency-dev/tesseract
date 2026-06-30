@@ -17,6 +17,7 @@ package ct
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -33,12 +34,14 @@ import (
 	"time"
 
 	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tessera/ctonly"
 	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/internal/otel"
 
 	"github.com/transparency-dev/tesseract/internal/types/rfc6962"
 	"github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
+	"github.com/transparency-dev/tesseract/internal/types/staticct"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -507,29 +510,29 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't resolve tessera future: %v", err)
 	}
 
+	var sctInput *rfc6962.CertificateTimestamp
 	if index.IsDup {
 		if ok := opts.RateLimits.AcceptDedup(ctx); !ok {
 			w.Header().Add("Retry-After", strconv.Itoa(rand.IntN(5)+1)) // random retry within [1,6) seconds
 			return http.StatusTooManyRequests, []attribute.KeyValue{duplicateKey.Bool(index.IsDup), tooManyRequestsReasonKey.String("rate_limit_dedup")}, errors.New(http.StatusText(http.StatusTooManyRequests))
 		}
-		entry.Timestamp, err = log.storage.DedupFuture(ctx, future)
+		var err error
+		sctInput, err = log.storage.DedupFuture(ctx, future)
 		if err != nil {
 			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve duplicate: %v", err)
 		}
+		if err := entrySCTsMatch(sctInput, entry, index.Index); err != nil {
+			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("deduplicated entry in storage does not match submitted entry: %w", err)
+		}
+	} else {
+		var err error
+		leafBytes := entry.MerkleTreeLeaf(index.Index)
+		sctInput, err = staticct.ExtractCertificateTimestampFromLeaf(leafBytes)
+		if err != nil {
+			return http.StatusInternalServerError, nil, fmt.Errorf("failed to extract SCT input from leaf: %v", err)
+		}
 	}
-
-	// Always use the returned leaf as the basis for an SCT.
-	var loggedLeaf rfc6962.MerkleTreeLeaf
-	leafValue := entry.MerkleTreeLeaf(index.Index)
-	if rest, err := tls.Unmarshal(leafValue, &loggedLeaf); err != nil {
-		return http.StatusInternalServerError, nil, fmt.Errorf("failed to reconstruct MerkleTreeLeaf: %s", err)
-	} else if len(rest) > 0 {
-		return http.StatusInternalServerError, nil, fmt.Errorf("extra data (%d bytes) on reconstructing MerkleTreeLeaf", len(rest))
-	}
-
-	// As the Log server has definitely got the Merkle tree leaf, we can
-	// generate an SCT and respond with it.
-	sct, err := log.signSCT(&loggedLeaf)
+	sct, err := log.signSCT(sctInput)
 	if err != nil {
 		return http.StatusInternalServerError, nil, fmt.Errorf("failed to generate SCT: %s", err)
 	}
@@ -551,6 +554,33 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	}
 
 	return http.StatusOK, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, nil
+}
+
+// entrySCTsMatch checks that sctInput fields match with an entry.
+// It checks for all the sctInput fields, except for the timestamp which might
+// not be set in the entry yet.
+func entrySCTsMatch(sct *rfc6962.CertificateTimestamp, e *ctonly.Entry, idx uint64) error {
+	extractedIdx, err := staticct.ParseCTExtensionsBytes(sct.Extensions)
+	if err != nil || extractedIdx != idx {
+		return fmt.Errorf("index mismatch: stored=%d, expected=%d", extractedIdx, idx)
+	}
+	isPrecert := sct.EntryType == rfc6962.PrecertLogEntryType
+	if isPrecert != e.IsPrecert {
+		return fmt.Errorf("isPrecert mismatch: sct.IsPrecert=%v, e.IsPrecert=%v", isPrecert, e.IsPrecert)
+	}
+	var sctCert []byte
+	if isPrecert {
+		sctCert = sct.PrecertEntry.TBSCertificate
+		if !bytes.Equal(sct.PrecertEntry.IssuerKeyHash[:], e.IssuerKeyHash) {
+			return fmt.Errorf("issuerKeyHash mismatch: stored=issuer/%x != submitted=issuer/%x", sct.PrecertEntry.IssuerKeyHash[:], e.IssuerKeyHash)
+		}
+	} else {
+		sctCert = sct.X509Entry.Data
+	}
+	if !bytes.Equal(sctCert, e.Certificate) {
+		return fmt.Errorf("certificate mismatch: stored(len=%d, sha256=%x) != submitted(len=%d, sha256=%x)", len(sctCert), sha256.Sum256(sctCert), len(e.Certificate), sha256.Sum256(e.Certificate))
+	}
+	return nil
 }
 
 func addChain(ctx context.Context, opts *HandlerOptions, log *log, w http.ResponseWriter, r *http.Request) (int, []attribute.KeyValue, error) {
