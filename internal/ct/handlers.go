@@ -246,7 +246,11 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			statusCode = ClientClosedRequestStatus
 			err = fmt.Errorf("client closed the connection: %v", err)
 		}
-		slog.WarnContext(ctx, "handler error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
+		if statusCode == http.StatusInternalServerError {
+			slog.ErrorContext(ctx, "handler error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
+		} else {
+			slog.WarnContext(ctx, "handler error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
+		}
 		a.opts.sendHTTPError(w, statusCode, err)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, err.Error())
