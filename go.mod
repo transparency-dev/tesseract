@@ -30,9 +30,9 @@ require (
 	github.com/johannesboyne/gofakes3 v1.2.0
 	github.com/kylelemons/godebug v1.1.0
 	github.com/rivo/tview v0.42.0
-	github.com/transparency-dev/formats v0.1.2-0.20260629100010-fa283eb7462a
+	github.com/transparency-dev/formats v0.1.2-0.20260710124811-af9e607161b6
 	github.com/transparency-dev/merkle v0.0.3-0.20260629095233-a1adddb6323b
-	github.com/transparency-dev/tessera v1.0.4
+	github.com/transparency-dev/tessera v1.0.3-0.20260724123142-d0e58a3ffd75
 	go.opentelemetry.io/contrib/detectors/gcp v1.44.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.69.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.69.0
@@ -47,7 +47,7 @@ require (
 	golang.org/x/net v0.57.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/time v0.15.0
-	google.golang.org/api v0.289.0
+	google.golang.org/api v0.290.0
 	google.golang.org/grpc v1.82.1
 )
 
@@ -157,5 +157,4 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260630182238-925bb5da69e7 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260706201446-f0a921348800 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
-	k8s.io/klog/v2 v2.130.1 // indirect
 )
