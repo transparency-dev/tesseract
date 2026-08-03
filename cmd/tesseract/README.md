@@ -59,7 +59,7 @@ never be trusted. This flag can be specified multiple time.
 - `reject_expired`: If true, TesseraCT rejects expired certificates.
 - `reject_unexpired`: If true, TesseraCT rejects certificates that are either
 currently valid or not yet valid.
-- `ext_key_usage`: A list of comma separated [Extended Key Usages (EKU) from x509](https://pkg.go.dev/crypto/x509#ExtKeyUsage).
+- `ext_key_usages`: A list of comma separated [Extended Key Usages (EKU) from x509](https://pkg.go.dev/crypto/x509#ExtKeyUsage).
 Certificates which DO NOT include one or more of these EKUs to be accepted. If
 empty, no filtering is applied.
 - `reject_extension`: A comma separated list of X.509 extension OIDs, in dotted
