@@ -85,6 +85,7 @@ var (
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
 	notBeforeRL              = flag.String("rate_limit_old_not_before", "28h:500", "Optionally rate limits submissions with old notBefore dates. Expects a value of with the format: \"<go duration>:<rate limit>\", e.g. \"30d:50\" would impose a limit of 50 certs/s on submissions whose notBefore date is >= 30days old.")
+	spannerOTEL              = flag.Bool("spanner_otel", false, "Whether to export spanner OTEL metrics.")
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
@@ -267,7 +268,9 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			return nil, errors.New("missing spannerDB")
 		}
 
-		spanner.EnableOpenTelemetryMetrics()
+		if *spannerOTEL {
+			spanner.EnableOpenTelemetryMetrics()
+		}
 		spannerClient, err := spanner.NewClient(ctx, *spannerDB, option.WithGRPCConnectionPool(*spannerConnections))
 		if err != nil {
 			return nil, fmt.Errorf("failed to create new Spanner client: %v", err)
