@@ -19,6 +19,7 @@ import (
 	"errors"
 	"log/slog"
 	"os"
+	"strings"
 
 	t_otel "github.com/transparency-dev/tesseract/internal/otel"
 	"go.opentelemetry.io/contrib/detectors/gcp"
@@ -39,7 +40,7 @@ import (
 //
 // Tracing is enabled with statistical sampling, with the probability passed in.
 // Returns a shutdown function which should be called just before exiting the process.
-func initOTel(ctx context.Context, traceFraction float64, origin string, projectID string) func(context.Context) {
+func initOTel(ctx context.Context, traceFraction float64, origin string, projectID string, dropMetrics string) func(context.Context) {
 	var shutdownFuncs []func(context.Context) error
 	// shutdown combines shutdown functions from multiple OpenTelemetry
 	// components into a single function.
@@ -83,11 +84,22 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		fatal(ctx, "Failed to create metric exporter", slog.Any("error", err))
 		return nil
 	}
-	// initialize a MeterProvider that periodically exports to the GCP exporter.
-	mp := sdkmetric.NewMeterProvider(
+	var meterOpts []sdkmetric.Option
+	meterOpts = append(meterOpts,
 		sdkmetric.WithReader(sdkmetric.NewPeriodicReader(me)),
 		sdkmetric.WithResource(resources),
 	)
+	for _, pattern := range strings.Split(dropMetrics, ",") {
+		pattern = strings.TrimSpace(pattern)
+		if pattern != "" {
+			meterOpts = append(meterOpts, sdkmetric.WithView(sdkmetric.NewView(
+				sdkmetric.Instrument{Name: pattern},
+				sdkmetric.Stream{Aggregation: sdkmetric.AggregationDrop{}},
+			)))
+		}
+	}
+	// initialize a MeterProvider that periodically exports to the GCP exporter.
+	mp := sdkmetric.NewMeterProvider(meterOpts...)
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
 
