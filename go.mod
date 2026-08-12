@@ -16,7 +16,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/credentials v1.19.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.107.0
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v1.44.4
-	github.com/aws/smithy-go v1.27.6
+	github.com/aws/smithy-go v1.27.7
 	github.com/cenkalti/backoff/v5 v5.0.3
 	github.com/charmbracelet/bubbletea v1.3.10
 	github.com/charmbracelet/x/ansi v0.11.7
@@ -32,7 +32,7 @@ require (
 	github.com/rivo/tview v0.42.0
 	github.com/transparency-dev/formats v0.1.2-0.20260710124811-af9e607161b6
 	github.com/transparency-dev/merkle v0.0.3-0.20260629095233-a1adddb6323b
-	github.com/transparency-dev/tessera v1.0.3-0.20260724123142-d0e58a3ffd75
+	github.com/transparency-dev/tessera v1.0.3
 	go.opentelemetry.io/contrib/detectors/gcp v1.45.0
 	go.opentelemetry.io/contrib/exporters/autoexport v0.70.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.70.0
@@ -156,4 +156,5 @@ require (
 	google.golang.org/genproto/googleapis/api v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20260803160001-6ac0973c030d // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
+	k8s.io/klog/v2 v2.130.1 // indirect
 )
