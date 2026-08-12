@@ -9,6 +9,11 @@ updates:
       applies-to: version-updates
       patterns:
         - "*"
+  # Ignore tessera v1.0.4 due to breaking API changes in storage/posix/antispam (removed
+  # CompactionInterval/BadgerOptions).
+  ignore:
+    - dependency-name: "github.com/transparency-dev/tessera"
+      versions: ["1.0.4"]
 
 - package-ecosystem: github-actions
   directory: /
