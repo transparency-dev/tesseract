@@ -13,7 +13,7 @@ updates:
   # CompactionInterval/BadgerOptions).
   ignore:
     - dependency-name: "github.com/transparency-dev/tessera"
-      versions: ["1.0.4"]
+      versions: ["<= 1.0.4"]
 
 - package-ecosystem: github-actions
   directory: /
