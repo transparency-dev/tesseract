@@ -112,12 +112,13 @@ var (
 	signerPrivateKeySecretName = flag.String("signer_private_key_secret_name", "", "Private key secret name for checkpoints and SCTs signer. Format: projects/{projectId}/secrets/{secretName}/versions/{secretVersion}.")
 	traceFraction              = flag.Float64("trace_fraction", 0, "Fraction of open-telemetry span traces to sample")
 	otelProjectID              = flag.String("otel_project_id", "", "GCP project ID for OpenTelemetry exporter.")
-	dropMetrics                = flag.String("drop_metrics", "", "Comma-separated list of OpenTelemetry metric name patterns to drop (e.g. 'rpc.client.*').")
-	slogLevel                  = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See cmd/tesseract/README.md#Logging.")
-	slogToCloudAPI             = flag.Bool("slog_to_cloud_api", true, "Export logs directly to Cloud Logging API. Required --otel_project_id to be set.")
-	slogToStdOut               = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
-	containerName              = flag.String("container_name", "", "Name of the running container. Only used to decorate slog events.")
-	imageName                  = flag.String("image_name", "", "Name of the cached docker image. Only used to decorate slog events.")
+	// Prevent exporting expensive metrics by default, see https://github.com/transparency-dev/tesseract/issues/918
+	dropMetrics    = flag.String("drop_metrics", "rpc.client.call.duration", "Comma-separated list of OpenTelemetry metric name patterns to drop (e.g. 'rpc.client.*').")
+	slogLevel      = flag.Int("slog_level", 0, "The cut-off threshold for structured logging. See cmd/tesseract/README.md#Logging.")
+	slogToCloudAPI = flag.Bool("slog_to_cloud_api", true, "Export logs directly to Cloud Logging API. Required --otel_project_id to be set.")
+	slogToStdOut   = flag.Bool("slog_to_stdout", false, "Export logs to stdout.")
+	containerName  = flag.String("container_name", "", "Name of the running container. Only used to decorate slog events.")
+	imageName      = flag.String("image_name", "", "Name of the cached docker image. Only used to decorate slog events.")
 )
 
 // grpcServiceConfig is a gRPC service config in JSON format which explicitly specifies hedging for GCS ReadObject calls.
