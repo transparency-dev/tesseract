@@ -107,10 +107,9 @@ func setupMetrics() {
 		metric.WithDescription("CT HTTP responses"),
 		metric.WithUnit("{response}")))
 
-	// TODO(phboneff): switch back to s, in Tessera as well.
 	reqDuration = mustCreate(meter.Float64Histogram("tesseract.http.request.duration",
 		metric.WithDescription("CT HTTP response duration"),
-		metric.WithUnit("ms"),
+		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(otel.SubSecondLatencyHistogramBuckets...)))
 
 	notBeforeAgeUnverified = mustCreate(meter.Float64Histogram("tesseract.notbefore.age.unverified",
