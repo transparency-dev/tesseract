@@ -201,16 +201,16 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 		opts.KeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
-	if slices.Contains(opts.KeyUsages, x509.ExtKeyUsageAny) {
-		// If any key usage is acceptable, no need to check the chain for
-		// key usages.
-		return candidateChains, nil
-	}
-
 	if len(candidateChains) == 0 {
 		var details []string
 		err = x509.CertificateInvalidError{Cert: c, Reason: x509.NoValidChains, Detail: strings.Join(details, ", ")}
 		return nil, err
+	}
+
+	if slices.Contains(opts.KeyUsages, x509.ExtKeyUsageAny) {
+		// If any key usage is acceptable, no need to check the chain for
+		// key usages.
+		return candidateChains, nil
 	}
 
 	return candidateChains, nil
