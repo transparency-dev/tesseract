@@ -181,16 +181,20 @@ func (l *logStateCollector) checkIssuersTask(ctx context.Context, readIssuer fun
 }
 
 // addIssuers adds the issuers in the provided byte string to the set of issuer to be checked.
-func (l *logStateCollector) addIssuers(fpRaw cryptobyte.String) {
+func (l *logStateCollector) addIssuers(fpRaw cryptobyte.String) error {
+	if len(fpRaw)%sha256.Size != 0 {
+		return fmt.Errorf("chain fingerprints are %d bytes, want a multiple of %d", len(fpRaw), sha256.Size)
+	}
 	var fp []byte
 	for len(fpRaw) > 0 {
-		fp, fpRaw = fpRaw[:32], fpRaw[32:]
+		fp, fpRaw = fpRaw[:sha256.Size], fpRaw[sha256.Size:]
 		_, existed := l.issuersSeen.LoadOrStore(string(fp), true)
 		if !existed {
 			logger.DebugExtraContext(context.Background(), "Found issuer", slog.String("fp", fmt.Sprintf("%x", fp)))
 			l.issuersToCheck <- fp
 		}
 	}
+	return nil
 }
 
 // merkleLeafHasher returns a function which knows how to:
@@ -250,7 +254,9 @@ func (l *logStateCollector) merkleLeafHasher() func(bundle []byte) ([][]byte, er
 			if !b.ReadUint16LengthPrefixed(&fpRaw) {
 				return nil, fmt.Errorf("failed to read chain fingerprints at entry index %d of bundle", i)
 			}
-			l.addIssuers(fpRaw)
+			if err := l.addIssuers(fpRaw); err != nil {
+				return nil, fmt.Errorf("invalid chain fingerprints at entry index %d of bundle: %v", i, err)
+			}
 
 			h := rfc6962.DefaultHasher.HashLeaf(preimage.BytesOrPanic())
 			r = append(r, h)
