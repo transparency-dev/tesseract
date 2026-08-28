@@ -377,8 +377,8 @@ func signerFromFlags() crypto.Signer {
 		os.Exit(1)
 	}
 	block, _ := pem.Decode(r)
-	if err != nil {
-		slog.ErrorContext(context.Background(), "Failed to parse PEM private key", slog.Any("error", err))
+	if block == nil {
+		slog.ErrorContext(context.Background(), "Failed to parse PEM private key", slog.String("path", kf))
 		os.Exit(1)
 	}
 	k, err := x509.ParseECPrivateKey(block.Bytes)
