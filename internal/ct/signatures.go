@@ -151,10 +151,10 @@ func (cts *cpSigner) Sign(msg []byte) ([]byte, error) {
 	ckpt := &tfl.Checkpoint{}
 	rest, err := ckpt.Unmarshal(msg)
 
-	if len(rest) != 0 {
-		return nil, fmt.Errorf("checkpoint contains trailing data: %s", string(rest))
-	} else if err != nil {
+	if err != nil {
 		return nil, fmt.Errorf("ckpt.Unmarshal: %v", err)
+	} else if len(rest) != 0 {
+		return nil, fmt.Errorf("checkpoint contains trailing data: %s", string(rest))
 	} else if ckpt.Origin != cts.origin {
 		return nil, fmt.Errorf("checkpoint's origin %s doesn't match signer's origin %s", ckpt.Origin, cts.origin)
 	}
