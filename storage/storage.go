@@ -206,11 +206,12 @@ func cachedStoreIssuers(s IssuerStorage) func(context.Context, []KV) error {
 			return fmt.Errorf("issuerStorage.AddIfNotExist(): error storing issuer data in the underlying IssuerStorage: %v", err)
 		}
 		for _, kv := range req {
+			mu.Lock()
 			if len(m) >= maxCachedIssuerKeys {
+				mu.Unlock()
 				logger.DebugExtraContext(ctx, "cachedStoreIssuers wrapper: local issuer cache full, will stop caching issuers.")
 				return nil
 			}
-			mu.Lock()
 			m[string(kv.K)] = struct{}{}
 			mu.Unlock()
 		}
