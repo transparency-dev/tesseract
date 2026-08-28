@@ -75,7 +75,7 @@ func (h *HTTPFetcher) SetUserAgent(ua string) {
 
 // EnableRetries causes requests which result in a non-permanent error to be retried with up to maxRetries attempts.
 func (h *HTTPFetcher) EnableRetries(maxRetries uint) {
-	h.backOff = []backoff.RetryOption{backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxTries(10)}
+	h.backOff = []backoff.RetryOption{backoff.WithBackOff(backoff.NewExponentialBackOff()), backoff.WithMaxTries(maxRetries)}
 }
 
 func (h HTTPFetcher) fetch(ctx context.Context, p string) ([]byte, error) {
