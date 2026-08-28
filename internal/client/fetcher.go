@@ -171,7 +171,8 @@ func (f FileFetcher) ReadEntryBundle(ctx context.Context, i uint64, p uint8) ([]
 	return PartialOrFullResource(ctx, p, func(ctx context.Context, p uint8) (r []byte, rErr error) {
 		data, err := os.ReadFile(path.Join(f.Root, ctEntriesPath(i, p)))
 		if err != nil {
-			return nil, fmt.Errorf("failed to read file: %v", err)
+			// Must wrap so that callers (e.g. PartialOrFullResource) can detect os.ErrNotExist.
+			return nil, fmt.Errorf("failed to read file: %w", err)
 		}
 		if f.DecompressBundles {
 			reader, err := gzip.NewReader(bytes.NewReader(data))
