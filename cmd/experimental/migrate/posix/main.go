@@ -90,6 +90,10 @@ func main() {
 	// TODO(AlCutter): We should be properly verifying and opening the checkpoint here with the source log's
 	// public key.
 	bits := strings.Split(string(sourceCP), "\n")
+	if len(bits) < 3 {
+		slog.ErrorContext(ctx, "malformed source checkpoint", slog.String("checkpoint", string(sourceCP)))
+		os.Exit(1)
+	}
 	sourceSize, err := strconv.ParseUint(bits[1], 10, 64)
 	if err != nil {
 		slog.ErrorContext(ctx, "invalid CP size", slog.Any("arg", bits[1]), slog.Any("error", err))
