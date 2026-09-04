@@ -119,6 +119,62 @@ The following logs are available for testing. These logs run in a staging
 environment and should not used for production use cases. They accept chains
 rolling up to roots trusted by major root programs.
 
+```json
+"description": "Google 'CoachAndHorses2026h1' log",
+"log_id": "Ida8pGWG3oR5BIvzeNP2lqX0zFFs73zy2H/15xN0Ht0=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECHOhXfvYgTcu+Fnl7M7niFj3FgqWlQpXUSWUDw2KAaJXvhGxdJTtmyciN5rWTiDtpeNENVmsUTHFS4XQgeRE0g==",
+"submission_url": "https://coachandhorses2026h1.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2026h1.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2026-01-01T00:00:00Z",
+  "end_exclusive": "2026-07-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google 'CoachAndHorses2026h2' log",
+"log_id": "Xk+hRjqD27R5prdS05bhyQxjDbDZ9sDelTzC7dZPUKM=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE4yJ0Wz+EaKTI1Ae2PXKMk1VYjy9bt6YhcYM8p+gLq47ETwSgjx925dLf7jGjUEiVT/Q2bN2q8R6m2bMI09tL7Q==",
+"submission_url": "https://coachandhorses2026h2.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2026h2.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2026-07-01T00:00:00Z",
+  "end_exclusive": "2027-01-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google 'CoachAndHorses2027h1' log",
+"log_id": "atJoPkfo0oBkkUI/1kQCGiJuzbhhm+1acN9ps2hPqi0=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEYRzG+Eugt1AOXUT9UpX1K71DCd9zOhVqjQ/DPDfqaIl/3UIrz4Gm1sFaNhcv9SqbMg7Imj+NbN6DR09mcmh8lQ==",
+"submission_url": "https://coachandhorses2027h1.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2027h1.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2027-01-01T00:00:00Z",
+  "end_exclusive": "2027-07-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google 'CoachAndHorses2027h2' log",
+"log_id": "7PBUNaSTKW0Kvz7J0JbyGycBLEcaHoPngTZnpglSvqY=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEc3Si5lBbzwec+dc+rf1kzMt6SmTjlzEXJe0YH7tbHCKhOiggbxL/q/Hime2H/FxjcBspBQCwAv0ocWJMA6ghyA==",
+"submission_url": "https://coachandhorses2027h2.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2027h2.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2027-07-01T00:00:00Z",
+  "end_exclusive": "2028-01-01T00:00:00Z"
+}
+```
+
+<details>
+
+<summary>Arche staging logs (Deprecated)</summary>
+
 These logs have been named after La Grande Arche de la Défense
 ([The Great Arche of the Defense](https://en.wikipedia.org/wiki/Grande_Arche)),
 a building in the outskirts of Paris, designed by [Johan Otto von Spreckelsen](https://en.wikipedia.org/wiki/Johan_Otto_von_Spreckelsen)
@@ -165,6 +221,8 @@ It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https
   "end_exclusive": "2026-07-01T00:00:00Z"
 }
 ```
+
+</details>
 
 ## Other known instances
 
