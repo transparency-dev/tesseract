@@ -39,6 +39,7 @@ in 2025Q3 🚀.
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                       |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)            |                                                             |
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [EC2 VM](https://aws.amazon.com/ec2/)                                                                         |[codelab](/deployment/live/aws/test/)                                                                  |[aws](/docs/performance.md#aws)           |[aws](/cmd/tesseract/aws/main.go)    |[doc](/deployment/live/aws/test/)                          |                                                             |
 |POSIX           |[ZFS](https://github.com/openzfs/zfs) + VM                                                                                                                                            |[codelab](/cmd/tesseract/posix/), [continuous integration](/.github/workflows/posix_conformance_ci.yml)|[posix](/docs/performance.md#posix)       |[posix](/cmd/tesseract/posix/main.go)|[doc](/cmd/tesseract/posix/)                               |[IPng - prod](#ipng-networks), [TrustAsia - prod](#trustasia)|
+|POSIX           |[XFS](https://en.wikipedia.org/wiki/XFS) + [Pure Storage](https://en.wikipedia.org/wiki/Everpure) + VM                                                                                |N/A                                                                                                    |N/A                                       |[posix](/cmd/tesseract/posix/main.go)|                                                           |[Sectigo](#sectigo)                                          |
 |Vanilla S3+MySQL|[MinIO](https://github.com/minio/minio) + [MySQL](https://www.mysql.com/) + VM                                                                                                        |one-off test                                                                                           |[S3+MySQL](/docs/performance.md#s3--mysql)|[aws](/cmd/tesseract/aws/main.go)    |[doc](/cmd/tesseract/aws/README.md#vanilla-s3mysql-support)|                                                             |
 
 
@@ -242,6 +243,11 @@ wrote to ease deployment.
 ### TrustAsia
 
 [TrustAsia](https://www.trustasia.com/) runs [production CT logs](https://issues.chromium.org/issues/40917853#comment26)
+using the [POSIX implementation](/cmd/tesseract/posix/).
+
+### Sectigo
+
+[Sectigo](https://www.sectigo.com) runs [production CT logs](https://issues.chromium.org/issues/399124609#comment26)
 using the [POSIX implementation](/cmd/tesseract/posix/).
 
 ## :card_index_dividers: Repository structure
