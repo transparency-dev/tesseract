@@ -1,6 +1,5 @@
 # :deciduous_tree: TesseraCT
 
-[![Go Report Card](https://goreportcard.com/badge/github.com/transparency-dev/tesseract)](https://goreportcard.com/report/github.com/transparency-dev/tesseract)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/transparency-dev/tesseract/badge)](https://scorecard.dev/viewer/?uri=github.com/transparency-dev/tesseract)
 [![Slack Status](https://img.shields.io/badge/Slack-Chat-blue.svg)](https://transparency-dev.slack.com/)
 
