@@ -48,6 +48,14 @@ To ensure service stability, we strongly recommend setting the `GOMEMLIMIT` envi
 > - **Recommended setting**: 80-90% of the container's total memory limit (e.g., `GOMEMLIMIT=1.8GiB` for a 2GiB container).
 
 
+## antispam_mem_table_size & antispam_base_table_size
+
+These parameters set the upper bound on antispam table size. Increasing them results in larger individual .sst files and fewer total .sst files. They should be tuned in conjunction with the compactor count and available CPU resources. On systems with excess CPU capacity, a configuration with smaller tables and more compactors is often preferable.
+
+> [!IMPORTANT]
+> - **These parameters must not be reduced after initial configuration (defaults are antispam_mem_table_size=256<<18 and antispam_base_table_size=16<<18). Lowering them will cause the POSIX process to fail during BadgerDB initialization and remain stuck, typically with an error similar to: “Arena too small, toWrite:40 newTotal:174483044 limit:174483027”.
+
+
 ## Witnessing
 
 > [!WARNING]
