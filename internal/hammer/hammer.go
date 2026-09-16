@@ -24,7 +24,6 @@ import (
 	"crypto/ed25519"
 	"crypto/rsa"
 	"crypto/sha256"
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
@@ -35,7 +34,6 @@ import (
 	"io"
 	"log/slog"
 	"math/rand/v2"
-	"net"
 	"net/http"
 	"net/http/httptrace"
 	"net/url"
@@ -54,7 +52,6 @@ import (
 	tlstypes "github.com/transparency-dev/tesseract/internal/types/tls"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"golang.org/x/mod/sumdb/note"
-	"golang.org/x/net/http2"
 )
 
 func init() {
@@ -103,24 +100,21 @@ func main() {
 	flag.Parse()
 	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
 
-	hc = &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        *numWriters + *numReadersFull + *numReadersRandom,
-			MaxIdleConnsPerHost: *numWriters + *numReadersFull + *numReadersRandom,
-			DisableKeepAlives:   false,
-		},
-		Timeout: *httpTimeout,
+	t := &http.Transport{
+		MaxIdleConns:        *numWriters + *numReadersFull + *numReadersRandom,
+		MaxIdleConnsPerHost: *numWriters + *numReadersFull + *numReadersRandom,
+		DisableKeepAlives:   false,
 	}
 	if *forceHTTP2 {
-		hc.Transport = &http2.Transport{
-			// So http2.Transport doesn't complain the URL scheme isn't 'https'
-			AllowHTTP: true,
-			// Pretend we are dialing a TLS endpoint. (Note, we ignore the passed tls.Config)
-			DialTLSContext: func(ctx context.Context, network, addr string, cfg *tls.Config) (net.Conn, error) {
-				var d net.Dialer
-				return d.DialContext(ctx, network, addr)
-			},
-		}
+		p := http.Protocols{}
+		p.SetHTTP1(false)
+		p.SetHTTP2(true)
+		p.SetUnencryptedHTTP2(true)
+		t.Protocols = &p
+	}
+	hc = &http.Client{
+		Transport: t,
+		Timeout:   *httpTimeout,
 	}
 
 	// If bearerTokenWrite is unset, default it to whatever bearerToken has (which may too be unset).
