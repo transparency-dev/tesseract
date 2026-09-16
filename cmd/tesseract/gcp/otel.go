@@ -25,13 +25,15 @@ import (
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/contrib/instrumentation/runtime"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
-
-	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
-	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/oauth"
 
 	"github.com/google/uuid"
 )
@@ -60,14 +62,19 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		slog.ErrorContext(ctx, "os.Hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
 		instanceID = uuid.NewString()
 	}
+	attrs := []attribute.KeyValue{
+		semconv.ServiceNamespaceKey.String("tesseract"),
+		semconv.ServiceNameKey.String(origin),
+		semconv.ServiceInstanceIDKey.String(instanceID),
+	}
+	if projectID != "" {
+		// Selects the destination project for the Cloud Telemetry API.
+		attrs = append(attrs, attribute.String("gcp.project_id", projectID))
+	}
 	resources, err := resource.New(ctx,
 		resource.WithTelemetrySDK(),
 		// Add your own custom attributes to identify your application
-		resource.WithAttributes(
-			semconv.ServiceNamespaceKey.String("tesseract"),
-			semconv.ServiceNameKey.String(origin),
-			semconv.ServiceInstanceIDKey.String(instanceID),
-		),
+		resource.WithAttributes(attrs...),
 		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
 		resource.WithDetectors(gcp.NewDetector()),
 	)
@@ -75,11 +82,16 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		fatal(ctx, "Failed to detect resources", slog.Any("error", err))
 	}
 
-	mopts := []mexporter.Option{}
-	if projectID != "" {
-		mopts = append(mopts, mexporter.WithProjectID(projectID))
+	creds, err := oauth.NewApplicationDefault(ctx)
+	if err != nil {
+		fatal(ctx, "Failed to load application default credentials", slog.Any("error", err))
+		return nil
 	}
-	me, err := mexporter.New(mopts...)
+
+	me, err := otlpmetricgrpc.New(ctx,
+		otlpmetricgrpc.WithEndpoint("telemetry.googleapis.com:443"),
+		otlpmetricgrpc.WithDialOption(grpc.WithPerRPCCredentials(creds)),
+	)
 	if err != nil {
 		fatal(ctx, "Failed to create metric exporter", slog.Any("error", err))
 		return nil
@@ -103,11 +115,10 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 	shutdownFuncs = append(shutdownFuncs, mp.Shutdown)
 	otel.SetMeterProvider(mp)
 
-	topts := []texporter.Option{}
-	if projectID != "" {
-		topts = append(topts, texporter.WithProjectID(projectID))
-	}
-	te, err := texporter.New(topts...)
+	te, err := otlptracegrpc.New(ctx,
+		otlptracegrpc.WithEndpoint("telemetry.googleapis.com:443"),
+		otlptracegrpc.WithDialOption(grpc.WithPerRPCCredentials(creds)),
+	)
 	if err != nil {
 		fatal(ctx, "Failed to create trace exporter", slog.Any("error", err))
 		return nil
