@@ -1,6 +1,8 @@
 module github.com/transparency-dev/tesseract
 
-go 1.25.8
+go 1.26.0
+
+toolchain go1.26.8
 
 require (
 	cloud.google.com/go/compute/metadata v0.9.0
