@@ -192,3 +192,14 @@ variable "antispam_db_name_override" {
   default     = null
 }
 
+variable "distribution_policy_target_shape" {
+  description = "Target distribution shape for regional instance group manager (EVEN, BALANCED, ANY, ANY_SINGLE_ZONE)"
+  type        = string
+  default     = "EVEN"
+  nullable    = false
+
+  validation {
+    condition     = contains(["EVEN", "BALANCED", "ANY", "ANY_SINGLE_ZONE"], var.distribution_policy_target_shape)
+    error_message = "distribution_policy_target_shape must be one of: EVEN, BALANCED, ANY, ANY_SINGLE_ZONE."
+  }
+}

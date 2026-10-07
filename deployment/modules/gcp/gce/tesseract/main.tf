@@ -244,6 +244,8 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   name   = "${var.base_name}-instance-group-manager"
   region = var.location
 
+  distribution_policy_target_shape = var.distribution_policy_target_shape
+
   version {
     instance_template = google_compute_region_instance_template.tesseract.id
   }
@@ -264,7 +266,9 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
 
   update_policy {
     type                           = "PROACTIVE"
-    instance_redistribution_type   = "PROACTIVE"
+    # GCP Compute Engine API requires instance_redistribution_type to be NONE when
+    # distribution_policy_target_shape is not EVEN (e.g. BALANCED or ANY).
+    instance_redistribution_type   = var.distribution_policy_target_shape == "EVEN" ? "PROACTIVE" : "NONE"
     minimal_action                 = "REPLACE"
     most_disruptive_allowed_action = "REPLACE"
     # TODO(phbnf): come back to this, it's a beta feature for now
