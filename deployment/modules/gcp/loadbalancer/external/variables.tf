@@ -10,6 +10,10 @@ variable "logs" {
   region                 = string
   // origin = [basename].[submission_host_suffix]
   submission_host_suffix = string
+  // Whether to serve monitoring endpoints (/checkpoint, /tile/*, /issuer/*) via a Cloud CDN-backed GCS backend bucket.
+  enable_cdn             = optional(bool, false)
+  // Optional GCS bucket name override if the bucket is not named [basename].[submission_host_suffix].
+  bucket_name            = optional(string)
   }))
 
   validation {
