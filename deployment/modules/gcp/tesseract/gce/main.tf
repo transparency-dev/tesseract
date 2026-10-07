@@ -57,6 +57,7 @@ module "gce" {
   roots_reject_fingerprints                  = var.roots_reject_fingerprints
   garbage_collection_interval                = var.garbage_collection_interval
   extra_tesseract_flags                      = var.extra_tesseract_flags
+  distribution_policy_target_shape           = var.distribution_policy_target_shape
 
   depends_on = [
     module.storage
