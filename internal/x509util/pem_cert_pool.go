@@ -45,8 +45,9 @@ type PEMCertPool struct {
 }
 
 // NewPEMCertPool creates a new, empty, instance of PEMCertPool.
-// rejectedFingerprints is a list of hex-encoded SHA-256 root fingerprints
-// that should be rejected by the pool. Set to nil to accept all certs.
+// rejectedFingerprints is a list of hex-encoded SHA-256 certificate or
+// SubjectPublicKeyInfo fingerprints that should be rejected by the pool.
+// Set to nil to accept all certs.
 func NewPEMCertPool(rejectedFingerprints []string) (*PEMCertPool, error) {
 	rejected := make(map[[sha256.Size]byte]struct{})
 	for _, f := range rejectedFingerprints {
@@ -84,6 +85,11 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) int {
 		fingerprint := sha256.Sum256(cert.Raw)
 		if _, exists := p.rejectedFingerprints[fingerprint]; exists {
 			slog.WarnContext(context.Background(), "Rejecting certificate", slog.String("fingerprint", hex.EncodeToString(fingerprint[:])))
+			continue
+		}
+		spkiFingerprint := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+		if _, exists := p.rejectedFingerprints[spkiFingerprint]; exists {
+			slog.WarnContext(context.Background(), "Rejecting certificate by SPKI", slog.String("spki_fingerprint", hex.EncodeToString(spkiFingerprint[:])))
 			continue
 		}
 		_, ok := p.fingerprintToCertMap[fingerprint]
