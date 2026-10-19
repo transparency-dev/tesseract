@@ -13,7 +13,7 @@
 // limitations under the License.
 
 // Package log contains integration tests for a log.
-package log
+package mirror_test
 
 import (
 	"bytes"

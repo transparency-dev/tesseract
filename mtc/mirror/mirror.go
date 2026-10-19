@@ -22,7 +22,7 @@ import (
 
 	fnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/tessera"
-	"github.com/transparency-dev/tessera/cmd/mtc/mirror/internal/handler"
+	"github.com/transparency-dev/tesseract/internal/mtc/mirror/handler"
 	witnessConfig "github.com/transparency-dev/witness/config"
 	"github.com/transparency-dev/witness/witness"
 	"golang.org/x/mod/sumdb/note"

@@ -21,7 +21,7 @@ import (
 	"sync"
 
 	"github.com/transparency-dev/tessera"
-	"github.com/transparency-dev/tessera/internal/parse"
+	"github.com/transparency-dev/tesseract/internal/parse"
 	"github.com/transparency-dev/witness/witness"
 )
 

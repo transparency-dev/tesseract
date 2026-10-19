@@ -25,7 +25,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/transparency-dev/tessera/cmd/mtc/log"
+	"github.com/transparency-dev/tesseract/mtc/log"
 )
 
 const (

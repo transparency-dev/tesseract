@@ -24,7 +24,7 @@ import (
 	f_log "github.com/transparency-dev/formats/log"
 	f_note "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/formats/policy"
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/mtcproof"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/mtcproof"
 	"golang.org/x/mod/sumdb/note"
 )
 

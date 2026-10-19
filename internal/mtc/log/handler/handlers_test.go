@@ -30,9 +30,9 @@ import (
 
 	fnote "github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/tessera"
-	"github.com/transparency-dev/tessera/cmd/mtc/log"
-	lmp "github.com/transparency-dev/tessera/cmd/mtc/log/internal/landmark/posix"
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/mtcproof"
+	"github.com/transparency-dev/tesseract/mtc/log"
+	lmp "github.com/transparency-dev/tesseract/internal/mtc/log/landmark/posix"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/mtcproof"
 	tposix "github.com/transparency-dev/tessera/storage/posix"
 	"golang.org/x/crypto/cryptobyte"
 	"golang.org/x/crypto/cryptobyte/asn1"

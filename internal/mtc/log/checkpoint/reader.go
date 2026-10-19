@@ -25,8 +25,8 @@ import (
 	"time"
 
 	"github.com/transparency-dev/merkle/proof"
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/mtcproof"
-	"github.com/transparency-dev/tessera/internal/parse"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/mtcproof"
+	"github.com/transparency-dev/tesseract/internal/parse"
 )
 
 const (

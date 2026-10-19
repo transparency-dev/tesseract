@@ -22,7 +22,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/landmark"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/landmark"
 )
 
 func mustUnmarshalActiveLandmarks(t *testing.T, text string) *landmark.ActiveLandmarks {

@@ -26,7 +26,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/landmark"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/landmark"
 )
 
 const (

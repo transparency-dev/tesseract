@@ -26,9 +26,9 @@ import (
 	"github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/formats/policy"
 	"github.com/transparency-dev/tessera"
-	"github.com/transparency-dev/tessera/cmd/mtc/log"
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/handler"
-	lmp "github.com/transparency-dev/tessera/cmd/mtc/log/internal/landmark/posix"
+	"github.com/transparency-dev/tesseract/mtc/log"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/handler"
+	lmp "github.com/transparency-dev/tesseract/internal/mtc/log/landmark/posix"
 	"github.com/transparency-dev/tessera/storage/posix"
 )
 

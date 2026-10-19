@@ -23,7 +23,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"github.com/transparency-dev/tessera/cmd/mtc/log/internal/mtcproof"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/mtcproof"
 )
 
 func mockCheckpoint(origin string, size uint64) []byte {

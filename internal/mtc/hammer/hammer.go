@@ -37,8 +37,8 @@ import (
 
 	"github.com/transparency-dev/formats/note"
 	"github.com/transparency-dev/tessera/client"
-	"github.com/transparency-dev/tessera/cmd/mtc/log"
-	"github.com/transparency-dev/tessera/internal/hammer/loadtest"
+	"github.com/transparency-dev/tesseract/mtc/log"
+	"github.com/transparency-dev/tesseract/internal/mtc/hammer/loadtest"
 
 	"log/slog"
 )

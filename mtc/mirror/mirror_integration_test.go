@@ -36,9 +36,8 @@ import (
 	"github.com/transparency-dev/tessera"
 	"github.com/transparency-dev/tessera/api"
 	"github.com/transparency-dev/tessera/client"
-	"github.com/transparency-dev/tessera/cmd/mtc/mirror"
+	"github.com/transparency-dev/tesseract/mtc/mirror"
 	"github.com/transparency-dev/tessera/fsck"
-	iLog "github.com/transparency-dev/tessera/integration/log"
 	"github.com/transparency-dev/tessera/storage/posix"
 	witnessConfig "github.com/transparency-dev/witness/config"
 	"github.com/transparency-dev/witness/persistence/sqlite"
@@ -151,7 +150,7 @@ func TestPosixMirrorIntegration(t *testing.T) {
 	t.Cleanup(conformanceServer.Close)
 
 	// Use the LiveIntegrationTest in integration_test.go with write_log_url set to the log and log_url set to the mirror.
-	iLog.LogIntegrationTest(t, iLog.LogIntegrationTestConfig{
+	LogIntegrationTest(t, LogIntegrationTestConfig{
 		LogReadTile:        lr.ReadTile,
 		LogReadCP:          lr.ReadCheckpoint,
 		LogReadEntryBundle: lr.ReadEntryBundle,

@@ -28,7 +28,7 @@ import (
 	"time"
 
 	fnote "github.com/transparency-dev/formats/note"
-	"github.com/transparency-dev/tessera/cmd/mtc/mirror"
+	"github.com/transparency-dev/tesseract/mtc/mirror"
 	"github.com/transparency-dev/tessera/storage/posix"
 	witnessConfig "github.com/transparency-dev/witness/config"
 	"github.com/transparency-dev/witness/persistence/sqlite"
