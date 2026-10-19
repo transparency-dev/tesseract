@@ -51,11 +51,14 @@ once at startup, and remain trusted thereafter unless rejected with
 `roots_reject_fingerprints`. This backup mechanism ensures that the log can start
 with all its roots, even if the remote endpoint is down.
 
-Roots which hex-encoded SHA256 is mentioned in `roots_reject_finterprints` will
-never be trusted. This flag can be specified multiple time.
+Roots which hex-encoded SHA256 or SubjectPublicKeyInfo SHA256 is mentioned in
+`roots_reject_fingerprints` will never be trusted. This flag can be specified multiple times.
 
 ##### Other filtering
 
+- `intermediates_reject_fingerprints`: Hex-encoded SHA-256 fingerprint of an
+intermediate certificate or its SubjectPublicKeyInfo to reject. May be specified
+multiple times.
 - `reject_expired`: If true, TesseraCT rejects expired certificates.
 - `reject_unexpired`: If true, TesseraCT rejects certificates that are either
 currently valid or not yet valid.

@@ -79,6 +79,8 @@ func TestAppendCertsFromPEMs(t *testing.T) {
 	cert := parsePEM(t, pemCACert)
 	fingerprint := sha256.Sum256(cert.Raw)
 	fingerprintHex := fmt.Sprintf("%x", fingerprint)
+	spkiFingerprint := sha256.Sum256(cert.RawSubjectPublicKeyInfo)
+	spkiFingerprintHex := fmt.Sprintf("%x", spkiFingerprint)
 
 	tests := []struct {
 		name                 string
@@ -138,6 +140,13 @@ func TestAppendCertsFromPEMs(t *testing.T) {
 		{
 			name:                 "filter-match",
 			rejectedFingerprints: []string{fingerprintHex},
+			pems:                 [][]byte{[]byte(pemCACert)},
+			wantParsed:           1,
+			wantAdded:            0,
+		},
+		{
+			name:                 "filter-match-spki",
+			rejectedFingerprints: []string{spkiFingerprintHex},
 			pems:                 [][]byte{[]byte(pemCACert)},
 			wantParsed:           1,
 			wantAdded:            0,
