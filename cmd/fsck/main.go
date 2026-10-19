@@ -75,37 +75,49 @@ func main() {
 	eg := errgroup.Group{}
 	eg.Go(func() error {
 		defer lsc.Close()
-		defer cancel()
 		return f.Check(ctx)
-
 	})
 	eg.Go(func() error {
 		return lsc.checkIssuersTask(ctx, src.ReadIssuer, *N)
 	})
 
+	// checkResult is a channel to receive the result of the fsck check.
+	// It is used to signal the main goroutine when the check is complete.
+	checkResult := make(chan error, 1)
+	go func() {
+		err := eg.Wait()
+
+		// Only log the error if we're using the TUI, otherwise it will be double logged in headless mode.
+		if err != nil && *ui {
+			slog.ErrorContext(ctx, "fsck failed", slog.Any("error", err))
+		}
+		slog.DebugContext(ctx, "Completed ranges", slog.Any("status", f.Status()))
+
+		checkResult <- err
+		close(checkResult)
+		cancel() // We're done, so we can exit.
+	}()
+
 	if *ui {
 		if err := tui.RunApp(ctx, f); err != nil {
 			slog.ErrorContext(ctx, "App exited", slog.Any("error", err))
 		}
-		// User may have exited the UI, cancel the context to signal to everything else.
+		// User may have exited the UI, cancel the context to signal to the async fsck process too.
 		cancel()
 	} else {
 		for {
 			select {
-			case <-ctx.Done():
+			case err := <-checkResult:
+				if err != nil {
+					slog.ErrorContext(ctx, "fsck failed", slog.Any("error", err))
+					os.Exit(1)
+				}
 				return
 			case <-time.After(time.Second):
 				slog.DebugContext(ctx, "Ranges", slog.Any("status", f.Status()))
 			}
 		}
 	}
-
-	if err := eg.Wait(); err != nil {
-		slog.ErrorContext(ctx, "FAILED", slog.Any("error", err))
-		os.Exit(1)
-	}
-
-	slog.InfoContext(ctx, "OK")
 }
 
 // logStateCollector tracks state of the target log which needs to be later checked.

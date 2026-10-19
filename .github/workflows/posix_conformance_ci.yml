@@ -49,4 +49,5 @@ jobs:
                 --monitoring_url=file:///testlog \
                 --origin=example.com/test-ecdsa \
                 --public_key=${CT_LOG_PUBLIC_KEY} \
+                --ui=false \
                 --N=5

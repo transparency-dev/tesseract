@@ -38,6 +38,7 @@ import (
 	"github.com/dgraph-io/badger/v4"
 	"github.com/dgraph-io/badger/v4/options"
 	"github.com/dustin/go-humanize"
+	"github.com/transparency-dev/formats/policy"
 	"github.com/transparency-dev/tessera"
 	tposix "github.com/transparency-dev/tessera/storage/posix"
 	tposix_as "github.com/transparency-dev/tessera/storage/posix/antispam"
@@ -292,9 +293,9 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 		if err != nil {
 			return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
 		}
-		wg, err := tessera.NewWitnessGroupFromPolicy(f)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+		var wPol policy.TLogPolicy
+		if err := wPol.Unmarshal(f); err != nil {
+			return nil, fmt.Errorf("failed to parse witness policy: %v", err)
 		}
 
 		// Don't block if witnesses are unavailable.
@@ -302,7 +303,7 @@ func newStorage(ctx context.Context, signer note.Signer) (st *storage.CTStorage,
 			FailOpen: true,
 			Timeout:  *witnessTimeout,
 		}
-		opts.WithWitnesses(wg, wOpts)
+		opts.WithWitnessPolicy(wPol, wOpts)
 	}
 
 	// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down

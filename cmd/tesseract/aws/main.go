@@ -34,6 +34,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/dustin/go-humanize"
 	"github.com/go-sql-driver/mysql"
+	"github.com/transparency-dev/formats/policy"
 	"github.com/transparency-dev/tessera"
 	taws "github.com/transparency-dev/tessera/storage/aws"
 	aws_as "github.com/transparency-dev/tessera/storage/aws/antispam"
@@ -267,9 +268,9 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 			if err != nil {
 				return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
 			}
-			wg, err := tessera.NewWitnessGroupFromPolicy(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			var wPol policy.TLogPolicy
+			if err := wPol.Unmarshal(f); err != nil {
+				return nil, fmt.Errorf("failed to parse witness policy: %v", err)
 			}
 
 			// Don't block if witnesses are unavailable.
@@ -277,7 +278,7 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 				FailOpen: true,
 				Timeout:  *witnessTimeout,
 			}
-			opts.WithWitnesses(wg, wOpts)
+			opts.WithWitnessPolicy(wPol, wOpts)
 		}
 
 		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
