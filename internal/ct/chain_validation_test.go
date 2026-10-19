@@ -15,9 +15,11 @@
 package ct
 
 import (
+	"crypto/sha256"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/asn1"
+	"encoding/hex"
 	"encoding/pem"
 	"strings"
 	"testing"
@@ -391,6 +393,26 @@ func TestValidate(t *testing.T) {
 			wantPathLen: 2,
 			modifyCV: func(v *chainValidator) {
 				v.extKeyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+			},
+		},
+		{
+			desc:    "reject-intermediate-by-fingerprint",
+			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
+			wantErr: true,
+			modifyCV: func(v *chainValidator) {
+				interm := pemToCert(t, testdata.FakeIntermediateCertPEM)
+				fp := sha256.Sum256(interm.Raw)
+				v.rejectIntermediates = []string{hex.EncodeToString(fp[:])}
+			},
+		},
+		{
+			desc:    "reject-intermediate-by-spki-fingerprint",
+			chain:   pemsToDERChain(t, []string{testdata.LeafSignedByFakeIntermediateCertPEM, testdata.FakeIntermediateCertPEM}),
+			wantErr: true,
+			modifyCV: func(v *chainValidator) {
+				interm := pemToCert(t, testdata.FakeIntermediateCertPEM)
+				spkiFP := sha256.Sum256(interm.RawSubjectPublicKeyInfo)
+				v.rejectIntermediates = []string{hex.EncodeToString(spkiFP[:])}
 			},
 		},
 	}

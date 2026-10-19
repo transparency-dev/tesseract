@@ -153,6 +153,14 @@ func TestNewCertValidationOpts(t *testing.T) {
 				RejectRoots:  []string{"invalid-hex"},
 			},
 		},
+		{
+			desc:    "invalid-reject-intermediates",
+			wantErr: "failed to validate rejected intermediates",
+			cvCfg: ChainValidationConfig{
+				RootsPEMFile:        "./internal/testdata/fake-ca.cert",
+				RejectIntermediates: []string{"invalid-hex"},
+			},
+		},
 	} {
 		t.Run(tc.desc, func(t *testing.T) {
 			vc, err := newChainValidator(t.Context(), tc.cvCfg)

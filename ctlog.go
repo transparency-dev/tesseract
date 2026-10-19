@@ -50,8 +50,11 @@ type ChainValidationConfig struct {
 	// remotely.
 	RootsRemoteFetchBackup storage.RootsStorage
 	// RejectRoots is a list of hex-encoded SHA-256 fingerprints of ASN.1 DER
-	// encoded root certificates that should never be trusted.
+	// encoded root certificates or their SubjectPublicKeyInfo that should never be trusted.
 	RejectRoots []string
+	// RejectIntermediates is a list of hex-encoded SHA-256 fingerprints of ASN.1 DER
+	// encoded intermediate certificates or their SubjectPublicKeyInfo that should never be trusted.
+	RejectIntermediates []string
 	// RejectExpired controls if true then the certificate validity period will be
 	// checked against the current time during the validation of submissions.
 	// This will cause expired certificates to be rejected.
@@ -107,6 +110,10 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 	}
 	if err := roots.AppendCertsFromPEMFile(cfg.RootsPEMFile); err != nil {
 		return nil, fmt.Errorf("failed to read trusted roots from %q: %v", cfg.RootsPEMFile, err)
+	}
+
+	if _, err := x509util.NewPEMCertPool(cfg.RejectIntermediates); err != nil {
+		return nil, fmt.Errorf("failed to validate rejected intermediates: %v", err)
 	}
 
 	if cfg.RejectExpired && cfg.RejectUnexpired {
@@ -203,7 +210,7 @@ func newChainValidator(ctx context.Context, cfg ChainValidationConfig) (ct.Chain
 		}()
 	}
 
-	cv := ct.NewChainValidator(roots, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds, cfg.AcceptSHA1)
+	cv := ct.NewChainValidator(roots, cfg.RejectIntermediates, cfg.RejectExpired, cfg.RejectUnexpired, cfg.NotAfterStart, cfg.NotAfterLimit, extKeyUsages, rejectExtIds, cfg.AcceptSHA1)
 
 	return cv, nil
 }

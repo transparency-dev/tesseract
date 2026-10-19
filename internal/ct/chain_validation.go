@@ -89,6 +89,9 @@ func ParseOIDs(oids []string) ([]asn1.ObjectIdentifier, error) {
 type chainValidator struct {
 	// trustedRoots is a pool of certificates that defines the roots the CT log will accept.
 	trustedRoots *x509util.PEMCertPool
+	// rejectIntermediates is a list of hex-encoded SHA-256 fingerprints of intermediate
+	// certificates or their SubjectPublicKeyInfo to reject.
+	rejectIntermediates []string
 	// currentTime is the time used for checking a certificate's validity period
 	// against. If it's zero then time.Now() is used. Only for testing.
 	// TODO(phboneff): check if I can remove this or align it with the other time definition.
@@ -112,16 +115,17 @@ type chainValidator struct {
 	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates []string, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
 	return &chainValidator{
-		trustedRoots:    trustedRoots,
-		rejectExpired:   rejectExpired,
-		rejectUnexpired: rejectUnexpired,
-		notAfterStart:   notAfterStart,
-		notAfterLimit:   notAfterLimit,
-		extKeyUsages:    extKeyUsages,
-		rejectExtIds:    rejectExtIds,
-		acceptSHA1:      acceptSHA1,
+		trustedRoots:        trustedRoots,
+		rejectIntermediates: rejectIntermediates,
+		rejectExpired:       rejectExpired,
+		rejectUnexpired:     rejectUnexpired,
+		notAfterStart:       notAfterStart,
+		notAfterLimit:       notAfterLimit,
+		extKeyUsages:        extKeyUsages,
+		rejectExtIds:        rejectExtIds,
+		acceptSHA1:          acceptSHA1,
 	}
 }
 
@@ -213,7 +217,7 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		}
 	}
 
-	intermediatePool, err := x509util.NewPEMCertPool(nil)
+	intermediatePool, err := x509util.NewPEMCertPool(cv.rejectIntermediates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create intermediate pool: %v", err)
 	}
