@@ -38,6 +38,7 @@ import (
 	"cloud.google.com/go/spanner"
 	gcs "cloud.google.com/go/storage"
 	"github.com/dustin/go-humanize"
+	"github.com/transparency-dev/formats/policy"
 	"github.com/transparency-dev/tessera"
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
 	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
@@ -328,9 +329,9 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			if err != nil {
 				return nil, fmt.Errorf("failed to read witness policy file %q: %v", *witnessPolicyFile, err)
 			}
-			wg, err := tessera.NewWitnessGroupFromPolicy(f)
-			if err != nil {
-				return nil, fmt.Errorf("failed to create witness group from policy: %v", err)
+			var wPol policy.TLogPolicy
+			if err := wPol.Unmarshal(f); err != nil {
+				return nil, fmt.Errorf("failed to parse witness policy: %v", err)
 			}
 
 			// Don't block if witnesses are unavailable.
@@ -338,7 +339,7 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 				FailOpen: true,
 				Timeout:  *witnessTimeout,
 			}
-			opts.WithWitnesses(wg, wOpts)
+			opts.WithWitnessPolicy(wPol, wOpts)
 		}
 
 		// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
