@@ -200,8 +200,8 @@ resource "google_compute_region_instance_template" "tesseract" {
     boot         = true
     // Gen 4+ machine series require hyperdisk-balanced; Gen 3 (plus t2a/g2) require pd-balanced;
     // Gen 1/2 default to pd-standard.
-    disk_type = can(regex("^[a-z]+[4-9][a-z]*-", var.machine_type)) ? "hyperdisk-balanced" : (
-      can(regex("^([a-z]+3[a-z]*|t2a|g2)-", var.machine_type)) ? "pd-balanced" : "pd-standard"
+    disk_type = can(regex("(?i)^[a-z]+[4-9][a-z]*-", var.machine_type)) ? "hyperdisk-balanced" : (
+      can(regex("(?i)^([a-z]+3[a-z]*|t2a|g2)-", var.machine_type)) ? "pd-balanced" : "pd-standard"
     )
   }
 
