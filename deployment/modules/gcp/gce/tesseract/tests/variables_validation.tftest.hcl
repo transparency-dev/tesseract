@@ -148,3 +148,43 @@ run "invalid_dates_not_after_limit_lowercase" {
     var.not_after_limit,
   ]
 }
+
+run "valid_num_vms" {
+  command = plan
+
+  variables {
+    num_vms = 4
+  }
+}
+
+run "valid_num_vms_zero" {
+  command = plan
+
+  variables {
+    num_vms = 0
+  }
+}
+
+run "invalid_num_vms_negative" {
+  command = plan
+
+  variables {
+    num_vms = -1
+  }
+
+  expect_failures = [
+    var.num_vms,
+  ]
+}
+
+run "invalid_num_vms_float" {
+  command = plan
+
+  variables {
+    num_vms = 2.5
+  }
+
+  expect_failures = [
+    var.num_vms,
+  ]
+}

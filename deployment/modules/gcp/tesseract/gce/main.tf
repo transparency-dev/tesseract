@@ -34,6 +34,7 @@ module "gce" {
   docker_repo                                = var.docker_repo
   server_docker_image                        = var.server_docker_image
   machine_type                               = var.machine_type
+  num_vms                                    = var.num_vms
   not_after_start                            = var.not_after_start
   not_after_limit                            = var.not_after_limit
   bucket                                     = module.storage.log_bucket.id
