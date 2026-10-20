@@ -244,6 +244,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   name   = "${var.base_name}-instance-group-manager"
   region = var.location
 
+  distribution_policy_zones        = var.distribution_policy_zones
   distribution_policy_target_shape = var.distribution_policy_target_shape
 
   version {
@@ -274,7 +275,8 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     # TODO(phbnf): come back to this, it's a beta feature for now
     # min_ready_sec                  = 50
     replacement_method    = "SUBSTITUTE"
-    max_surge_fixed       = 3 // must be greater or equal than the number of zones, which itself default to 3
+    // must be greater or equal than the number of zones, which itself defaults to 3
+    max_surge_fixed       = var.distribution_policy_zones == null ? 3 : max(3, length(var.distribution_policy_zones))
     max_unavailable_fixed = 0 // wait for new VMs to be up before turning down the old ones
   }
 

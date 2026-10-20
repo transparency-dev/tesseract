@@ -185,6 +185,12 @@ variable "extra_tesseract_flags" {
   default     = []
 }
 
+variable "distribution_policy_zones" {
+  description = "List of zones in the region across which the regional instance group manager distributes instances. If null, GCE selects 3 zones in the region by default."
+  type        = list(string)
+  default     = null
+}
+
 variable "distribution_policy_target_shape" {
   description = "Target distribution shape for regional instance group manager (EVEN, BALANCED, ANY, ANY_SINGLE_ZONE)"
   type        = string
