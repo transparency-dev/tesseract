@@ -268,7 +268,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   }
 
   base_instance_name = var.base_name
-  target_size        = "3"
+  target_size        = var.num_vms
 
   update_policy {
     type                           = "PROACTIVE"
