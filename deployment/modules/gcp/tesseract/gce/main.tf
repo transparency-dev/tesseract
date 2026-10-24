@@ -5,7 +5,8 @@ terraform {
 locals {
   # If bucket_name is provided, use it. 
   # Otherwise, default to the origin.
-  bucket_name = var.bucket_name != null ? var.bucket_name: var.origin
+  bucket_name  = var.bucket_name != null ? var.bucket_name : var.origin
+  gce_location = coalesce(var.gce_location, var.location)
 }
 
 module "storage" {
@@ -30,7 +31,7 @@ module "gce" {
   project_id                                 = var.project_id
   base_name                                  = var.base_name
   origin                                     = var.origin
-  location                                   = var.location
+  location                                   = local.gce_location
   docker_repo                                = var.docker_repo
   server_docker_image                        = var.server_docker_image
   machine_type                               = var.machine_type
@@ -66,13 +67,13 @@ module "gce" {
 }
 
 module "ilb" {
-  count = var.create_internal_load_balancer ? 1 : 0
+  count  = var.create_internal_load_balancer ? 1 : 0
   source = "../../loadbalancer/internal"
 
   env           = var.env
   project_id    = var.project_id
   base_name     = var.base_name
-  location      = var.location
+  location      = local.gce_location
   backend_group = module.gce.instance_group
 
   depends_on = [
