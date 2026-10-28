@@ -81,6 +81,13 @@ Generate an ECDSA key like so:
 openssl ecparam -name prime256v1 -genkey -noout -out test-ecdsa-priv.pem 
 ```
 
+Fetch the roots trusted by major root programs from CCADB, so that the log
+accepts the chains preloaded from another CT log:
+
+```bash
+go run ./cmd/experimental/fetch_roots --output_filename=/tmp/ccadb_roots.pem
+```
+
 And then start a log with the following command:
 
 ```bash
@@ -88,7 +95,7 @@ go run ./cmd/tesseract/posix/ \
   --private_key=./test-ecdsa-priv.pem \
   --origin=example.com/test-ecdsa \
   --storage_dir=/tmp/ecdsa_log \
-  --roots_pem_file=deployment/live/gcp/static-ct-staging/logs/arche2025h1/roots.pem \
+  --roots_pem_file=/tmp/ccadb_roots.pem \
   --slog_level=-4
 ```
 

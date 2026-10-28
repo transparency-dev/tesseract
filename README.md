@@ -32,7 +32,7 @@ in 2025Q3 🚀.
 
 |Platform        |Architecture                                                                                                                                                                          |Our use-case                                                                                           |Performance                               |Binary                               |Deployment                                                 |Public instances                                             |
 |----------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-------------------------------------------------------------------------------------------------------|------------------------------------------|-------------------------------------|-----------------------------------------------------------|-------------------------------------------------------------|
-|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|[public staging logs](#test_tube-public-test-instances)                                                |[gcp](/docs/performance.md#gcp)           |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/static-ct-staging/logs/)        |[Google - test](#test_tube-public-test-instances)            |
+|GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [MIG](https://cloud.google.com/compute/docs/instance-groups#managed_instance_groups)|[public staging logs](#test_tube-public-test-instances)                                                |[gcp](/docs/performance.md#gcp)           |[gcp](/cmd/tesseract/gcp/main.go)    |[module](/deployment/modules/gcp/tesseract/gce/)           |[Google - test](#test_tube-public-test-instances)            |
 |GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [CloudRun](https://cloud.google.com/run?hl=en)                                      |[continuous integration](/deployment/live/gcp/static-ct-ci/logs/ci/)                                   |N/A                                       |[gcp](/cmd/tesseract/gcp/main.go)    |[example](/deployment/live/gcp/static-ct-ci/logs/ci)       |                                                             |
 |GCP             |[Spanner](https://cloud.google.com/spanner/docs) + [GCS](https://cloud.google.com/storage/docs) + [GCE VM](https://cloud.google.com/compute/docs)                                     |[codelab](/deployment/live/gcp/test/)                                                                  |[gcp](/docs/performance.md#gcp)           |[gcp](/cmd/tesseract/gcp/main.go)    |[doc](/deployment/live/gcp/test/)                          |                                                             |
 |AWS             |[RDS](https://aws.amazon.com/rds/) + [S3](https://aws.amazon.com/s3/) + [ECS](https://aws.amazon.com/ecs/)                                                                            |[continuous integration](/deployment/live/aws/conformance/ci/)                                         |N/A                                       |[aws](/cmd/tesseract/aws/main.go)    |[example](/deployment/live/aws/conformance/ci/)            |                                                             |
@@ -170,59 +170,6 @@ rolling up to roots trusted by major root programs.
   "end_exclusive": "2028-01-01T00:00:00Z"
 }
 ```
-
-<details>
-
-<summary>Arche staging logs (Deprecated)</summary>
-
-These logs have been named after La Grande Arche de la Défense
-([The Great Arche of the Defense](https://en.wikipedia.org/wiki/Grande_Arche)),
-a building in the outskirts of Paris, designed by [Johan Otto von Spreckelsen](https://en.wikipedia.org/wiki/Johan_Otto_von_Spreckelsen)
-and [Erik Reitzel](https://en.wikipedia.org/wiki/Erik_Reitzel) to celebrate the
-200th anniversary of the [French Revolution](https://en.wikipedia.org/wiki/French_Revolution).
-It is shaped like a [tesseract](#tesserawhat), and is covered with [tiled](https://c2sp.org/tlog-tiles)
-(transparent!) windows.
-
-```json
-"description": "Google staging 'Arche2025h1'",
-"log_id": "v4vLUgreyaZJbsQJYM1zN+YKJbfu0ef6TGSJJcd2h2s=",
-"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEn7khjUQH1H3NJ/C8QmmBgzoNTptlH6hT5bgiQ6mQcYYg5KZoe4ZK4xCszXu4NH5NiLaDH0wHKsvg3RIQ+TTaag==",
-"submission_url": "https://arche2025h1.staging.ct.transparency.dev/",
-"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2025h1-bucket/",
-"mmd": 60,
-"temporal_interval": {
-  "start_inclusive": "2025-01-01T00:00:00Z",
-  "end_exclusive": "2025-07-01T00:00:00Z"
-}
-```
-
-```json
-"description": "Google staging 'Arche2025h2'",
-"log_id": "L2UYNygi6ysgrNQ0osu5ivLTWAzifbdx/LfHcYDhOi4=",
-"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEGbSp66Dmq0b3QILTYVpwRgMV9v4tYG2jqBFeWUyg46yW7QL0KbSOUZjN4PYK5dPxfamSkp8Z0JEGL7IA5X9aMg==",
-"submission_url": "https://arche2025h2.staging.ct.transparency.dev/",
-"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2025h2-bucket/",
-"mmd": 60,
-"temporal_interval": {
-  "start_inclusive": "2025-07-01T00:00:00Z",
-  "end_exclusive": "2026-01-01T00:00:00Z"
-}
-```
-
-```json
-"description": "Google staging 'Arche2026h1'",
-"log_id": "J+sqNJffaHpkC2Q4TkhW/Nyj6H+NzWbzTtbxvkKB7fw=",
-"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEZ+3YKoZTMruov4cmlImbk4MckBNzEdCyMuHlwGgJ8BUrzFLlR5U0619xDDXIXespkpBgCNVQAkhMTTXakM6KMg==",
-"submission_url": "https://arche2026h1.staging.ct.transparency.dev/",
-"monitoring_url": "https://storage.googleapis.com/static-ct-staging-arche2026h1-bucket/",
-"mmd": 60,
-"temporal_interval": {
-  "start_inclusive": "2026-01-01T00:00:00Z",
-  "end_exclusive": "2026-07-01T00:00:00Z"
-}
-```
-
-</details>
 
 ## Other known instances
 

@@ -31,7 +31,6 @@ updates:
     - /cmd/aws/ci
     - /cmd/gcp
     - /cmd/gcp/ci
-    - /cmd/gcp/staging
     - /internal/hammer
     - /internal/hammer/ci
   schedule:
