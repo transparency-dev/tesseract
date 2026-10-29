@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// Temporary MPTCP fix, needs to be above package declaration:
+//go:debug multipathtcp=0
+
 // The ct_server binary runs the CT personality.
 package main
 
@@ -62,13 +65,13 @@ func init() {
 
 // Global flags that affect all log instances.
 var (
-	notAfterStart           timestampFlag
-	notAfterLimit           timestampFlag
-	additionalSigners       multiStringFlag
+	notAfterStart                   timestampFlag
+	notAfterLimit                   timestampFlag
+	additionalSigners               multiStringFlag
 	rootsRejectFingerprints         multiStringFlag
 	intermediatesRejectFingerprints multiStringFlag
-	rootsRemoteFetchURLs    multiStringFlag
-	dedupRL                 float64
+	rootsRemoteFetchURLs            multiStringFlag
+	dedupRL                         float64
 
 	// Functionality flags
 	httpEndpoint             = flag.String("http_endpoint", "localhost:6962", "Endpoint for HTTP (host:port).")
