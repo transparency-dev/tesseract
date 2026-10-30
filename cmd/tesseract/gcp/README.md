@@ -1,10 +1,10 @@
 # TesseraCT on GCP
 
 This binary can be deployed on GCP, works well with
-[Managed Instance Groups (MIG)](./live/gcp/static-ct-staging/logs) and directly
-on [GCE VMs](./live/gcp/test).
+[Managed Instance Groups (MIG)](/deployment/modules/gcp/gce/tesseract) and directly
+on [GCE VMs](/deployment/live/gcp/test).
 
-It can also be run on [Cloud Run](./live/gcp/static-ct-ci/logs/ci), although we
+It can also be run on [Cloud Run](/deployment/live/gcp/static-ct-ci/logs/ci), although we
 have observed slightly reduced performance in this environment.
 
 In this document, you will find information specific to this GCP implementation.
