@@ -117,7 +117,10 @@ We'd love to know what platform you're interested in using,
 
 The following logs are available for testing. These logs run in a staging
 environment and should not used for production use cases. They accept chains
-rolling up to roots trusted by major root programs.
+rolling up to roots listed in either of the following CCADB reports:
+
+- [Root CA Certificates Included by Root Store](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesIncludedByRSReportCSV)
+- [Root CA Certificates Inclusion Report](https://ccadb.my.salesforce-sites.com/ccadb/RootCACertificatesInclusionReportCSV)
 
 ```json
 "description": "Google 'CoachAndHorses2026h1' log",
@@ -168,6 +171,32 @@ rolling up to roots trusted by major root programs.
 "temporal_interval": {
   "start_inclusive": "2027-07-01T00:00:00Z",
   "end_exclusive": "2028-01-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google 'CoachAndHorses2028h1' log",
+"log_id": "m8DmieeTA8JEe8CYmRDTQqYpTN1Tw34hx2NvATSkIPA=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEi/ryDzdgY+a089mgVqxQ1QaltO9pWTnMiy5CDjklgyhJLFeJhR1rnBjYo+EmfhlllEPRlo2GtJuri1mure1eXA==",
+"submission_url": "https://coachandhorses2028h1.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2028h1.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2028-01-01T00:00:00Z",
+  "end_exclusive": "2028-07-01T00:00:00Z"
+}
+```
+
+```json
+"description": "Google 'CoachAndHorses2028h2' log",
+"log_id": "0k+F4j+vsH+74N/JMmf3+64VUfXhWtll84xAVYb+0QA=",
+"key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEjPEFv4WUkt4uTbOo/em0ZBIBnRySF9F/X/oquq+KIoEtRaFo8HuN/FGvdByToU3N4M256At/95PBFlY/F6cFQw==",
+"submission_url": "https://coachandhorses2028h2.staging.certificate.transparency.goog/",
+"monitoring_url": "https://storage.googleapis.com/coachandhorses2028h2.staging.certificate.transparency.goog/",
+"mmd": 60,
+"temporal_interval": {
+  "start_inclusive": "2028-07-01T00:00:00Z",
+  "end_exclusive": "2029-01-01T00:00:00Z"
 }
 ```
 
