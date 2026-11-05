@@ -57,6 +57,18 @@ variable "machine_type" {
   default     = "n2-standard-4"
 }
 
+variable "num_vms" {
+  description = "Number of VM instances to run in the regional managed instance group"
+  type        = number
+  default     = 3
+  nullable    = false
+
+  validation {
+    condition     = var.num_vms >= 0 && floor(var.num_vms) == var.num_vms
+    error_message = "num_vms must be a non-negative integer."
+  }
+}
+
 variable "spanner_pu" {
   description = "Amount of Spanner processing units"
   type        = number
