@@ -77,6 +77,26 @@ module "gce-lb-http" {
   }
 }
 
+locals {
+  cdn_logs = {
+    for name, v in var.logs : name => v if v.enable_cdn
+  }
+}
+
+resource "google_compute_backend_bucket" "log_buckets" {
+  for_each = local.cdn_logs
+
+  name        = "${each.key}-bucket-backend"
+  project     = var.project_id
+  description = "Backend bucket for ${each.key} monitoring endpoints"
+  bucket_name = coalesce(each.value.bucket_name, "${each.key}.${each.value.submission_host_suffix}")
+  enable_cdn  = true
+
+  cdn_policy {
+    cache_mode = "USE_ORIGIN_HEADERS"
+  }
+}
+
 resource "google_compute_url_map" "url_map" {
   name        = "tesseract-url-map"
   description = "URL map of static-ct-staging logs"
@@ -122,6 +142,18 @@ resource "google_compute_url_map" "url_map" {
         ]
         service = module.gce-lb-http.backend_services["${log.key}-backend"].self_link
       }
+
+      dynamic "path_rule" {
+        for_each = log.value.enable_cdn ? [1] : []
+        content {
+          paths = [
+            "/checkpoint",
+            "/tile/*",
+            "/issuer/*",
+          ]
+          service = google_compute_backend_bucket.log_buckets[log.key].self_link
+        }
+      }
     }
   }
 }
@@ -145,7 +177,10 @@ resource "random_id" "suffix" {
   byte_length = 4
 
   keepers = {
-    logs = jsonencode(each.value)
+    logs = jsonencode({
+      region                 = each.value.region
+      submission_host_suffix = each.value.submission_host_suffix
+    })
   }
 }
 
