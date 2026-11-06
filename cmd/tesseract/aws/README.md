@@ -16,6 +16,54 @@ For AWS-specific information on how to run this binary, see the documentation un
 TesseraCT expects the databases configured with the `db_name` and
 `antispam_db_name` flags to be located in the same Aurora DB cluster.
 
+## OpenTelemetry
+
+The AWS binary configures OpenTelemetry metrics, tracing, and Go runtime metrics
+using the same environment-driven exporters as the POSIX binary. The service name
+is the log's `--origin`, and the service namespace is `tesseract`.
+`OTEL_RESOURCE_ATTRIBUTES` can add or override resource attributes.
+
+For OTLP export to a collector, for example:
+
+```bash
+export OTEL_METRICS_EXPORTER=otlp
+export OTEL_TRACES_EXPORTER=otlp
+export OTEL_EXPORTER_OTLP_PROTOCOL=grpc
+export OTEL_EXPORTER_OTLP_ENDPOINT=https://collector.example.com:4317
+```
+
+Set `--trace_fraction` to a value from `0` to `1` for the fraction of root traces
+to sample. The default is `0`; periodic Tessera root spans marked with
+`tessera.periodic` are still sampled. Child spans follow their parent's sampling
+decision. Set `OTEL_TRACES_EXPORTER=none` to disable trace export, or
+`OTEL_METRICS_EXPORTER=none` to disable metric export. Exporter selection defaults
+to OTLP when unset. This does not automatically configure CloudWatch or X-Ray.
+
+### Prometheus
+
+To expose a Prometheus scrape endpoint instead of pushing metrics over OTLP:
+
+```bash
+export OTEL_METRICS_EXPORTER=prometheus
+export OTEL_EXPORTER_PROMETHEUS_HOST=127.0.0.1
+export OTEL_EXPORTER_PROMETHEUS_PORT=9464
+export OTEL_TRACES_EXPORTER=none
+```
+
+Metrics are available at `http://127.0.0.1:9464/metrics` on a separate listener,
+not the CT HTTP endpoint. The default host is `localhost` and the default port is
+`9464`. Tracing is configured independently and can remain enabled if desired.
+
+Remote scrapers require a non-loopback bind address such as `0.0.0.0`, along with
+appropriate container port mappings and security group rules. Restrict access to
+trusted scrapers: the metrics listener does not provide authentication or TLS.
+Use a TLS/authentication proxy where required, validate deployment inputs, and
+inject exporter credentials securely rather than hardcoding secrets.
+
+Telemetry providers shut down after HTTP requests drain on normal termination.
+As in POSIX, startup failures that call `os.Exit` bypass deferred cleanup, and
+telemetry shutdown does not have a separate timeout.
+
 ## Vanilla S3+MySQL support
 
 Setting up S3 and MySQL infrastructure is out of scope for this document, but
