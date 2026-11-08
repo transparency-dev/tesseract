@@ -1,0 +1,214 @@
+// Copyright 2026 The Tessera authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	"context"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/transparency-dev/formats/note"
+	"github.com/transparency-dev/formats/policy"
+	"github.com/transparency-dev/tessera"
+	"github.com/transparency-dev/tesseract/mtc/log"
+	"github.com/transparency-dev/tesseract/internal/mtc/log/handler"
+	lmp "github.com/transparency-dev/tesseract/internal/mtc/log/landmark/posix"
+	"github.com/transparency-dev/tessera/storage/posix"
+)
+
+var (
+	slogLevel = flag.Int("slog_level", 0, "The cut-off threshold for structured logging.")
+
+	// HTTP server settings
+	listenAddr        = flag.String("listen_addr", ":8080", "The address to listen on for HTTP requests.")
+	readHeaderTimeout = flag.Duration("read_header_timeout", 5*time.Second, "The maximum duration for reading request headers.")
+	maxHeaderBytes    = flag.Int("max_header_bytes", http.DefaultMaxHeaderBytes, "Maximum number of bytes the server will read parsing request headers.")
+	writeTimeout      = flag.Duration("write_timeout", 0, "The maximum duration before timing out writes of the response.")
+
+	// Tessera settings
+	storageDir                = flag.String("storage_dir", "", "Path to root of log storage.")
+	checkpointInterval        = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
+	batchMaxSize              = flag.Uint("batch_max_size", tessera.DefaultBatchMaxSize, "Maximum number of entries to process in a single sequencing batch.")
+	batchMaxAge               = flag.Duration("batch_max_age", tessera.DefaultBatchMaxAge, "Maximum age of entries in a single sequencing batch.")
+	awaiterPollInterval       = flag.Duration("awaiter_poll_interval", 100*time.Millisecond, "Interval between checkpoint polls by the publication awaiter.")
+	pushbackMaxOutstanding    = flag.Uint("pushback_max_outstanding", tessera.DefaultPushbackMaxOutstanding, "Maximum number of in-flight add requests - i.e. the number of entries with sequence numbers assigned, but which are not yet integrated into the log.")
+	garbageCollectionInterval = flag.Duration("garbage_collection_interval", 10*time.Second, "Interval between scans to remove obsolete partial tiles and entry bundles. Set to 0 to disable.")
+	mirrorPolicyFile          = flag.String("mirror_policy", "", "File containing the mirror policy in tlog-policy format. If unset, no mirroring will be performed.")
+	// Tessera's HTTP client settings
+	clientHTTPTimeout        = flag.Duration("client_http_timeout", 5*time.Second, "Timeout for outgoing HTTP requests")
+	clientHTTPMaxIdle        = flag.Int("client_http_max_idle", 20, "Maximum number of idle HTTP connections for outgoing requests.")
+	clientHTTPMaxIdlePerHost = flag.Int("client_http_max_idle_per_host", 10, "Maximum number of idle HTTP connections per host for outgoing requests.")
+
+	// CA settings
+	landmarkInterval = flag.Duration("landmark_interval", 0, "Interval between publishing landmarks. If 0, defaults to CQRP recommended interval for max_cert_lifetime.")
+	caID             = flag.String("ca_id", "32473.106", "The CA ID as per draft-ietf-plants-merkle-tree-certs Section 5.1 (e.g. 32473.106)")
+	logNumber        = flag.Uint64("log_number", 1, "The issuance log number (strictly positive)")
+	privKeyFile      = flag.String("private_key", "", "Location of private key file. If unset, uses the contents of the LOG_PRIVATE_KEY environment variable.")
+	maxCertLifetime  = flag.Duration("max_cert_lifetime", log.DefaultMaxCertLifetime, "Maximum validity duration allowed for submitted certificate entries.")
+)
+
+func main() {
+	flag.Parse()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
+	ctx := context.Background()
+
+	var mPol policy.TLogPolicy
+	if *mirrorPolicyFile != "" {
+		b, err := os.ReadFile(*mirrorPolicyFile)
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to read mirror policy", slog.Any("error", err), slog.String("path", *mirrorPolicyFile))
+			os.Exit(1)
+		}
+		if err := mPol.Unmarshal(b); err != nil {
+			slog.ErrorContext(ctx, "Failed to parse mirror policy", slog.Any("error", err), slog.String("path", *mirrorPolicyFile))
+			os.Exit(1)
+		}
+		slog.InfoContext(ctx, "Mirroring enabled", slog.Any("policy", mPol), slog.String("path", *mirrorPolicyFile))
+	}
+
+	origin, signer, err := log.CreateSignerAndOrigin(*caID, *logNumber, mustGetPrivateKey())
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create signer and origin", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	httpClient := &http.Client{
+		Transport: &http.Transport{
+			MaxIdleConns:        *clientHTTPMaxIdle,
+			MaxIdleConnsPerHost: *clientHTTPMaxIdlePerHost,
+			DisableKeepAlives:   false,
+		},
+		Timeout: *clientHTTPTimeout,
+	}
+
+	appender, shutdown, reader := newAppenderFromFlags(ctx, origin, signer, mPol, httpClient)
+	opts := log.NewOptions().
+		WithTesseraReader(reader).
+		WithAwaiterPollInterval(*awaiterPollInterval).
+		WithLandmarksStorage(lmp.NewStorage(*storageDir)).
+		WithLandmarkInterval(*landmarkInterval).
+		WithMaxCertLifetime(*maxCertLifetime).
+		WithOrigin(origin).
+		WithSubtreeSigner(signer).
+		WithSubtreeWitnessPolicy(mPol).
+		WithHTTPClient(httpClient)
+	mtcLog, err := log.NewMTCLog(ctx, appender, opts)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to initialize MTC log", slog.Any("error", err))
+		os.Exit(1)
+	}
+	mux := handler.New(mtcLog)
+
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
+	server := &http.Server{
+		Addr:              *listenAddr,
+		Handler:           mux,
+		Protocols:         &protocols,
+		ReadHeaderTimeout: *readHeaderTimeout,
+		WriteTimeout:      *writeTimeout,
+		MaxHeaderBytes:    *maxHeaderBytes,
+	}
+
+	slog.InfoContext(ctx, "Starting Tessera MTC log service", slog.String("addr", *listenAddr))
+	if err := server.ListenAndServe(); err != nil {
+		if err := shutdown(ctx); err != nil {
+			slog.ErrorContext(ctx, "Failed to cleanly shutdown after ListenAndServe", slog.Any("error", err))
+			os.Exit(1)
+		}
+		slog.ErrorContext(ctx, "ListenAndServe failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+}
+
+// Read log private key from file or environment variable
+func mustGetPrivateKey() string {
+	var privKey string
+	var err error
+	if len(*privKeyFile) > 0 {
+		privKey, err = getKeyFile(*privKeyFile)
+		if err != nil {
+			slog.ErrorContext(context.Background(), "Unable to get private key", slog.Any("error", err))
+			os.Exit(1)
+		}
+	} else {
+		privKey = os.Getenv("LOG_PRIVATE_KEY")
+		if len(privKey) == 0 {
+			slog.ErrorContext(context.Background(), "Supply private key file path using --private_key or set LOG_PRIVATE_KEY environment variable")
+			os.Exit(1)
+		}
+	}
+	return privKey
+}
+
+func getKeyFile(path string) (string, error) {
+	k, err := os.ReadFile(path)
+	if err != nil {
+		return "", fmt.Errorf("failed to read key file: %w", err)
+	}
+	return string(k), nil
+}
+
+func newAppenderFromFlags(ctx context.Context, origin string, signer note.SubtreeSigner, mirrorPolicy policy.TLogPolicy, httpClient *http.Client) (*tessera.Appender, func(ctx context.Context) error, tessera.LogReader) {
+	if *storageDir == "" {
+		slog.ErrorContext(ctx, "flag --storage_dir is required")
+		os.Exit(1)
+	}
+
+	opts := tessera.NewAppendOptions().
+		WithOrigin(origin).
+		WithCheckpointSigner(signer).
+		WithCheckpointInterval(*checkpointInterval).
+		WithBatching(*batchMaxSize, *batchMaxAge).
+		WithPushback(*pushbackMaxOutstanding).
+		WithGarbageCollectionInterval(*garbageCollectionInterval)
+
+	if *mirrorPolicyFile != "" {
+		// TODO: enforce these checks at the policy level and/or when publishing checkpoints.
+		//
+		// SPEC: [DRAFT] Chrome Quantum-resistant Root Program Policy, Version 0.3.0, Section 3.1.
+		// "Mirroring Cosigner Keys MUST be ML-DSA-44"
+		//
+		// SPEC: [DRAFT] Chrome Quantum-resistant Root Program Policy, Version 0.3.0, Section 2.4.5.
+		// "In order for landmarks to be served by Chrome's Landmark Service, all
+		// checkpoints MUST be served with a minimum of 2 cosignatures. One of these
+		// MUST be from the MTC CA Operator and one MUST be from a Mirroring Cosigner
+		// recognized by Chrome and not operated by the MTC CA Operator."
+		opts = opts.WithMirrorPolicy(mirrorPolicy, nil)
+	}
+
+	cfg := posix.Config{
+		Path:       *storageDir,
+		HTTPClient: httpClient,
+	}
+
+	driver, err := posix.New(ctx, cfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to initialize POSIX Tessera storage", slog.Any("error", err))
+		os.Exit(1)
+	}
+	appender, shutdown, reader, err := tessera.NewAppender(ctx, driver, opts)
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to initialize Tessera appender", slog.Any("error", err))
+		os.Exit(1)
+	}
+	return appender, shutdown, reader
+}

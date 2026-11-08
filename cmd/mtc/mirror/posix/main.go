@@ -1,0 +1,222 @@
+// Copyright 2026 The Tessera authors. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/sha256"
+	"errors"
+	"flag"
+	"fmt"
+	"log/slog"
+	"net/http"
+	"os"
+	"path/filepath"
+	"time"
+
+	fnote "github.com/transparency-dev/formats/note"
+	"github.com/transparency-dev/tesseract/mtc/mirror"
+	"github.com/transparency-dev/tessera/storage/posix"
+	witnessConfig "github.com/transparency-dev/witness/config"
+	"github.com/transparency-dev/witness/persistence/sqlite"
+	"github.com/transparency-dev/witness/witness"
+	"golang.org/x/mod/sumdb/note"
+)
+
+const (
+	witnessDir = "private/witness"
+	mirrorsDir = "public/mirrors"
+)
+
+var (
+	listenAddr          = flag.String("listen_addr", ":8080", "The address to listen on for HTTP requests.")
+	storageDir          = flag.String("storage_dir", "", "Directory to store mirror data.")
+	witnessCosignerPath = flag.String("witness_cosigner_path", "", "The path to the note-formatted witness cosigner secret key.")
+	mirrorCosignerPath  = flag.String("mirror_cosigner_path", "", "The path to the note-formatted mirror cosigner secret key.")
+	mirrorConfigPath    = flag.String("config_path", "", "The path to the mirror configuration file.")
+	slogLevel           = flag.Int("slog_level", 0, "The cut-off threshold for structured logging.")
+
+	readHeaderTimeout = flag.Duration("read_header_timeout", 5*time.Second, "The maximum duration for reading request headers.")
+	idleTimeout       = flag.Duration("idle_timeout", 60*time.Second, "The maximum amount of time to wait for the next request when keep-alives are enabled.")
+	readTimeout       = flag.Duration("read_timeout", 0, "The maximum duration for reading the entire request. Default 0 permits streaming add-entries uploads.")
+	writeTimeout      = flag.Duration("write_timeout", 0, "The maximum duration before timing out writes of the response.")
+	maxHeaderBytes    = flag.Int("max_header_bytes", http.DefaultMaxHeaderBytes, "Maximum number of bytes the server will read parsing request headers.")
+)
+
+func main() {
+	flag.Parse()
+	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: slog.Level(*slogLevel)})))
+	ctx := context.Background()
+
+	w, wp, shutdown := witnessFromFlags(ctx)
+	defer func() {
+		if err := shutdown(); err != nil {
+			slog.ErrorContext(ctx, "Failed to shut down Witness", slog.Any("error", err))
+		}
+	}()
+
+	mirrorCosigner := mustCreateCosigner(ctx, *mirrorCosignerPath)
+
+	cfg := mirrorConfigFromFlags(ctx)
+	for _, l := range cfg {
+		// Ensure log is known by the witness
+		if err := wp.AddLogs(ctx, []witnessConfig.Log{l.Log}); err != nil {
+			slog.ErrorContext(ctx, "Failed to add target log to witness", slog.String("origin", l.Log.Origin), slog.Any("error", err))
+			os.Exit(1)
+		}
+	}
+	m, err := mirror.New(ctx, w, mirrorCosigner, cfg)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create mirror", slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	var protocols http.Protocols
+	protocols.SetHTTP1(true)
+	protocols.SetUnencryptedHTTP2(true)
+
+	server := &http.Server{
+		Addr:              *listenAddr,
+		Handler:           m,
+		Protocols:         &protocols,
+		ReadHeaderTimeout: *readHeaderTimeout,
+		IdleTimeout:       *idleTimeout,
+		ReadTimeout:       *readTimeout,
+		WriteTimeout:      *writeTimeout,
+		MaxHeaderBytes:    *maxHeaderBytes,
+	}
+
+	slog.InfoContext(ctx, "Starting mirror service", slog.String("addr", *listenAddr))
+	if err := server.ListenAndServe(); err != nil {
+		slog.ErrorContext(ctx, "ListenAndServe failed", slog.Any("error", err))
+		os.Exit(1)
+	}
+}
+
+// mirrorConfigFromFlags returns a slice of mirror.LogConfig structs, using flags as the source of information.
+// Exits if the mirror configuration could not be transformed into a slice of mirror.LogConfig structs.
+func mirrorConfigFromFlags(ctx context.Context) []mirror.LogConfig {
+	if *mirrorConfigPath == "" {
+		slog.ErrorContext(ctx, "Mirror config path not specified")
+		os.Exit(1)
+	}
+	data, err := os.ReadFile(*mirrorConfigPath)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to read mirror config file", slog.String("path", *mirrorConfigPath), slog.Any("error", err))
+		os.Exit(1)
+	}
+	cfg, err := witnessConfig.ParsePublicWitnessConfig(bytes.NewReader(data))
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to parse mirror config", slog.Any("error", err))
+		os.Exit(1)
+	}
+	seenOrigins := make(map[string]struct{})
+	ret := make([]mirror.LogConfig, 0, len(cfg))
+	for _, c := range cfg {
+		o := c.Origin
+		if o == "" {
+			o = c.Verifier.Name()
+		}
+		if _, seen := seenOrigins[o]; seen {
+			slog.ErrorContext(ctx, "Duplicate origin in mirror config", slog.String("origin", o))
+			os.Exit(1)
+		}
+		seenOrigins[o] = struct{}{}
+		targetDir := filepath.Join(*storageDir, mirrorsDir, fmt.Sprintf("%0x", sha256.Sum256([]byte(o))))
+		if err := os.MkdirAll(targetDir, 0o755); err != nil {
+			slog.ErrorContext(ctx, "Failed to create mirror target", slog.String("origin", o), slog.Any("error", err))
+			os.Exit(1)
+		}
+		d, err := posix.New(ctx, posix.Config{Path: targetDir})
+		if err != nil {
+			slog.ErrorContext(ctx, "Failed to create mirror target", slog.String("origin", o), slog.Any("error", err))
+			os.Exit(1)
+		}
+		ret = append(ret, mirror.LogConfig{
+			Log:    c,
+			Driver: d,
+		})
+	}
+	return ret
+}
+
+// witnessFromFlags returns a witness instance configured from the provided flags.
+// Exits if the witness could not be created.
+//
+// The returned shutdown func should be called once the witness is no longer in use.
+func witnessFromFlags(ctx context.Context) (*witness.Witness, *sqlite.Persistence, func() error) {
+	if *storageDir == "" {
+		slog.ErrorContext(ctx, "Storage directory not specified")
+		os.Exit(1)
+	}
+
+	wPath := filepath.Join(*storageDir, witnessDir)
+	if err := os.MkdirAll(wPath, 0o700); err != nil && !errors.Is(err, os.ErrExist) {
+		slog.ErrorContext(ctx, "Failed to create witness directory", slog.String("path", wPath))
+		os.Exit(1)
+	}
+
+	p, shutdown, err := sqlite.New(ctx, sqlite.Opts{
+		Path: filepath.Join(wPath, "witness.db"),
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create witness persistence", slog.String("path", wPath), slog.Any("error", err))
+		os.Exit(1)
+	}
+
+	w, err := witness.New(ctx, witness.Opts{
+		Persistence: p,
+		Signers:     witnessCosignerFromFlags(ctx),
+		VerifierForLog: func(ctx context.Context, origin string) (note.Verifier, bool, error) {
+			log, ok, err := p.Log(ctx, origin)
+			if err != nil || !ok {
+				return nil, false, err
+			}
+			return log.Verifier, true, nil
+		},
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create witness", slog.Any("error", err))
+		os.Exit(1)
+	}
+	return w, p, shutdown
+}
+
+func witnessCosignerFromFlags(ctx context.Context) []note.Signer {
+	if *witnessCosignerPath == "" {
+		slog.WarnContext(ctx, "Witness cosigner not configured, add-checkpoint will not return cosigs")
+		return []note.Signer{}
+	}
+	return []note.Signer{mustCreateCosigner(ctx, *witnessCosignerPath)}
+}
+
+func mustCreateCosigner(ctx context.Context, path string) fnote.SubtreeSigner {
+	if path == "" {
+		slog.ErrorContext(ctx, "Cosigner key path not specified")
+		os.Exit(1)
+	}
+	r, err := os.ReadFile(path)
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to read cosigner key", slog.String("path", path), slog.Any("error", err))
+		os.Exit(1)
+	}
+	s, err := fnote.NewMLDSASigner(string(r))
+	if err != nil {
+		slog.ErrorContext(ctx, "Failed to create cosigner", slog.String("path", path), slog.Any("error", err))
+		os.Exit(1)
+	}
+	return s
+}
