@@ -149,7 +149,7 @@ func detectResources(ctx context.Context, origin, projectID string, hostname fun
 	if allAttrsEmpty(resources.Set(), semconv.ServiceInstanceIDKey, semconv.FaaSInstanceKey, semconv.HostIDKey) {
 		instanceID, err := hostname()
 		if err != nil {
-			slog.ErrorContext(ctx, "os.Hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
+			slog.ErrorContext(ctx, "hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
 			instanceID = uuid.NewString()
 		} else if instanceID == "" || instanceID == "localhost" {
 			// localhost isn't very useful, so use a random UUID as a last resort.
