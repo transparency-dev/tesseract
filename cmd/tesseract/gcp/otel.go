@@ -57,27 +57,7 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		}
 	}
 
-	instanceID, err := os.Hostname()
-	if err != nil {
-		slog.ErrorContext(ctx, "os.Hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
-		instanceID = uuid.NewString()
-	}
-	attrs := []attribute.KeyValue{
-		semconv.ServiceNamespaceKey.String("tesseract"),
-		semconv.ServiceNameKey.String(origin),
-		semconv.ServiceInstanceIDKey.String(instanceID),
-	}
-	if projectID != "" {
-		// Selects the destination project for the Cloud Telemetry API.
-		attrs = append(attrs, attribute.String("gcp.project_id", projectID))
-	}
-	resources, err := resource.New(ctx,
-		resource.WithTelemetrySDK(),
-		// Add your own custom attributes to identify your application
-		resource.WithAttributes(attrs...),
-		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
-		resource.WithDetectors(gcp.NewDetector()),
-	)
+	resources, err := detectResources(ctx, origin, projectID, os.Hostname, gcp.NewDetector())
 	if err != nil {
 		fatal(ctx, "Failed to detect resources", slog.Any("error", err))
 	}
@@ -138,4 +118,58 @@ func initOTel(ctx context.Context, traceFraction float64, origin string, project
 		fatal(ctx, "Failed to start exporting Go runtime metrics", slog.Any("error", err))
 	}
 	return shutdown
+}
+
+// detectResources builds the OTel Resource describing this service instance.
+//
+// It only sets service.instance.id when the detectors (e.g. gcp.NewDetector())
+// and environment variables do not already supply faas.instance (Cloud Run),
+// host.id (GCE/GKE), or service.instance.id. When falling back to hostname,
+// a random UUID is used if hostname resolution fails or returns "localhost"
+// (as on Cloud Run gen2 containers).
+func detectResources(ctx context.Context, origin, projectID string, hostname func() (string, error), detectors ...resource.Detector) (*resource.Resource, error) {
+	attrs := []attribute.KeyValue{
+		semconv.ServiceNamespaceKey.String("tesseract"),
+		semconv.ServiceNameKey.String(origin),
+	}
+	if projectID != "" {
+		// Selects the destination project for the Cloud Telemetry API.
+		attrs = append(attrs, attribute.String("gcp.project_id", projectID))
+	}
+	resources, err := resource.New(ctx,
+		resource.WithTelemetrySDK(),
+		resource.WithAttributes(attrs...),
+		resource.WithFromEnv(), // unpacks OTEL_RESOURCE_ATTRIBUTES
+		resource.WithDetectors(detectors...),
+	)
+	if err != nil {
+		return nil, err
+	}
+	// Set an instance ID if the detectors and env extractor above didn't come up with one.
+	if allAttrsEmpty(resources.Set(), semconv.ServiceInstanceIDKey, semconv.FaaSInstanceKey, semconv.HostIDKey) {
+		instanceID, err := hostname()
+		if err != nil {
+			slog.ErrorContext(ctx, "hostname() failed, setting OTel service instance ID to UUID", slog.Any("error", err))
+			instanceID = uuid.NewString()
+		} else if instanceID == "" || instanceID == "localhost" {
+			// localhost isn't very useful, so use a random UUID as a last resort.
+			instanceID = uuid.NewString()
+		}
+		resources, err = resource.Merge(resources, resource.NewSchemaless(semconv.ServiceInstanceIDKey.String(instanceID)))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return resources, nil
+}
+
+// allAttrsEmpty returns true if the provided attribute set does not contain a non-empty value
+// associated with any of the provided keys.
+func allAttrsEmpty(s *attribute.Set, keys ...attribute.Key) bool {
+	for _, k := range keys {
+		if v, ok := s.Value(k); ok && v.AsString() != "" {
+			return false
+		}
+	}
+	return true
 }
