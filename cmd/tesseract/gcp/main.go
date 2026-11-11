@@ -94,6 +94,7 @@ var (
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	shutdownTimeout             = flag.Duration("shutdown_timeout", 8*time.Second, "Maximum time to drain HTTP requests and the Tessera appender on SIGINT/SIGTERM; set below the platform's SIGKILL grace period. At most half is spent draining HTTP so requests near --http_deadline cannot starve the appender drain.")
 	maxCertChainBytes           = flag.Int64("max_cert_chain_bytes", 512<<10, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
 	inMemoryAntispamCacheSize   = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
 	checkpointInterval          = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
@@ -214,7 +215,11 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		DedupRL:           dedupRL,
 		MaxCertChainBytes: *maxCertChainBytes,
 	}
-	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage(gcsClient, hc), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
+	runCtx, cancelRun := context.WithCancel(ctx)
+	defer cancelRun()
+
+	gcpStorage := newGCPStorage(gcsClient, hc)
+	logHandler, err := tesseract.NewLogHandler(runCtx, *origin, signer, chainValidationConfig, gcpStorage.create, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		fatal(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
 	}
@@ -233,23 +238,50 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	shutdownWG.Add(1)
 	go awaitSignal(func() {
 		defer shutdownWG.Done()
-		// Allow 60s for any pending requests to finish then terminate any stragglers
-		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-		defer cancel()
-		slog.InfoContext(ctx, "Shutting down HTTP server...")
-		if err := srv.Shutdown(ctx); err != nil {
-			slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
-		}
-		slog.InfoContext(ctx, "HTTP server shutdown")
+		gracefulShutdown(*shutdownTimeout, &srv, gcpStorage.shutdown, cancelRun)
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
-	// in which case it'll block until the HTTP server has gracefully shutdown
+	// in which case it'll block until HTTP and Tessera have shut down.
 	shutdownWG.Wait()
+}
+
+// gracefulShutdown drains HTTP requests and the Tessera appender within timeout,
+// then cancels runCtx to stop background tasks. HTTP drain gets at most half of
+// timeout so slow requests cannot starve appender drain, which needs runCtx live.
+func gracefulShutdown(
+	timeout time.Duration,
+	srv *http.Server,
+	shutdownAppender func(context.Context) error,
+	cancelRun context.CancelFunc,
+) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+
+	httpCtx, cancelHTTP := context.WithTimeout(ctx, timeout/2)
+	defer cancelHTTP()
+
+	slog.InfoContext(ctx, "Shutting down HTTP server...")
+	if err := srv.Shutdown(httpCtx); err != nil {
+		slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
+		if closeErr := srv.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "srv.Close()", slog.Any("error", closeErr))
+		}
+	}
+	slog.InfoContext(ctx, "HTTP server shutdown")
+
+	if shutdownAppender != nil {
+		slog.InfoContext(ctx, "Shutting down Tessera appender...")
+		if err := shutdownAppender(ctx); err != nil {
+			slog.ErrorContext(ctx, "tessera shutdown", slog.Any("error", err))
+		}
+		slog.InfoContext(ctx, "Tessera appender shutdown")
+	}
+
+	cancelRun()
 }
 
 // awaitSignal waits for standard termination signals, then runs the given
@@ -266,8 +298,21 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
-	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+type gcpStorage struct {
+	create           storage.CreateStorage
+	shutdownAppender func(context.Context) error
+}
+
+func (s *gcpStorage) shutdown(ctx context.Context) error {
+	if s.shutdownAppender == nil {
+		return nil
+	}
+	return s.shutdownAppender(ctx)
+}
+
+func newGCPStorage(gc *gcs.Client, hc *http.Client) *gcpStorage {
+	s := &gcpStorage{}
+	s.create = func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
 		if *bucket == "" {
 			return nil, errors.New("missing bucket")
 		}
@@ -348,9 +393,7 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			opts.WithWitnessPolicy(wPol, wOpts)
 		}
 
-		// TODO(phbnf): figure out the best way to thread the `shutdown` func NewAppends returns back out to main so we can cleanly close Tessera down
-		// when it's time to exit.
-		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
+		appender, shutdown, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize GCP Tessera appender: %v", err)
 		}
@@ -368,8 +411,15 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			EnablePubAwaiter:    *enablePublicationAwaiter,
 		}
 
-		return storage.NewCTStorage(ctx, &sopts)
+		ctStorage, err := storage.NewCTStorage(ctx, &sopts)
+		if err != nil {
+			return nil, err
+		}
+
+		s.shutdownAppender = shutdown
+		return ctStorage, nil
 	}
+	return s
 }
 
 type timestampFlag struct {
