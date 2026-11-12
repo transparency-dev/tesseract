@@ -323,7 +323,7 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, si
 			WithBatching(*batchMaxSize, *batchMaxAge).
 			WithPushback(*pushbackMaxOutstanding).
 			WithGarbageCollectionInterval(*garbageCollectionInterval).
-			WithShutdownTimeout(*shutdownTimeout) // Tessera otherwise caps its drain at 60s.
+			WithShutdownTimeout(*shutdownTimeout)
 
 		if *witnessPolicyFile != "" {
 			f, err := os.ReadFile(*witnessPolicyFile)

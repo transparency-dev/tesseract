@@ -262,7 +262,7 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 			WithBatching(*batchMaxSize, *batchMaxAge).
 			WithPushback(*pushbackMaxOutstanding).
 			WithGarbageCollectionInterval(*garbageCollectionInterval).
-			WithShutdownTimeout(*shutdownTimeout) // Tessera otherwise caps its drain at 60s.
+			WithShutdownTimeout(*shutdownTimeout)
 
 		if *witnessPolicyFile != "" {
 			f, err := os.ReadFile(*witnessPolicyFile)

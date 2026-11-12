@@ -12,8 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// Package lifecycle contains process lifecycle helpers shared by the TesseraCT
-// binaries.
+// Package lifecycle contains lifecycle helpers shared by TesseraCT binaries.
 package lifecycle
 
 import (
@@ -24,10 +23,7 @@ import (
 )
 
 // Shutdown drains in-flight HTTP requests, then the log, within timeout.
-//
-// The HTTP drain gets at most half of timeout, after which the remaining
-// connections are closed, so that slow requests cannot starve the log drain.
-// shutdownLog is the shutdown function returned by tesseract.NewLogHandler.
+// The HTTP drain gets at most half of timeout.
 func Shutdown(timeout time.Duration, srv *http.Server, shutdownLog func(context.Context) error) {
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()

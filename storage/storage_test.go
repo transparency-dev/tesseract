@@ -23,7 +23,6 @@ import (
 	"github.com/transparency-dev/tessera"
 )
 
-// fakeLogReader is a tessera.LogReader for a log without a checkpoint.
 type fakeLogReader struct {
 	tessera.LogReader
 }

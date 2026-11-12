@@ -569,9 +569,6 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 	}
 }
 
-// TestNewLogHandlerShutdown checks that the shutdown function returned by
-// NewLogHandler drains the storage while background tasks are still running,
-// and only then stops them, whether or not the drain succeeded.
 func TestNewLogHandlerShutdown(t *testing.T) {
 	errDrain := errors.New("drain failed")
 
@@ -590,13 +587,12 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 			dir := t.TempDir()
 
 			var (
-				// backgroundCtx is the context NewLogHandler runs background tasks on.
 				backgroundCtx context.Context
 				drained       bool
 				appender      *tessera.Appender
 				reader        tessera.LogReader
 			)
-			// NewLogHandler exits the process if cs fails, so fail the test from in here instead.
+			// NewLogHandler exits the process if cs returns an error.
 			cs := func(ctx context.Context, cpSigner note.Signer) (*storage.CTStorage, error) {
 				backgroundCtx = ctx
 				driver, err := tposix.New(ctx, tposix.Config{Path: dir})
@@ -646,7 +642,6 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 				t.Fatalf("background tasks stopped before shutdown was called: %v", err)
 			}
 
-			// Accept an entry, so that shutdown has something to drain.
 			idx, err := appender.Add(t.Context(), tessera.NewEntry([]byte("entry")))()
 			if err != nil {
 				t.Fatalf("appender.Add(): %v", err)
@@ -664,7 +659,6 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ReadCheckpoint(): %v", err)
 			}
-			// The size is on the second line of a checkpoint.
 			lines := strings.SplitN(string(cp), "\n", 3)
 			if len(lines) < 2 {
 				t.Fatalf("invalid checkpoint: %q", cp)
