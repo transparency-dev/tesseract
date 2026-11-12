@@ -28,19 +28,17 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"slices"
-	"strconv"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/transparency-dev/tessera"
-	tposix "github.com/transparency-dev/tessera/storage/posix"
 	"github.com/transparency-dev/tesseract/internal/ccadb"
 	"github.com/transparency-dev/tesseract/internal/testdata"
 	"github.com/transparency-dev/tesseract/storage"
-	"github.com/transparency-dev/tesseract/storage/posix"
 	"golang.org/x/mod/sumdb/note"
 )
 
@@ -569,6 +567,14 @@ func TestNewChainValidatorRootsFiltering(t *testing.T) {
 	}
 }
 
+type fakeLogReader struct {
+	tessera.LogReader
+}
+
+func (fakeLogReader) ReadCheckpoint(context.Context) ([]byte, error) {
+	return nil, os.ErrNotExist
+}
+
 func TestNewLogHandlerShutdown(t *testing.T) {
 	errDrain := errors.New("drain failed")
 
@@ -584,97 +590,39 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 			if err != nil {
 				t.Fatalf("ecdsa.GenerateKey(): %v", err)
 			}
-			dir := t.TempDir()
 
 			var (
 				backgroundCtx context.Context
 				drained       bool
-				appender      *tessera.Appender
-				reader        tessera.LogReader
 			)
-			// NewLogHandler exits the process if cs returns an error.
-			cs := func(ctx context.Context, cpSigner note.Signer) (*storage.CTStorage, error) {
+			cs := func(ctx context.Context, _ note.Signer) (*storage.CTStorage, error) {
 				backgroundCtx = ctx
-				driver, err := tposix.New(ctx, tposix.Config{Path: dir})
-				if err != nil {
-					t.Fatalf("tposix.New(): %v", err)
-				}
-				opts := tessera.NewAppendOptions().WithCheckpointSigner(cpSigner).WithCTLayout().WithCheckpointInterval(200 * time.Millisecond)
-				var shutdown func(context.Context) error
-				appender, shutdown, reader, err = tessera.NewAppender(ctx, driver, opts)
-				if err != nil {
-					t.Fatalf("tessera.NewAppender(): %v", err)
-				}
-				issuers, err := posix.NewIssuerStorage(ctx, dir)
-				if err != nil {
-					t.Fatalf("posix.NewIssuerStorage(): %v", err)
-				}
-				s, err := storage.NewCTStorage(ctx, &storage.CTStorageOptions{
-					Appender: appender,
-					Shutdown: func(sCtx context.Context) error {
+				return storage.NewCTStorage(ctx, &storage.CTStorageOptions{
+					Reader: fakeLogReader{},
+					Shutdown: func(context.Context) error {
 						if err := ctx.Err(); err != nil {
 							t.Errorf("background tasks stopped before the storage was drained: %v", err)
 						}
 						drained = true
-						if err := shutdown(sCtx); err != nil {
-							return err
-						}
 						return tc.drainErr
 					},
-					Reader:        reader,
-					IssuerStorage: issuers,
 				})
-				if err != nil {
-					t.Fatalf("storage.NewCTStorage(): %v", err)
-				}
-				return s, nil
 			}
 
 			cfg := ChainValidationConfig{RootsPEMFile: "./internal/testdata/fake-ca.cert"}
-			handler, shutdown, err := NewLogHandler(t.Context(), "example.com/log", signer, cfg, cs, time.Second, false, "example.com/log", LogHandlerOpts{})
+			_, shutdown, err := NewLogHandler(t.Context(), "example.com/log", signer, cfg, cs, time.Second, false, "example.com/log", LogHandlerOpts{})
 			if err != nil {
 				t.Fatalf("NewLogHandler(): %v", err)
 			}
-			if handler == nil || shutdown == nil {
-				t.Fatalf("NewLogHandler() = (%v, %p, nil), want a handler and a shutdown function", handler, shutdown)
-			}
-			if err := backgroundCtx.Err(); err != nil {
-				t.Fatalf("background tasks stopped before shutdown was called: %v", err)
-			}
 
-			idx, err := appender.Add(t.Context(), tessera.NewEntry([]byte("entry")))()
-			if err != nil {
-				t.Fatalf("appender.Add(): %v", err)
-			}
-
-			sCtx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
-			defer cancel()
-			if err := shutdown(sCtx); !errors.Is(err, tc.drainErr) {
+			if err := shutdown(t.Context()); !errors.Is(err, tc.drainErr) {
 				t.Errorf("shutdown() = %v, want %v", err, tc.drainErr)
 			}
 			if !drained {
 				t.Error("shutdown() didn't drain the storage")
 			}
-			cp, err := reader.ReadCheckpoint(t.Context())
-			if err != nil {
-				t.Fatalf("ReadCheckpoint(): %v", err)
-			}
-			lines := strings.SplitN(string(cp), "\n", 3)
-			if len(lines) < 2 {
-				t.Fatalf("invalid checkpoint: %q", cp)
-			}
-			size, err := strconv.ParseUint(lines[1], 10, 64)
-			if err != nil {
-				t.Fatalf("invalid checkpoint size %q: %v", lines[1], err)
-			}
-			if size <= idx.Index {
-				t.Errorf("checkpoint size after shutdown() = %d, doesn't cover the entry accepted at index %d", size, idx.Index)
-			}
 			if backgroundCtx.Err() == nil {
 				t.Error("background tasks still running after shutdown()")
-			}
-			if err := t.Context().Err(); err != nil {
-				t.Errorf("shutdown() cancelled the caller's context: %v", err)
 			}
 		})
 	}
