@@ -249,14 +249,34 @@ type LogHandlerOpts struct {
 // be served independently, either through the storage's system serving
 // infrastructure directly (GCS over HTTPS for instance), or with an
 // independent serving stack of your choice.
-func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (http.Handler, error) {
+//
+// NewLogHandler creates the storage, through cs, and starts the background
+// tasks the log needs, so it also returns the shutdown function which tears
+// them down. Those tasks run until shutdown is called or ctx is cancelled, so
+// ctx must stay live until shutdown has returned: don't pass a context which
+// the termination signal cancels, or one with a startup deadline.
+//
+// Call shutdown once the HTTP server has stopped serving the handler. It
+// waits, until its context is done, for the entries this instance has accepted
+// to be integrated, covered by a published checkpoint and processed by
+// followers; it then stops the background tasks, whether or not that wait
+// succeeded. Once shutdown has been called, submissions to the handler fail.
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (http.Handler, func(context.Context) error, error) {
+	// Background tasks (storage, publication awaiter, remote roots fetching)
+	// run on a child of the caller's context, so that shutdown can stop them
+	// itself after, and only after, the storage has been drained: draining
+	// needs them to still be running.
+	ctx, cancel := context.WithCancel(ctx)
+
 	cv, err := newChainValidator(ctx, cfg)
 	if err != nil {
-		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
+		cancel()
+		return nil, nil, fmt.Errorf("newCertValidationOpts(): %v", err)
 	}
 	log, err := ct.NewLog(ctx, origin, signer, cv, cs, sysTimeSource)
 	if err != nil {
-		return nil, fmt.Errorf("newLog(): %v", err)
+		cancel()
+		return nil, nil, fmt.Errorf("newLog(): %v", err)
 	}
 
 	ctOpts := &ct.HandlerOptions{
@@ -285,5 +305,10 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		_, _ = fmt.Fprint(resp, "ok")
 	})
 
-	return mux, nil
+	shutdown := func(sCtx context.Context) error {
+		defer cancel()
+		return log.Shutdown(sCtx)
+	}
+
+	return mux, shutdown, nil
 }

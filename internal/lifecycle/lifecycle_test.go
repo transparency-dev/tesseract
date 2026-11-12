@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package lifecycle
 
 import (
 	"context"
@@ -32,13 +32,11 @@ func startTestServer(t *testing.T, h http.Handler) (*http.Server, string) {
 	}
 	srv := &http.Server{Handler: h}
 	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
 	return srv, "http://" + ln.Addr().String()
 }
 
-func TestGracefulShutdownOrder(t *testing.T) {
-	runCtx, cancelRun := context.WithCancel(t.Context())
-	defer cancelRun()
-
+func TestShutdownOrder(t *testing.T) {
 	var (
 		mu              sync.Mutex
 		steps           []string
@@ -55,9 +53,6 @@ func TestGracefulShutdownOrder(t *testing.T) {
 	srv, url := startTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		close(inHandler)
 		<-shutdownStarted
-		if runCtx.Err() != nil {
-			t.Errorf("runCtx cancelled before in-flight HTTP request finished: %v", runCtx.Err())
-		}
 		record("http")
 		w.WriteHeader(http.StatusOK)
 	}))
@@ -72,44 +67,30 @@ func TestGracefulShutdownOrder(t *testing.T) {
 	}()
 	<-inHandler
 
-	st := newGCPStorage(nil, nil)
-	st.shutdownAppender = func(ctx context.Context) error {
-		if ctx.Err() != nil {
-			t.Errorf("appender shutdown received expired ctx: %v", ctx.Err())
+	Shutdown(time.Second, srv, func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			t.Errorf("log shutdown received expired ctx: %v", err)
 		}
-		if runCtx.Err() != nil {
-			t.Errorf("runCtx cancelled before appender shutdown finished: %v", runCtx.Err())
-		}
-		record("appender")
+		record("log")
 		return nil
-	}
-
-	gracefulShutdown(time.Second, srv, st.shutdown, func() {
-		record("cancel_run")
-		cancelRun()
 	})
 
 	if err := <-reqDone; err != nil {
 		t.Fatalf("in-flight HTTP request failed: %v", err)
 	}
-	if runCtx.Err() == nil {
-		t.Fatal("expected runCtx to be cancelled")
-	}
-	want := []string{"http", "appender", "cancel_run"}
+	want := []string{"http", "log"}
 	if !slices.Equal(steps, want) {
-		t.Errorf("gracefulShutdown steps = %v, want %v", steps, want)
+		t.Errorf("Shutdown() steps = %v, want %v", steps, want)
 	}
 }
 
-func TestGracefulShutdownHTTPTimeoutReservesAppenderBudget(t *testing.T) {
-	runCtx, cancelRun := context.WithCancel(t.Context())
-	defer cancelRun()
-
+func TestShutdownHTTPTimeoutReservesLogBudget(t *testing.T) {
 	var (
 		mu          sync.Mutex
 		steps       []string
 		inHandler   = make(chan struct{})
 		handlerDone = make(chan struct{})
+		reqDone     = make(chan struct{})
 	)
 	record := func(step string) {
 		mu.Lock()
@@ -125,6 +106,7 @@ func TestGracefulShutdownHTTPTimeoutReservesAppenderBudget(t *testing.T) {
 	}))
 
 	go func() {
+		defer close(reqDone)
 		resp, err := http.Get(url)
 		if err == nil {
 			_ = resp.Body.Close()
@@ -132,43 +114,19 @@ func TestGracefulShutdownHTTPTimeoutReservesAppenderBudget(t *testing.T) {
 	}()
 	<-inHandler
 
-	st := newGCPStorage(nil, nil)
-	st.shutdownAppender = func(ctx context.Context) error {
+	Shutdown(400*time.Millisecond, srv, func(ctx context.Context) error {
 		if err := ctx.Err(); err != nil {
-			t.Errorf("appender shutdown received already-expired ctx after HTTP timeout: %v", err)
-		}
-		if err := runCtx.Err(); err != nil {
-			t.Errorf("runCtx cancelled before appender shutdown: %v", err)
+			t.Errorf("log shutdown received already-expired ctx after HTTP timeout: %v", err)
 		}
 		<-handlerDone
 		<-ctx.Done()
-		record("appender_timeout")
+		record("log_timeout")
 		return ctx.Err()
-	}
-
-	gracefulShutdown(80*time.Millisecond, srv, st.shutdown, func() {
-		record("cancel_run")
-		cancelRun()
 	})
+	<-reqDone
 
-	if runCtx.Err() == nil {
-		t.Fatal("expected runCtx to be cancelled after shutdown timeout")
-	}
-	want := []string{"http_closed", "appender_timeout", "cancel_run"}
+	want := []string{"http_closed", "log_timeout"}
 	if !slices.Equal(steps, want) {
-		t.Errorf("gracefulShutdown steps = %v, want %v", steps, want)
-	}
-}
-
-func TestGCPStorageShutdownBeforeCreate(t *testing.T) {
-	st := newGCPStorage(nil, nil)
-	if err := st.shutdown(t.Context()); err != nil {
-		t.Fatalf("shutdown before create = %v, want nil", err)
-	}
-	if _, err := st.create(t.Context(), nil); err == nil {
-		t.Fatal("create with empty flags succeeded, want error")
-	}
-	if st.shutdownAppender != nil {
-		t.Fatal("shutdownAppender set after failed create")
+		t.Errorf("Shutdown() steps = %v, want %v", steps, want)
 	}
 }

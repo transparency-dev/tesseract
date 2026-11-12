@@ -46,6 +46,7 @@ import (
 	tgcp "github.com/transparency-dev/tessera/storage/gcp"
 	gcp_as "github.com/transparency-dev/tessera/storage/gcp/antispam"
 	"github.com/transparency-dev/tesseract"
+	"github.com/transparency-dev/tesseract/internal/lifecycle"
 	"github.com/transparency-dev/tesseract/internal/logger"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/gcp"
@@ -215,11 +216,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		DedupRL:           dedupRL,
 		MaxCertChainBytes: *maxCertChainBytes,
 	}
-	runCtx, cancelRun := context.WithCancel(ctx)
-	defer cancelRun()
-
-	gcpStorage := newGCPStorage(gcsClient, hc)
-	logHandler, err := tesseract.NewLogHandler(runCtx, *origin, signer, chainValidationConfig, gcpStorage.create, *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
+	logHandler, shutdownLog, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newGCPStorage(gcsClient, hc), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		fatal(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
 	}
@@ -238,50 +235,15 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	shutdownWG.Add(1)
 	go awaitSignal(func() {
 		defer shutdownWG.Done()
-		gracefulShutdown(*shutdownTimeout, &srv, gcpStorage.shutdown, cancelRun)
+		lifecycle.Shutdown(*shutdownTimeout, &srv, shutdownLog)
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
-	// in which case it'll block until HTTP and Tessera have shut down.
+	// in which case it'll block until the HTTP server and the log have shut down.
 	shutdownWG.Wait()
-}
-
-// gracefulShutdown drains HTTP requests and the Tessera appender within timeout,
-// then cancels runCtx to stop background tasks. HTTP drain gets at most half of
-// timeout so slow requests cannot starve appender drain, which needs runCtx live.
-func gracefulShutdown(
-	timeout time.Duration,
-	srv *http.Server,
-	shutdownAppender func(context.Context) error,
-	cancelRun context.CancelFunc,
-) {
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-
-	httpCtx, cancelHTTP := context.WithTimeout(ctx, timeout/2)
-	defer cancelHTTP()
-
-	slog.InfoContext(ctx, "Shutting down HTTP server...")
-	if err := srv.Shutdown(httpCtx); err != nil {
-		slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
-		if closeErr := srv.Close(); closeErr != nil {
-			slog.ErrorContext(ctx, "srv.Close()", slog.Any("error", closeErr))
-		}
-	}
-	slog.InfoContext(ctx, "HTTP server shutdown")
-
-	if shutdownAppender != nil {
-		slog.InfoContext(ctx, "Shutting down Tessera appender...")
-		if err := shutdownAppender(ctx); err != nil {
-			slog.ErrorContext(ctx, "tessera shutdown", slog.Any("error", err))
-		}
-		slog.InfoContext(ctx, "Tessera appender shutdown")
-	}
-
-	cancelRun()
 }
 
 // awaitSignal waits for standard termination signals, then runs the given
@@ -298,21 +260,8 @@ func awaitSignal(doneFn func()) {
 	doneFn()
 }
 
-type gcpStorage struct {
-	create           storage.CreateStorage
-	shutdownAppender func(context.Context) error
-}
-
-func (s *gcpStorage) shutdown(ctx context.Context) error {
-	if s.shutdownAppender == nil {
-		return nil
-	}
-	return s.shutdownAppender(ctx)
-}
-
-func newGCPStorage(gc *gcs.Client, hc *http.Client) *gcpStorage {
-	s := &gcpStorage{}
-	s.create = func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+func newGCPStorage(gc *gcs.Client, hc *http.Client) func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
+	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
 		if *bucket == "" {
 			return nil, errors.New("missing bucket")
 		}
@@ -373,7 +322,8 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) *gcpStorage {
 			WithCheckpointRepublishInterval(*checkpointRepublishInterval).
 			WithBatching(*batchMaxSize, *batchMaxAge).
 			WithPushback(*pushbackMaxOutstanding).
-			WithGarbageCollectionInterval(*garbageCollectionInterval)
+			WithGarbageCollectionInterval(*garbageCollectionInterval).
+			WithShutdownTimeout(*shutdownTimeout) // Tessera otherwise caps its drain at 60s.
 
 		if *witnessPolicyFile != "" {
 			f, err := os.ReadFile(*witnessPolicyFile)
@@ -405,21 +355,15 @@ func newGCPStorage(gc *gcs.Client, hc *http.Client) *gcpStorage {
 
 		sopts := storage.CTStorageOptions{
 			Appender:            appender,
+			Shutdown:            shutdown,
 			Reader:              reader,
 			IssuerStorage:       issuerStorage,
 			AwaiterPollInterval: *awaiterPollInterval,
 			EnablePubAwaiter:    *enablePublicationAwaiter,
 		}
 
-		ctStorage, err := storage.NewCTStorage(ctx, &sopts)
-		if err != nil {
-			return nil, err
-		}
-
-		s.shutdownAppender = shutdown
-		return ctStorage, nil
+		return storage.NewCTStorage(ctx, &sopts)
 	}
-	return s
 }
 
 type timestampFlag struct {

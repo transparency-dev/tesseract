@@ -43,6 +43,8 @@ type Storage interface {
 	DedupFuture(context.Context, tessera.IndexFuture) (rfc6962.CertificateTimestamp, error)
 	// AddIssuerChain stores every the chain certificate in a content-addressable store under their sha256 hash.
 	AddIssuerChain(context.Context, []*x509.Certificate) error
+	// Shutdown stops accepting new entries, and waits for the entries that were already accepted to be integrated, published, and processed by followers.
+	Shutdown(context.Context) error
 }
 
 // ChainValidator provides functions to validate incoming chains.
@@ -113,4 +115,9 @@ func NewLog(ctx context.Context, origin string, signer crypto.Signer, cv ChainVa
 	log.storage = storage
 
 	return log, nil
+}
+
+// Shutdown drains the log's storage, see Storage.Shutdown.
+func (l *log) Shutdown(ctx context.Context) error {
+	return l.storage.Shutdown(ctx)
 }

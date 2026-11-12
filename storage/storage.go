@@ -67,7 +67,12 @@ type RootsStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender            *tessera.Appender
+	Appender *tessera.Appender
+	// Shutdown is the shutdown function tessera.NewAppender returns alongside
+	// Appender. Setting it lets CTStorage.Shutdown drain the appender, so
+	// binaries don't each have to thread that function out to their own
+	// shutdown path. Optional: CTStorage.Shutdown is a no-op without it.
+	Shutdown            func(context.Context) error
 	Reader              tessera.LogReader
 	IssuerStorage       IssuerStorage
 	AwaiterPollInterval time.Duration
@@ -81,6 +86,7 @@ type CTStorage struct {
 	reader           tessera.LogReader
 	awaiter          *tessera.PublicationAwaiter
 	enablePubAwaiter bool
+	shutdown         func(context.Context) error
 }
 
 // NewCTStorage instantiates a CTStorage object.
@@ -96,9 +102,25 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 		reader:           opts.Reader,
 		awaiter:          awaiter,
 		enablePubAwaiter: opts.EnablePubAwaiter,
+		shutdown:         opts.Shutdown,
 	}
 
 	return ctStorage, nil
+}
+
+// Shutdown stops new entries from being added, then waits until ctx is done
+// for every entry this instance has accepted to be integrated, covered by a
+// published checkpoint, and processed by followers such as antispam. The wait
+// is also bounded by the appender's own shutdown timeout, see
+// tessera.AppendOptions.WithShutdownTimeout.
+//
+// The context this storage was created with must stay live until Shutdown
+// returns: the background tasks which integrate and publish run on it.
+func (cts *CTStorage) Shutdown(ctx context.Context) error {
+	if cts.shutdown == nil {
+		return nil
+	}
+	return cts.shutdown(ctx)
 }
 
 // DedupFuture returns the SCT input matching a future.
