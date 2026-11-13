@@ -42,7 +42,6 @@ import (
 	taws "github.com/transparency-dev/tessera/storage/aws"
 	aws_as "github.com/transparency-dev/tessera/storage/aws/antispam"
 	"github.com/transparency-dev/tesseract"
-	"github.com/transparency-dev/tesseract/internal/lifecycle"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/aws"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -86,7 +85,7 @@ var (
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
-	shutdownTimeout             = flag.Duration("shutdown_timeout", 8*time.Second, "Maximum time to drain HTTP requests and the Tessera appender on SIGINT/SIGTERM; set below the platform's SIGKILL grace period. At most half is spent draining HTTP so requests near --http_deadline cannot starve the appender drain.")
+	shutdownTimeout             = flag.Duration("shutdown_timeout", 8*time.Second, "Maximum time to drain HTTP requests and the Tessera appender on SIGINT/SIGTERM. Set below the platform's SIGKILL grace period.")
 	maxCertChainBytes           = flag.Int64("max_cert_chain_bytes", 512<<10, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
 	inMemoryAntispamCacheSize   = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
 	checkpointInterval          = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
@@ -185,7 +184,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 		DedupRL:           dedupRL,
 		MaxCertChainBytes: *maxCertChainBytes,
 	}
-	logHandler, shutdownLog, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorageFunc(awsCfg), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
+	logHandler, err := tesseract.NewLogHandler(ctx, *origin, signer, chainValidationConfig, newAWSStorageFunc(awsCfg), *httpDeadline, *maskInternalErrors, *pathPrefix, hOpts)
 	if err != nil {
 		slog.ErrorContext(ctx, "Can't initialize CT HTTP Server", slog.Any("error", err))
 		os.Exit(1)
@@ -205,7 +204,7 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	shutdownWG.Add(1)
 	go awaitSignal(func() {
 		defer shutdownWG.Done()
-		lifecycle.Shutdown(*shutdownTimeout, &srv, shutdownLog)
+		tesseract.GracefulShutdown(ctx, *shutdownTimeout, &srv, logHandler)
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
@@ -261,8 +260,7 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 			WithCheckpointRepublishInterval(*checkpointRepublishInterval).
 			WithBatching(*batchMaxSize, *batchMaxAge).
 			WithPushback(*pushbackMaxOutstanding).
-			WithGarbageCollectionInterval(*garbageCollectionInterval).
-			WithShutdownTimeout(*shutdownTimeout)
+			WithGarbageCollectionInterval(*garbageCollectionInterval)
 
 		if *witnessPolicyFile != "" {
 			f, err := os.ReadFile(*witnessPolicyFile)

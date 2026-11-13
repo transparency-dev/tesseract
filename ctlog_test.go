@@ -26,6 +26,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"maps"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -579,11 +580,13 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 	errDrain := errors.New("drain failed")
 
 	for _, tc := range []struct {
-		name     string
-		drainErr error
+		name       string
+		noShutdown bool
+		drainErr   error
 	}{
 		{name: "drain succeeds"},
 		{name: "drain fails", drainErr: errDrain},
+		{name: "storage without shutdown", noShutdown: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			signer, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
@@ -597,33 +600,141 @@ func TestNewLogHandlerShutdown(t *testing.T) {
 			)
 			cs := func(ctx context.Context, _ note.Signer) (*storage.CTStorage, error) {
 				backgroundCtx = ctx
-				return storage.NewCTStorage(ctx, &storage.CTStorageOptions{
-					Reader: fakeLogReader{},
-					Shutdown: func(context.Context) error {
+				opts := &storage.CTStorageOptions{Reader: fakeLogReader{}}
+				if !tc.noShutdown {
+					opts.Shutdown = func(context.Context) error {
 						if err := ctx.Err(); err != nil {
 							t.Errorf("background tasks stopped before the storage was drained: %v", err)
 						}
 						drained = true
 						return tc.drainErr
-					},
-				})
+					}
+				}
+				return storage.NewCTStorage(ctx, opts)
 			}
 
 			cfg := ChainValidationConfig{RootsPEMFile: "./internal/testdata/fake-ca.cert"}
-			_, shutdown, err := NewLogHandler(t.Context(), "example.com/log", signer, cfg, cs, time.Second, false, "example.com/log", LogHandlerOpts{})
+			h, err := NewLogHandler(t.Context(), "example.com/log", signer, cfg, cs, time.Second, false, "example.com/log", LogHandlerOpts{})
 			if err != nil {
 				t.Fatalf("NewLogHandler(): %v", err)
 			}
 
-			if err := shutdown(t.Context()); !errors.Is(err, tc.drainErr) {
-				t.Errorf("shutdown() = %v, want %v", err, tc.drainErr)
+			if err := h.Shutdown(t.Context()); !errors.Is(err, tc.drainErr) {
+				t.Errorf("Shutdown() = %v, want %v", err, tc.drainErr)
 			}
-			if !drained {
-				t.Error("shutdown() didn't drain the storage")
+			if want := !tc.noShutdown; drained != want {
+				t.Errorf("storage drained = %t, want %t", drained, want)
 			}
 			if backgroundCtx.Err() == nil {
-				t.Error("background tasks still running after shutdown()")
+				t.Error("background tasks still running after Shutdown()")
 			}
 		})
+	}
+}
+
+func startTestServer(t *testing.T, h http.Handler) (*http.Server, string) {
+	t.Helper()
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("net.Listen: %v", err)
+	}
+	srv := &http.Server{Handler: h}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	return srv, "http://" + ln.Addr().String()
+}
+
+func TestGracefulShutdownOrder(t *testing.T) {
+	var (
+		mu              sync.Mutex
+		steps           []string
+		inHandler       = make(chan struct{})
+		shutdownStarted = make(chan struct{})
+		reqDone         = make(chan error, 1)
+	)
+	record := func(step string) {
+		mu.Lock()
+		defer mu.Unlock()
+		steps = append(steps, step)
+	}
+
+	srv, url := startTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		close(inHandler)
+		<-shutdownStarted
+		record("http")
+		w.WriteHeader(http.StatusOK)
+	}))
+	srv.RegisterOnShutdown(func() { close(shutdownStarted) })
+
+	go func() {
+		resp, err := http.Get(url)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+		reqDone <- err
+	}()
+	<-inHandler
+
+	GracefulShutdown(t.Context(), time.Second, srv, &LogHandler{cancel: func() {}, shutdown: func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			t.Errorf("log shutdown received expired ctx: %v", err)
+		}
+		record("log")
+		return nil
+	}})
+
+	if err := <-reqDone; err != nil {
+		t.Fatalf("in-flight HTTP request failed: %v", err)
+	}
+	want := []string{"http", "log"}
+	if !slices.Equal(steps, want) {
+		t.Errorf("GracefulShutdown() steps = %v, want %v", steps, want)
+	}
+}
+
+func TestGracefulShutdownHTTPTimeoutReservesLogBudget(t *testing.T) {
+	var (
+		mu          sync.Mutex
+		steps       []string
+		inHandler   = make(chan struct{})
+		handlerDone = make(chan struct{})
+		reqDone     = make(chan struct{})
+	)
+	record := func(step string) {
+		mu.Lock()
+		defer mu.Unlock()
+		steps = append(steps, step)
+	}
+
+	srv, url := startTestServer(t, http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		defer close(handlerDone)
+		close(inHandler)
+		<-r.Context().Done()
+		record("http_closed")
+	}))
+
+	go func() {
+		defer close(reqDone)
+		resp, err := http.Get(url)
+		if err == nil {
+			_ = resp.Body.Close()
+		}
+	}()
+	<-inHandler
+
+	GracefulShutdown(t.Context(), 400*time.Millisecond, srv, &LogHandler{cancel: func() {}, shutdown: func(ctx context.Context) error {
+		if err := ctx.Err(); err != nil {
+			t.Errorf("log shutdown received already-expired ctx after HTTP timeout: %v", err)
+		}
+		<-handlerDone
+		<-ctx.Done()
+		record("log_timeout")
+		return ctx.Err()
+	}})
+	<-reqDone
+
+	want := []string{"http_closed", "log_timeout"}
+	if !slices.Equal(steps, want) {
+		t.Errorf("GracefulShutdown() steps = %v, want %v", steps, want)
 	}
 }
