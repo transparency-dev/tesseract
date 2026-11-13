@@ -67,7 +67,9 @@ type RootsStorage interface {
 }
 
 type CTStorageOptions struct {
-	Appender            *tessera.Appender
+	Appender *tessera.Appender
+	// Shutdown is the shutdown function returned by tessera.NewAppender.
+	Shutdown            func(context.Context) error
 	Reader              tessera.LogReader
 	IssuerStorage       IssuerStorage
 	AwaiterPollInterval time.Duration
@@ -81,6 +83,7 @@ type CTStorage struct {
 	reader           tessera.LogReader
 	awaiter          *tessera.PublicationAwaiter
 	enablePubAwaiter bool
+	shutdown         func(context.Context) error
 }
 
 // NewCTStorage instantiates a CTStorage object.
@@ -96,9 +99,19 @@ func NewCTStorage(ctx context.Context, opts *CTStorageOptions) (*CTStorage, erro
 		reader:           opts.Reader,
 		awaiter:          awaiter,
 		enablePubAwaiter: opts.EnablePubAwaiter,
+		shutdown:         opts.Shutdown,
 	}
 
 	return ctStorage, nil
+}
+
+// Shutdown stops accepting new entries, and waits for accepted entries to be
+// integrated and published.
+func (cts *CTStorage) Shutdown(ctx context.Context) error {
+	if cts.shutdown == nil {
+		return nil
+	}
+	return cts.shutdown(ctx)
 }
 
 // DedupFuture returns the SCT input matching a future.

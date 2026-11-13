@@ -297,6 +297,23 @@ possible to run concurrent servers with the POSIX and Vanilla S3 + MySQL
 implementations, **but** this will depend on the underlying storage systems
 being used.
 
+#### Graceful shutdown
+
+On `SIGINT` or `SIGTERM`, TesseraCT stops accepting new connections and, within
+`shutdown_timeout` (8 seconds by default):
+
+1. waits for in-flight HTTP requests to finish, for at most half of
+   `shutdown_timeout`, then closes the connections that are left;
+2. waits for the entries this instance has accepted to be integrated, committed
+   to by a published checkpoint, and processed by antispam;
+3. stops its background tasks.
+
+Set `shutdown_timeout` below the grace period your platform allows before it
+kills the process: for instance, `docker stop` and Cloud Run both allow 10
+seconds by default. Requests which take longer than half of `shutdown_timeout`
+to complete, which `http_deadline` (10 seconds by default) allows, will be
+interrupted.
+
 #### Running multiple logs
 
 To run multiple logs, run multiple TesseraCT instances configured with different

@@ -240,6 +240,13 @@ type LogHandlerOpts struct {
 	MaxCertChainBytes int64
 }
 
+// LogHandler serves a log's submission APIs, and shuts the log down.
+type LogHandler struct {
+	http.Handler
+	shutdown func(context.Context) error
+	cancel   context.CancelFunc
+}
+
 // NewLogHandler creates a Tessera based CT log plugged into HTTP handlers.
 //
 // HTTP server handlers implement static-ct-api submission APIs:
@@ -249,13 +256,19 @@ type LogHandlerOpts struct {
 // be served independently, either through the storage's system serving
 // infrastructure directly (GCS over HTTPS for instance), or with an
 // independent serving stack of your choice.
-func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (http.Handler, error) {
+//
+// ctx must stay live until the returned LogHandler has been shut down.
+func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg ChainValidationConfig, cs storage.CreateStorage, httpDeadline time.Duration, maskInternalErrors bool, pathPrefix string, opts LogHandlerOpts) (*LogHandler, error) {
+	ctx, cancel := context.WithCancel(ctx)
+
 	cv, err := newChainValidator(ctx, cfg)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("newCertValidationOpts(): %v", err)
 	}
 	log, err := ct.NewLog(ctx, origin, signer, cv, cs, sysTimeSource)
 	if err != nil {
+		cancel()
 		return nil, fmt.Errorf("newLog(): %v", err)
 	}
 
@@ -285,5 +298,37 @@ func NewLogHandler(ctx context.Context, origin string, signer crypto.Signer, cfg
 		_, _ = fmt.Fprint(resp, "ok")
 	})
 
-	return mux, nil
+	return &LogHandler{Handler: mux, shutdown: log.Shutdown, cancel: cancel}, nil
+}
+
+// Shutdown drains the log's storage, then stops background tasks.
+func (h *LogHandler) Shutdown(ctx context.Context) error {
+	defer h.cancel()
+	return h.shutdown(ctx)
+}
+
+// GracefulShutdown drains in-flight HTTP requests, then the log, within timeout.
+// The HTTP drain gets at most half of timeout.
+// ctx must not be cancelled by the termination signal.
+func GracefulShutdown(ctx context.Context, timeout time.Duration, srv *http.Server, h *LogHandler) {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	httpCtx, cancelHTTP := context.WithTimeout(ctx, timeout/2)
+	defer cancelHTTP()
+
+	slog.InfoContext(ctx, "Shutting down HTTP server...")
+	if err := srv.Shutdown(httpCtx); err != nil {
+		slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
+		if closeErr := srv.Close(); closeErr != nil {
+			slog.ErrorContext(ctx, "srv.Close()", slog.Any("error", closeErr))
+		}
+	}
+	slog.InfoContext(ctx, "HTTP server shutdown")
+
+	slog.InfoContext(ctx, "Shutting down log...")
+	if err := h.Shutdown(ctx); err != nil {
+		slog.ErrorContext(ctx, "log shutdown", slog.Any("error", err))
+	}
+	slog.InfoContext(ctx, "Log shutdown")
 }
