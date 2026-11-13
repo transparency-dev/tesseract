@@ -155,6 +155,11 @@ run "valid_num_vms" {
   variables {
     num_vms = 4
   }
+
+  assert {
+    condition     = google_compute_region_instance_group_manager.instance_group_manager.target_size == 4
+    error_message = "Expected target_size to be 4."
+  }
 }
 
 run "valid_num_vms_zero" {
@@ -162,6 +167,11 @@ run "valid_num_vms_zero" {
 
   variables {
     num_vms = 0
+  }
+
+  assert {
+    condition     = google_compute_region_instance_group_manager.instance_group_manager.target_size == 0
+    error_message = "Expected target_size to be 0."
   }
 }
 
