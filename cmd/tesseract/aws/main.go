@@ -85,6 +85,7 @@ var (
 
 	// Performance flags
 	httpDeadline                = flag.Duration("http_deadline", time.Second*10, "Deadline for HTTP requests.")
+	shutdownTimeout             = flag.Duration("shutdown_timeout", 8*time.Second, "Maximum time to drain HTTP requests and the Tessera appender on SIGINT/SIGTERM. Set below the platform's SIGKILL grace period.")
 	maxCertChainBytes           = flag.Int64("max_cert_chain_bytes", 512<<10, "Maximum size of certificate chain in bytes for add-chain and add-pre-chain endpoints (default: 512 KiB)")
 	inMemoryAntispamCacheSize   = flag.String("inmemory_antispam_cache_size", "256k", "Maximum number of entries to keep in the in-memory antispam cache. Unitless with SI metric prefixes, such as '256k'.")
 	checkpointInterval          = flag.Duration("checkpoint_interval", 1500*time.Millisecond, "Interval between publishing checkpoints when the log has grown")
@@ -203,22 +204,14 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	shutdownWG.Add(1)
 	go awaitSignal(func() {
 		defer shutdownWG.Done()
-		// Allow 60s for any pending requests to finish then terminate any stragglers
-		// TODO(phboneff): maybe wait for the sequencer queue to be empty?
-		ctx, cancel := context.WithTimeout(context.Background(), time.Second*60)
-		defer cancel()
-		slog.InfoContext(ctx, "Shutting down HTTP server...")
-		if err := srv.Shutdown(ctx); err != nil {
-			slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
-		}
-		slog.InfoContext(ctx, "HTTP server shutdown")
+		tesseract.GracefulShutdown(ctx, *shutdownTimeout, &srv, logHandler)
 	})
 
 	if err := srv.ListenAndServe(); err != http.ErrServerClosed {
 		slog.WarnContext(ctx, "Server exited", slog.Any("error", err))
 	}
 	// Wait will only block if the function passed to awaitSignal was called,
-	// in which case it'll block until the HTTP server has gracefully shutdown
+	// in which case it'll block until the HTTP server and the log have shut down.
 	shutdownWG.Wait()
 }
 
@@ -287,7 +280,7 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 			opts.WithWitnessPolicy(wPol, wOpts)
 		}
 
-		appender, _, reader, err := tessera.NewAppender(ctx, driver, opts)
+		appender, shutdown, reader, err := tessera.NewAppender(ctx, driver, opts)
 		if err != nil {
 			return nil, fmt.Errorf("failed to initialize AWS Tessera storage: %v", err)
 		}
@@ -303,6 +296,7 @@ func newAWSStorageFunc(awsCfg taws.Config) func(ctx context.Context, signer note
 
 		sopts := storage.CTStorageOptions{
 			Appender:            appender,
+			Shutdown:            shutdown,
 			Reader:              reader,
 			IssuerStorage:       issuerStorage,
 			AwaiterPollInterval: *awaiterPollInterval,
