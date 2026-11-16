@@ -317,18 +317,18 @@ func GracefulShutdown(ctx context.Context, timeout time.Duration, srv *http.Serv
 	httpCtx, cancelHTTP := context.WithTimeout(ctx, timeout/2)
 	defer cancelHTTP()
 
-	slog.InfoContext(ctx, "Shutting down HTTP server...")
+	slog.InfoContext(ctx, "HTTP server shutdown: starting...")
 	if err := srv.Shutdown(httpCtx); err != nil {
 		slog.ErrorContext(ctx, "srv.Shutdown()", slog.Any("error", err))
 		if closeErr := srv.Close(); closeErr != nil {
 			slog.ErrorContext(ctx, "srv.Close()", slog.Any("error", closeErr))
 		}
 	}
-	slog.InfoContext(ctx, "HTTP server shutdown")
+	slog.InfoContext(ctx, "HTTP server shutdown: done")
 
-	slog.InfoContext(ctx, "Shutting down log...")
+	slog.InfoContext(ctx, "TesseraCT log shutdown: starting...")
 	if err := h.Shutdown(ctx); err != nil {
-		slog.ErrorContext(ctx, "log shutdown", slog.Any("error", err))
+		slog.ErrorContext(ctx, "TesseraCT log shutdown", slog.Any("error", err))
 	}
-	slog.InfoContext(ctx, "Log shutdown")
+	slog.InfoContext(ctx, "TesseraCT log shutdown: done")
 }
