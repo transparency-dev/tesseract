@@ -24,7 +24,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -836,25 +835,86 @@ func (s *statusRecordingRequestLog) status(_ context.Context, code int) {
 	s.statuses = append(s.statuses, code)
 }
 
-// TestAddChainClientClosedConnection checks that requests which fail because
-// the client closed the connection while TesseraCT was waiting for the entry
-// to be integrated are reported as 499s, not as 500s.
-func TestAddChainClientClosedConnection(t *testing.T) {
+// TestHandlersRecordStatus checks that the status code recorded in the
+// request log and metrics is the one sent to the client, on every code path.
+func TestHandlersRecordStatus(t *testing.T) {
+	chain := []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM}
+	preChain := []string{testdata.PrecertPEMValid, testdata.CACertPEM}
+
 	for _, test := range []struct {
-		descr     string
-		path      string
-		chain     []string
-		isPrecert bool
+		descr  string
+		method string
+		path   string
+		chain  []string
+		// deadline overrides the default handler deadline, if set.
+		deadline time.Duration
+		// clientClosed simulates a client which has gone away: net/http cancels
+		// the request context when the client connection is closed.
+		clientClosed bool
+		// handler overrides the real handler, if set.
+		handler func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error)
+		want    int
 	}{
 		{
-			descr: "add-chain",
-			path:  rfc6962.AddChainPath,
-			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+			descr:  "add-chain-ok",
+			method: http.MethodPost,
+			path:   rfc6962.AddChainPath,
+			chain:  chain,
+			want:   http.StatusOK,
 		},
 		{
-			descr: "add-pre-chain",
-			path:  rfc6962.AddPreChainPath,
-			chain: []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+			descr:  "add-pre-chain-ok",
+			method: http.MethodPost,
+			path:   rfc6962.AddPreChainPath,
+			chain:  preChain,
+			want:   http.StatusOK,
+		},
+		{
+			descr:  "wrong-method",
+			method: http.MethodGet,
+			path:   rfc6962.AddChainPath,
+			want:   http.StatusMethodNotAllowed,
+		},
+		{
+			descr:  "wrong-entry-type",
+			method: http.MethodPost,
+			path:   rfc6962.AddPreChainPath,
+			chain:  []string{testdata.TestCertPEM},
+			want:   http.StatusBadRequest,
+		},
+		{
+			descr:        "add-chain-client-closed",
+			method:       http.MethodPost,
+			path:         rfc6962.AddChainPath,
+			chain:        chain,
+			clientClosed: true,
+			want:         ClientClosedRequestStatus,
+		},
+		{
+			descr:        "add-pre-chain-client-closed",
+			method:       http.MethodPost,
+			path:         rfc6962.AddPreChainPath,
+			chain:        preChain,
+			clientClosed: true,
+			want:         ClientClosedRequestStatus,
+		},
+		{
+			descr:    "server-deadline",
+			method:   http.MethodPost,
+			path:     rfc6962.AddChainPath,
+			chain:    chain,
+			deadline: 10 * time.Millisecond,
+			want:     http.StatusInternalServerError,
+		},
+		{
+			// No real handler does this: it guards against misbehaving handlers.
+			descr:  "non-200-without-error",
+			method: http.MethodPost,
+			path:   rfc6962.AddChainPath,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusTeapot, nil, nil
+			},
+			want: http.StatusInternalServerError,
 		},
 	} {
 		t.Run(test.descr, func(t *testing.T) {
@@ -862,119 +922,35 @@ func TestAddChainClientClosedConnection(t *testing.T) {
 			rl := &statusRecordingRequestLog{}
 			opts := hOpts()
 			opts.RequestLog = rl
-			handlers := NewPathHandlers(t.Context(), opts, log)
-			handler, ok := handlers[path.Join(prefix, test.path)]
+			if test.deadline != 0 {
+				opts.Deadline = test.deadline
+			}
+			handler, ok := NewPathHandlers(t.Context(), opts, log)[path.Join(prefix, test.path)]
 			if !ok {
 				t.Fatalf("Handler not found: %s", test.path)
 			}
-
-			pool := loadCertsIntoPoolOrDie(t, test.chain)
-			chain := createJSONChain(t, pool)
-
-			// Simulate a client which has gone away: net/http cancels the request
-			// context when the client connection is closed.
-			ctx, cancel := context.WithCancel(t.Context())
-			cancel()
-			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "http://"+origin+test.path, chain)
-			w := httptest.NewRecorder()
-			handler.ServeHTTP(w, req)
-
-			if got, want := w.Code, ClientClosedRequestStatus; got != want {
-				t.Errorf("ServeHTTP() status=%d, want %d, body: %q", got, want, w.Body.String())
+			if test.handler != nil {
+				handler.handler = test.handler
 			}
-			if diff := cmp.Diff([]int{ClientClosedRequestStatus}, rl.statuses); diff != "" {
-				t.Errorf("RequestLog status mismatch (-want +got):\n%s", diff)
+
+			var body io.Reader
+			if test.chain != nil {
+				body = createJSONChain(t, loadCertsIntoPoolOrDie(t, test.chain))
 			}
-		})
-	}
-}
-
-// TestServeHTTPRecordsFinalStatus checks that the status code recorded in the
-// request log and metrics is the one sent to the client, on every code path.
-func TestServeHTTPRecordsFinalStatus(t *testing.T) {
-	for _, test := range []struct {
-		descr        string
-		method       string
-		handler      func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error)
-		clientClosed bool
-		want         int
-	}{
-		{
-			descr:  "ok",
-			method: http.MethodPost,
-			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
-				return http.StatusOK, nil, nil
-			},
-			want: http.StatusOK,
-		},
-		{
-			descr:  "wrong-method",
-			method: http.MethodGet,
-			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
-				t.Error("handler should not be called")
-				return http.StatusOK, nil, nil
-			},
-			want: http.StatusMethodNotAllowed,
-		},
-		{
-			descr:  "handler-error",
-			method: http.MethodPost,
-			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
-				return http.StatusBadRequest, nil, errors.New("bad request")
-			},
-			want: http.StatusBadRequest,
-		},
-		{
-			descr:  "non-200-without-error",
-			method: http.MethodPost,
-			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
-				return http.StatusTeapot, nil, nil
-			},
-			want: http.StatusInternalServerError,
-		},
-		{
-			descr:  "client-closed",
-			method: http.MethodPost,
-			handler: func(ctx context.Context, _ *HandlerOptions, _ *log, _ http.ResponseWriter, _ *http.Request) (int, []attribute.KeyValue, error) {
-				return http.StatusInternalServerError, nil, fmt.Errorf("waiting: %w", ctx.Err())
-			},
-			clientClosed: true,
-			want:         ClientClosedRequestStatus,
-		},
-		{
-			descr:  "server-deadline",
-			method: http.MethodPost,
-			handler: func(ctx context.Context, _ *HandlerOptions, _ *log, _ http.ResponseWriter, _ *http.Request) (int, []attribute.KeyValue, error) {
-				<-ctx.Done()
-				return http.StatusInternalServerError, nil, fmt.Errorf("waiting: %w", ctx.Err())
-			},
-			want: http.StatusInternalServerError,
-		},
-	} {
-		t.Run(test.descr, func(t *testing.T) {
-			rl := &statusRecordingRequestLog{}
-			opts := hOpts()
-			opts.RequestLog = rl
-			opts.Deadline = 10 * time.Millisecond
-			op := "test-" + test.descr
-			// Metrics are initialized by NewPathHandlers.
-			NewPathHandlers(t.Context(), opts, &log{origin: origin})
-			h := appHandler{opts: opts, log: &log{origin: origin}, handler: test.handler, name: entrypointName(op), method: http.MethodPost}
-
 			ctx, cancel := context.WithCancel(t.Context())
 			defer cancel()
 			if test.clientClosed {
 				cancel()
 			}
-			req := httptest.NewRequestWithContext(ctx, test.method, "http://"+origin+"/test", nil)
+			req := httptest.NewRequestWithContext(ctx, test.method, "http://"+origin+test.path, body)
 			w := httptest.NewRecorder()
 
-			rspBefore, durBefore := httpMetricCounts(t, op, test.want)
-			h.ServeHTTP(w, req)
-			rspAfter, durAfter := httpMetricCounts(t, op, test.want)
+			rspBefore, durBefore := httpMetricCounts(t, handler.name, test.want)
+			handler.ServeHTTP(w, req)
+			rspAfter, durAfter := httpMetricCounts(t, handler.name, test.want)
 
 			if got := w.Code; got != test.want {
-				t.Errorf("ServeHTTP() status=%d, want %d", got, test.want)
+				t.Errorf("ServeHTTP() status=%d, want %d, body: %q", got, test.want, w.Body.String())
 			}
 			if diff := cmp.Diff([]int{test.want}, rl.statuses); diff != "" {
 				t.Errorf("RequestLog status mismatch (-want +got):\n%s", diff)
