@@ -24,6 +24,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -47,6 +48,10 @@ import (
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/posix"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/mod/sumdb/note"
 )
 
@@ -68,6 +73,51 @@ var (
 	logDir           = "log"
 	maxCertChainSize = int64(512 << 10) // 512 KiB
 )
+
+// metricReader collects the metrics recorded by this package in tests.
+var metricReader = sdkmetric.NewManualReader()
+
+func TestMain(m *testing.M) {
+	// Instruments are created from the global MeterProvider at init time, and
+	// delegate to whichever MeterProvider is set first.
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader)))
+	os.Exit(m.Run())
+}
+
+// httpMetricCounts returns the current number of responses recorded in the
+// response counter and the request duration histogram for an operation and
+// status code.
+func httpMetricCounts(t *testing.T, op string, code int) (rsp, duration int64) {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	if err := metricReader.Collect(t.Context(), &rm); err != nil {
+		t.Fatalf("Collect(): %v", err)
+	}
+	match := func(set attribute.Set) bool {
+		gotOp, _ := set.Value(operationKey)
+		gotCode, _ := set.Value(codeKey)
+		return gotOp.AsString() == op && gotCode.AsInt64() == int64(code)
+	}
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			switch m.Name {
+			case "tesseract.http.response.count":
+				for _, dp := range m.Data.(metricdata.Sum[int64]).DataPoints {
+					if match(dp.Attributes) {
+						rsp += dp.Value
+					}
+				}
+			case "tesseract.http.request.duration":
+				for _, dp := range m.Data.(metricdata.Histogram[float64]).DataPoints {
+					if match(dp.Attributes) {
+						duration += int64(dp.Count)
+					}
+				}
+			}
+		}
+	}
+	return rsp, duration
+}
 
 func hOpts() *HandlerOptions {
 	return &HandlerOptions{
@@ -109,6 +159,13 @@ func (f *fixedTimeSource) Add1m() {
 // It returns the log and the path to the storage directory.
 func setupTestLog(t *testing.T) (*log, string) {
 	t.Helper()
+	return setupTestLogWithPubAwaiter(t, false)
+}
+
+// setupTestLogWithPubAwaiter is like setupTestLog, but allows enabling the
+// publication awaiter.
+func setupTestLogWithPubAwaiter(t *testing.T, enablePubAwaiter bool) (*log, string) {
+	t.Helper()
 	storageDir := t.TempDir()
 
 	sctSigner, err := setupSCTSigner(fakeSignature)
@@ -130,7 +187,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), timeSource)
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir, enablePubAwaiter), timeSource)
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -157,7 +214,7 @@ func setupTestServer(t *testing.T, log *log, path string, hOpts *HandlerOptions)
 //   - a POSIX issuer storage system
 //
 // It also prepares directories to host the log and the deduplication database.
-func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
+func newPOSIXStorageFunc(t *testing.T, root string, enablePubAwaiter bool) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
@@ -196,7 +253,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			Reader:              reader,
 			IssuerStorage:       issuerStorage,
 			AwaiterPollInterval: 20 * time.Millisecond,
-			EnablePubAwaiter:    false,
+			EnablePubAwaiter:    enablePubAwaiter,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
@@ -764,6 +821,169 @@ func TestAddPreChain(t *testing.T) {
 
 				// TODO(phbnf): check inclusion proof
 				// TODO(phboneff): add a test with a backend write failure
+			}
+		})
+	}
+}
+
+// statusRecordingRequestLog records the status codes passed to the request log.
+type statusRecordingRequestLog struct {
+	DefaultRequestLog
+	statuses []int
+}
+
+func (s *statusRecordingRequestLog) status(_ context.Context, code int) {
+	s.statuses = append(s.statuses, code)
+}
+
+// TestAddChainClientClosedConnection checks that requests which fail because
+// the client closed the connection while TesseraCT was waiting for the entry
+// to be integrated are reported as 499s, not as 500s.
+func TestAddChainClientClosedConnection(t *testing.T) {
+	for _, test := range []struct {
+		descr     string
+		path      string
+		chain     []string
+		isPrecert bool
+	}{
+		{
+			descr: "add-chain",
+			path:  rfc6962.AddChainPath,
+			chain: []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM},
+		},
+		{
+			descr: "add-pre-chain",
+			path:  rfc6962.AddPreChainPath,
+			chain: []string{testdata.PrecertPEMValid, testdata.CACertPEM},
+		},
+	} {
+		t.Run(test.descr, func(t *testing.T) {
+			log, _ := setupTestLogWithPubAwaiter(t, true)
+			rl := &statusRecordingRequestLog{}
+			opts := hOpts()
+			opts.RequestLog = rl
+			handlers := NewPathHandlers(t.Context(), opts, log)
+			handler, ok := handlers[path.Join(prefix, test.path)]
+			if !ok {
+				t.Fatalf("Handler not found: %s", test.path)
+			}
+
+			pool := loadCertsIntoPoolOrDie(t, test.chain)
+			chain := createJSONChain(t, pool)
+
+			// Simulate a client which has gone away: net/http cancels the request
+			// context when the client connection is closed.
+			ctx, cancel := context.WithCancel(t.Context())
+			cancel()
+			req := httptest.NewRequestWithContext(ctx, http.MethodPost, "http://"+origin+test.path, chain)
+			w := httptest.NewRecorder()
+			handler.ServeHTTP(w, req)
+
+			if got, want := w.Code, ClientClosedRequestStatus; got != want {
+				t.Errorf("ServeHTTP() status=%d, want %d, body: %q", got, want, w.Body.String())
+			}
+			if diff := cmp.Diff([]int{ClientClosedRequestStatus}, rl.statuses); diff != "" {
+				t.Errorf("RequestLog status mismatch (-want +got):\n%s", diff)
+			}
+		})
+	}
+}
+
+// TestServeHTTPRecordsFinalStatus checks that the status code recorded in the
+// request log and metrics is the one sent to the client, on every code path.
+func TestServeHTTPRecordsFinalStatus(t *testing.T) {
+	for _, test := range []struct {
+		descr        string
+		method       string
+		handler      func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error)
+		clientClosed bool
+		want         int
+	}{
+		{
+			descr:  "ok",
+			method: http.MethodPost,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusOK, nil, nil
+			},
+			want: http.StatusOK,
+		},
+		{
+			descr:  "wrong-method",
+			method: http.MethodGet,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				t.Error("handler should not be called")
+				return http.StatusOK, nil, nil
+			},
+			want: http.StatusMethodNotAllowed,
+		},
+		{
+			descr:  "handler-error",
+			method: http.MethodPost,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusBadRequest, nil, errors.New("bad request")
+			},
+			want: http.StatusBadRequest,
+		},
+		{
+			descr:  "non-200-without-error",
+			method: http.MethodPost,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusTeapot, nil, nil
+			},
+			want: http.StatusInternalServerError,
+		},
+		{
+			descr:  "client-closed",
+			method: http.MethodPost,
+			handler: func(ctx context.Context, _ *HandlerOptions, _ *log, _ http.ResponseWriter, _ *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusInternalServerError, nil, fmt.Errorf("waiting: %w", ctx.Err())
+			},
+			clientClosed: true,
+			want:         ClientClosedRequestStatus,
+		},
+		{
+			descr:  "server-deadline",
+			method: http.MethodPost,
+			handler: func(ctx context.Context, _ *HandlerOptions, _ *log, _ http.ResponseWriter, _ *http.Request) (int, []attribute.KeyValue, error) {
+				<-ctx.Done()
+				return http.StatusInternalServerError, nil, fmt.Errorf("waiting: %w", ctx.Err())
+			},
+			want: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(test.descr, func(t *testing.T) {
+			rl := &statusRecordingRequestLog{}
+			opts := hOpts()
+			opts.RequestLog = rl
+			opts.Deadline = 10 * time.Millisecond
+			op := "test-" + test.descr
+			// Metrics are initialized by NewPathHandlers.
+			NewPathHandlers(t.Context(), opts, &log{origin: origin})
+			h := appHandler{opts: opts, log: &log{origin: origin}, handler: test.handler, name: entrypointName(op), method: http.MethodPost}
+
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if test.clientClosed {
+				cancel()
+			}
+			req := httptest.NewRequestWithContext(ctx, test.method, "http://"+origin+"/test", nil)
+			w := httptest.NewRecorder()
+
+			rspBefore, durBefore := httpMetricCounts(t, op, test.want)
+			h.ServeHTTP(w, req)
+			rspAfter, durAfter := httpMetricCounts(t, op, test.want)
+
+			if got := w.Code; got != test.want {
+				t.Errorf("ServeHTTP() status=%d, want %d", got, test.want)
+			}
+			if diff := cmp.Diff([]int{test.want}, rl.statuses); diff != "" {
+				t.Errorf("RequestLog status mismatch (-want +got):\n%s", diff)
+			}
+			if got := rspAfter - rspBefore; got != 1 {
+				t.Errorf("response counter with code %d increased by %d, want 1", test.want, got)
+			}
+			if got := durAfter - durBefore; got != 1 {
+				t.Errorf("request duration with code %d recorded %d times, want 1", test.want, got)
 			}
 		})
 	}
