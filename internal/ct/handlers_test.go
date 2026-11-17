@@ -156,14 +156,7 @@ func (f *fixedTimeSource) Add1m() {
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
 //
 // It returns the log and the path to the storage directory.
-func setupTestLog(t *testing.T) (*log, string) {
-	t.Helper()
-	return setupTestLogWithPubAwaiter(t, false)
-}
-
-// setupTestLogWithPubAwaiter is like setupTestLog, but allows enabling the
-// publication awaiter.
-func setupTestLogWithPubAwaiter(t *testing.T, enablePubAwaiter bool) (*log, string) {
+func setupTestLog(t *testing.T, enablePubAwaiter bool) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
 
@@ -293,7 +286,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the post handler list should reject GET
@@ -314,7 +307,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the get handler list should reject POST.
@@ -348,7 +341,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"too-large-body", fmt.Sprintf(`{ "chain": [ "%s" ] }`, strings.Repeat("A", int(maxCertChainSize+1))), http.StatusRequestEntityTooLarge},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	for path, handler := range postHandlers(t, handlers) {
@@ -374,7 +367,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(t.Context(), &HandlerOptions{PathPrefix: prefix}, log)
 		// Check each entrypoint has a handler
@@ -425,7 +418,7 @@ func mustParseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.
 }
 
 func TestGetRoots(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath), hOpts())
 	defer server.Close()
 
@@ -515,7 +508,7 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 
@@ -585,7 +578,7 @@ func TestAddChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
@@ -732,7 +725,7 @@ func TestAddPreChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
@@ -918,7 +911,7 @@ func TestHandlersRecordStatus(t *testing.T) {
 		},
 	} {
 		t.Run(test.descr, func(t *testing.T) {
-			log, _ := setupTestLogWithPubAwaiter(t, true)
+			log, _ := setupTestLog(t, true)
 			rl := &statusRecordingRequestLog{}
 			opts := hOpts()
 			opts.RequestLog = rl
@@ -1003,7 +996,7 @@ func TestMaxDedupInFlight(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
-			log, _ := setupTestLog(t)
+			log, _ := setupTestLog(t, false)
 			hhOpts := hOpts()
 			hhOpts.RateLimits.Dedup(test.maxRate)
 			server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
