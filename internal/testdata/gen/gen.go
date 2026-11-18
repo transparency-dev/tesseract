@@ -309,10 +309,9 @@ func intermediateCACert(rootCACert *x509.Certificate, rootPrivKey, privKey *ecds
 	}
 
 	if preIntermediate {
-		preIssuerExtension := pkix.Extension{
-			Id: preIssuerEKUOID,
-		}
-		template.ExtraExtensions = append(template.ExtraExtensions, preIssuerExtension)
+		// RFC 6962 Section 3.1: Precertificate Signing Certificates MUST carry
+		// the Certificate Transparency Extended Key Usage.
+		template.UnknownExtKeyUsage = []asn1.ObjectIdentifier{preIssuerEKUOID}
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &template, rootCACert, privKey.Public(), rootPrivKey)
