@@ -440,6 +440,19 @@ func TestIsPreIssuer(t *testing.T) {
 		rfc6962.OIDExtKeyUsageCertificateTransparency,
 	})
 
+	preIntermediateCert, err := CertificateFromPEM([]byte(testdata.PreIntermediateFromRoot))
+	if err != nil {
+		t.Fatalf("CertificateFromPEM(PreIntermediateFromRoot): %v", err)
+	}
+	intermediateCert, err := CertificateFromPEM([]byte(testdata.IntermediateFromRoot))
+	if err != nil {
+		t.Fatalf("CertificateFromPEM(IntermediateFromRoot): %v", err)
+	}
+	rootCert, err := CertificateFromPEM([]byte(testdata.CACertPEM))
+	if err != nil {
+		t.Fatalf("CertificateFromPEM(CACertPEM): %v", err)
+	}
+
 	tests := []struct {
 		name string
 		cert *x509.Certificate
@@ -531,6 +544,21 @@ func TestIsPreIssuer(t *testing.T) {
 				BasicConstraintsValid: true,
 				ExtraExtensions:       []pkix.Extension{preIssuerEKUExt},
 			}, issuerCert),
+			want: false,
+		},
+		{
+			name: "testdata-pre-intermediate",
+			cert: preIntermediateCert,
+			want: true,
+		},
+		{
+			name: "testdata-intermediate",
+			cert: intermediateCert,
+			want: false,
+		},
+		{
+			name: "testdata-root",
+			cert: rootCert,
 			want: false,
 		},
 	}

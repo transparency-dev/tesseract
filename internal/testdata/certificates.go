@@ -198,35 +198,36 @@ var TestCertPEM string
 //	    Public Key Algorithm: id-ecPublicKey
 //	        Public-Key: (384 bit)
 //	        pub:
-//	            04:3d:e3:59:7a:d0:8b:55:a7:96:30:88:6e:ba:2c:
-//	            60:d5:30:38:b3:e9:da:62:19:c0:1f:b5:12:c2:fe:
-//	            77:59:77:30:47:e3:e1:36:02:9b:5c:9c:7e:65:aa:
-//	            56:76:91:02:0f:d8:64:aa:40:41:5e:19:fa:b2:39:
-//	            de:13:a6:ee:1b:96:34:91:67:36:7e:7c:2f:cc:8e:
-//	            c0:7f:e9:fb:b6:fa:d9:f9:1f:ed:3c:18:59:4d:a0:
-//	            ab:ee:11:e3:f0:2c:87
+//	            04:4a:8a:94:ad:9d:c8:b8:3c:5f:85:bb:17:26:8d:
+//	            e1:6c:d3:7a:cc:58:17:6f:0b:ab:15:57:09:d4:77:
+//	            48:c2:1e:db:76:da:78:7f:27:c9:07:00:37:2e:42:
+//	            43:f7:1c:21:bd:ef:29:ef:29:77:d6:69:2c:3c:a5:
+//	            2f:fc:6b:f3:d0:fb:82:ae:40:47:81:db:88:a6:ee:
+//	            d6:64:e5:88:a4:ae:54:53:62:db:1d:8d:35:1c:55:
+//	            b0:3c:99:25:83:a4:a0
 //	        ASN1 OID: secp384r1
 //	        NIST CURVE: P-384
 //	X509v3 extensions:
 //	    X509v3 Key Usage: critical
 //	        Certificate Sign, CRL Sign
+//	    X509v3 Extended Key Usage:
+//	        CT Precertificate Signer
 //	    X509v3 Basic Constraints: critical
 //	        CA:TRUE
 //	    X509v3 Subject Key Identifier:
-//	        1F:FE:3D:85:AC:F5:38:C7:90:1C:6C:EA:E7:5F:45:74:83:CC:95:39
+//	        E7:F4:D6:1B:24:21:B0:D3:0A:8E:ED:02:DE:A7:04:7A:06:B1:B2:36
 //	    X509v3 Authority Key Identifier:
 //	        77:1D:7C:21:61:2D:C2:05:7D:AA:30:1E:6B:7F:8F:9B:DC:61:20:68
-//	    CT Precertificate Signer:
 //
 // Signature Algorithm: ecdsa-with-SHA384
 // Signature Value:
 //
-//	30:66:02:31:00:a1:62:a6:36:99:62:27:f4:e7:8b:9b:5e:ff:
-//	80:4c:75:39:04:cc:80:d7:64:12:09:e8:80:e6:10:af:24:81:
-//	2a:59:17:7a:58:da:6f:ca:f3:46:d3:5b:5c:e6:e1:dd:9c:02:
-//	31:00:dd:c8:3a:b9:5d:9c:08:3c:27:73:11:17:fe:7a:82:98:
-//	79:f8:a3:e3:16:54:c5:9f:79:d7:4f:1a:e2:55:48:d1:87:f2:
-//	ab:2f:ad:81:dd:6e:b9:fc:59:77:37:6e:6e:75
+//	30:64:02:30:38:7f:1e:e9:b0:74:d7:cb:87:b5:41:a7:38:c3:
+//	6e:e0:0a:47:e2:4e:0a:9f:75:5b:e1:73:ff:cc:07:a5:de:21:
+//	dd:96:35:76:ac:a2:10:45:59:ef:a4:91:b3:c5:0a:8e:02:30:
+//	61:49:28:31:29:ad:c1:d2:d3:ae:93:43:fe:4c:54:9b:0d:c6:
+//	52:04:67:70:ef:7e:d5:93:ef:d4:50:6b:9e:21:b0:8f:1e:99:
+//	18:67:6b:a2:dd:37:35:25:23:22:cb:51
 //
 //go:embed test_pre_intermediate_ca_cert.pem
 var PreIntermediateFromRoot string
@@ -249,13 +250,13 @@ var PreIntermediateFromRoot string
 //	    Public Key Algorithm: id-ecPublicKey
 //	        Public-Key: (384 bit)
 //	        pub:
-//	            04:46:10:60:6d:e5:70:0d:fa:8f:ea:8c:70:40:6e:
-//	            eb:dd:15:88:8a:6e:94:54:ac:f7:92:77:53:68:65:
-//	            c1:55:d4:c0:92:2e:b4:08:d9:07:50:d3:12:f4:fb:
-//	            56:08:ff:38:32:41:35:6e:53:12:af:57:88:39:68:
-//	            81:e0:1b:4c:82:4a:de:ac:52:d4:46:a7:a2:55:73:
-//	            78:7a:fd:98:0f:bb:88:5b:bc:f6:7b:9a:77:49:11:
-//	            ec:e6:1b:f3:c3:76:4a
+//	            04:e3:07:db:85:7c:b0:f8:af:e7:0f:b5:8b:b1:9a:
+//	            c3:f8:30:5d:83:a0:b9:12:0f:09:c8:e2:6b:db:e0:
+//	            ec:98:11:3a:fe:8c:6d:5d:73:a9:aa:37:48:30:c0:
+//	            65:b5:1f:a5:95:61:af:18:06:7e:a6:66:50:dd:16:
+//	            e3:3e:0f:71:25:23:7a:17:19:cf:aa:0e:1c:c5:74:
+//	            a7:e6:79:bc:67:bf:56:44:69:63:c1:23:3e:28:2a:
+//	            5a:c7:f1:a3:a1:ef:04
 //	        ASN1 OID: secp384r1
 //	        NIST CURVE: P-384
 //	X509v3 extensions:
@@ -266,7 +267,7 @@ var PreIntermediateFromRoot string
 //	    X509v3 Basic Constraints: critical
 //	        CA:FALSE
 //	    X509v3 Authority Key Identifier:
-//	        1F:FE:3D:85:AC:F5:38:C7:90:1C:6C:EA:E7:5F:45:74:83:CC:95:39
+//	        E7:F4:D6:1B:24:21:B0:D3:0A:8E:ED:02:DE:A7:04:7A:06:B1:B2:36
 //	    X509v3 Subject Alternative Name:
 //	        DNS:test.transparency.dev
 //	    CT Precertificate Poison: critical
@@ -275,12 +276,12 @@ var PreIntermediateFromRoot string
 // Signature Algorithm: ecdsa-with-SHA384
 // Signature Value:
 //
-//	30:66:02:31:00:af:dc:05:cf:bc:09:c1:d1:a4:26:3f:29:87:
-//	87:ba:c9:e9:4c:d3:a6:06:c3:7c:64:0f:11:fe:d2:02:5c:50:
-//	3c:bf:5a:9f:b7:8f:d9:df:44:0e:15:08:27:90:b3:8c:57:02:
-//	31:00:ea:02:f2:78:e5:99:2d:9a:26:af:c5:49:da:42:9f:71:
-//	63:12:db:6d:85:55:43:d2:26:66:fd:5d:81:71:13:50:2d:69:
-//	cf:76:d7:05:3e:d6:04:3c:39:e7:20:7a:21:c2
+//	30:64:02:30:51:36:33:0f:cf:2c:08:7e:47:bb:7d:28:66:34:
+//	97:42:b6:39:8b:9a:84:0d:22:ba:6d:91:24:bc:51:59:2f:d2:
+//	57:ea:ba:c3:5d:ce:cf:f6:7b:ea:63:b4:45:f7:09:2b:02:30:
+//	04:0b:9f:b0:0d:7a:30:bd:58:75:4f:f7:b2:2d:a8:57:5e:97:
+//	c1:92:94:93:27:bb:dd:c4:0c:76:4c:84:35:23:42:1a:72:00:
+//	0b:17:ec:51:b8:39:d4:e3:df:28:15:ab
 //
 //go:embed test_leaf_pre_cert_signed_by_pre_intermediate.pem
 var PreCertFromPreIntermediate string
@@ -306,13 +307,13 @@ var PreCertFromPreIntermediate string
 //   	Public Key Algorithm: id-ecPublicKey
 //   		Public-Key: (384 bit)
 //   		pub:
-//   			04:46:10:60:6d:e5:70:0d:fa:8f:ea:8c:70:40:6e:
-//   			eb:dd:15:88:8a:6e:94:54:ac:f7:92:77:53:68:65:
-//   			c1:55:d4:c0:92:2e:b4:08:d9:07:50:d3:12:f4:fb:
-//   			56:08:ff:38:32:41:35:6e:53:12:af:57:88:39:68:
-//   			81:e0:1b:4c:82:4a:de:ac:52:d4:46:a7:a2:55:73:
-//   			78:7a:fd:98:0f:bb:88:5b:bc:f6:7b:9a:77:49:11:
-//   			ec:e6:1b:f3:c3:76:4a
+//   			04:e3:07:db:85:7c:b0:f8:af:e7:0f:b5:8b:b1:9a:
+//   			c3:f8:30:5d:83:a0:b9:12:0f:09:c8:e2:6b:db:e0:
+//   			ec:98:11:3a:fe:8c:6d:5d:73:a9:aa:37:48:30:c0:
+//   			65:b5:1f:a5:95:61:af:18:06:7e:a6:66:50:dd:16:
+//   			e3:3e:0f:71:25:23:7a:17:19:cf:aa:0e:1c:c5:74:
+//   			a7:e6:79:bc:67:bf:56:44:69:63:c1:23:3e:28:2a:
+//   			5a:c7:f1:a3:a1:ef:04
 //   		ASN1 OID: secp384r1
 //   		NIST CURVE: P-384
 //   X509v3 extensions:
@@ -323,17 +324,17 @@ var PreCertFromPreIntermediate string
 //   	X509v3 Basic Constraints: critical
 //   		CA:FALSE
 //   	X509v3 Authority Key Identifier:
-//   		1F:FE:3D:85:AC:F5:38:C7:90:1C:6C:EA:E7:5F:45:74:83:CC:95:39
+//   		E7:F4:D6:1B:24:21:B0:D3:0A:8E:ED:02:DE:A7:04:7A:06:B1:B2:36
 //   	X509v3 Subject Alternative Name:
 //   		DNS:test.transparency.dev
 //   Signature Algorithm: ecdsa-with-SHA384
 //   Signature Value:
-//   30:65:02:30:35:aa:8a:19:87:15:32:a8:a1:2f:a7:46:67:cb:
-//   f5:ac:69:84:ef:2b:8d:e2:49:3f:a5:18:92:f6:e7:1d:b2:f2:
-//   91:76:99:3f:ea:f3:b7:ec:df:94:96:78:b5:54:d2:59:02:31:
-//   00:b0:11:91:9a:bb:6c:3b:f9:14:e4:1f:3e:b4:40:22:0b:46:
-//   45:2a:18:cf:7c:20:b3:a7:56:3c:f6:c2:e0:7c:47:8a:a4:fd:
-//   bf:6b:a2:48:c7:1e:4c:f8:f4:8a:df:5b:14
+//   30:64:02:30:26:02:bc:6e:07:2e:b3:7a:ac:2d:3d:dd:8b:2a:
+//   6a:4f:9a:40:08:a5:fa:33:94:79:eb:bb:8a:53:42:8e:37:9a:
+//   8b:3c:1b:cd:11:33:a9:68:9a:6d:b2:e0:6d:4f:8d:7f:02:30:
+//   47:6f:4c:6a:2c:ee:59:fd:cf:82:03:6c:87:b4:6a:bf:0d:84:
+//   eb:b1:b9:92:d9:c2:ec:9a:9b:f8:f4:f9:a3:77:c2:10:6b:4e:
+//   cf:79:36:b9:14:e4:e0:3f:cc:e5:4c:65
 
 //go:embed test_leaf_cert_signed_by_pre_intermediate.pem
 var CertFromPreIntermediate string
