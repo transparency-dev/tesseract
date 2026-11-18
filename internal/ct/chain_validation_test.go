@@ -723,7 +723,7 @@ func chainFromPEMs(t *testing.T, pems ...string) [][]byte {
 	return chain
 }
 
-// Validate a chain including a pre-issuer.
+// Chains including a Precertificate Signing Certificate are rejected.
 func TestPreIssuedCert(t *testing.T) {
 	rawChain := chainFromPEMs(t, []string{
 		testdata.PreCertFromPreIntermediate,
@@ -751,9 +751,6 @@ func TestPreIssuedCert(t *testing.T) {
 			eku:   []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
 			chain: rawChain,
 		}, {
-			// This shouldn't happen with production intermediates, but should
-			// be transparently discoverable in CT logs if it ever happens, so
-			// we allow them in.
 			desc: "pre-intermediate issues end-cert",
 			chain: chainFromPEMs(t, []string{
 				testdata.CertFromPreIntermediate,
@@ -771,8 +768,8 @@ func TestPreIssuedCert(t *testing.T) {
 				t.Fatalf("parseChain()=%v", err)
 			}
 			chain, err = cv.validate(chain)
-			if err != nil {
-				t.Fatalf("failed to chainValidate.validate: %v", err)
+			if err == nil {
+				t.Errorf("cv.validate()=nil, want error")
 			}
 			for i, c := range chain {
 				t.Logf("chain[%d] = \n%s", i, c.Subject)

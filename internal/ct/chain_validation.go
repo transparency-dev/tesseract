@@ -217,6 +217,18 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		}
 	}
 
+	// Reject chains including a Precertificate Signing Certificate, whether
+	// they're used to issue a precertificate or a final certificate.
+	//
+	// SPEC: c2sp.org/static-ct-api@v1.1.0, Submission APIs.
+	// "the log MAY reject precertificates issued using a Precertificate
+	// Signing Certificate."
+	for i, c := range chain[1:] {
+		if x509util.IsPreIssuer(c) {
+			return nil, fmt.Errorf("rejecting chain containing a Precertificate Signing Certificate at index %d", i+1)
+		}
+	}
+
 	intermediatePool, err := x509util.NewPEMCertPool(cv.rejectIntermediates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create intermediate pool: %v", err)
@@ -228,7 +240,7 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 
 	// We can now do the verification. Use lax509 with looser verification
 	// constraints to:
-	//  - allow pre-certificates and chains with pre-issuers
+	//  - allow pre-certificates
 	//  - allow certificate without policing them since this is not CT's responsibility
 	// See /internal/lax509/README.md for further information.
 	verifyOpts := lax509.VerifyOptions{

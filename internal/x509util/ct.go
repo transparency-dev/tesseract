@@ -92,98 +92,12 @@ func removeExtension(tbsData []byte, oid asn1.ObjectIdentifier) ([]byte, error) 
 	return data, nil
 }
 
-// BuildPrecertTBS builds a Certificate Transparency pre-certificate (RFC 6962
-// s3.1) from the given DER-encoded TBSCertificate, returning a DER-encoded
-// TBSCertificate.
-//
-// This function removes the CT poison extension (there must be exactly 1 of
-// these), preserving the order of other extensions.
-//
-// If preIssuer is provided, this should be a special intermediate certificate
-// that was used to sign the precert (indicated by having the special
-// CertificateTransparency extended key usage).  In this case, the issuance
-// information of the pre-cert is updated to reflect the next issuer in the
-// chain, i.e. the issuer of this special intermediate:
-//   - The precert's Issuer is changed to the Issuer of the intermediate
-//   - The precert's AuthorityKeyId is changed to the AuthorityKeyId of the
-//     intermediate.
-func BuildPrecertTBS(tbsData []byte, preIssuer *x509.Certificate) ([]byte, error) {
-	data, err := removeExtension(tbsData, rfc6962.OIDExtensionCTPoison)
-	if err != nil {
-		return nil, err
-	}
-
-	var tbs tbsCertificate
-	rest, err := asn1.Unmarshal(data, &tbs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse TBSCertificate: %v", err)
-	} else if rLen := len(rest); rLen > 0 {
-		return nil, fmt.Errorf("trailing data (%d bytes) after TBSCertificate", rLen)
-	}
-
-	if preIssuer != nil {
-		// Update the precert's Issuer field.  Use the RawIssuer rather than the
-		// parsed Issuer to avoid any chance of ASN.1 differences (e.g. switching
-		// from UTF8String to PrintableString).
-		tbs.Issuer.FullBytes = preIssuer.RawIssuer
-
-		// Also need to update the cert's AuthorityKeyID extension
-		// to that of the preIssuer.
-		var issuerKeyID []byte
-		for _, ext := range preIssuer.Extensions {
-			if ext.Id.Equal(rfc6962.OIDExtAuthorityKeyId) {
-				issuerKeyID = ext.Value
-				break
-			}
-		}
-
-		// TODO(phbnf): is this check really necessary?
-		if !isPreIssuer(preIssuer) {
-			return nil, fmt.Errorf("issuer does not have CertificateTransparency extended key usage")
-		}
-
-		keyAt := -1
-		for i, ext := range tbs.Extensions {
-			if ext.Id.Equal(rfc6962.OIDExtAuthorityKeyId) {
-				keyAt = i
-				break
-			}
-		}
-		if keyAt >= 0 {
-			// PreCert has an auth-key-id; replace it with the value from the preIssuer
-			if issuerKeyID != nil {
-				tbs.Extensions[keyAt].Value = issuerKeyID
-			} else {
-				tbs.Extensions = append(tbs.Extensions[:keyAt], tbs.Extensions[keyAt+1:]...)
-			}
-		} else if issuerKeyID != nil {
-			// PreCert did not have an auth-key-id, but the preIssuer does, so add it at the end.
-			authKeyIDExt := pkix.Extension{
-				Id:       rfc6962.OIDExtAuthorityKeyId,
-				Critical: false,
-				Value:    issuerKeyID,
-			}
-			tbs.Extensions = append(tbs.Extensions, authKeyIDExt)
-		}
-
-		// Clear out the asn1.RawContent so the re-marshal operation sees the
-		// updated structure (rather than just copying the out-of-date DER data).
-		tbs.Raw = nil
-	}
-
-	data, err = asn1.Marshal(tbs)
-	if err != nil {
-		return nil, fmt.Errorf("failed to re-marshal TBSCertificate: %v", err)
-	}
-	return data, nil
-}
-
 // RemoveCTPoison takes a DER-encoded TBSCertificate and removes the CT poison
 // extension (preserving the order of other extensions), and returns the result
 // still as a DER-encoded TBSCertificate.  This function will fail if there is
 // not exactly 1 CT poison extension present.
 func RemoveCTPoison(tbsData []byte) ([]byte, error) {
-	return BuildPrecertTBS(tbsData, nil)
+	return removeExtension(tbsData, rfc6962.OIDExtensionCTPoison)
 }
 
 // entryPool holds ctonly.Entry instances which can be re-used across requests.
@@ -247,23 +161,20 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	issuer := chain[1]
 	cert := chain[0]
 
-	var preIssuer *x509.Certificate
-	if isPreIssuer(issuer) {
-		// Replace the cert's issuance information with details from the pre-issuer.
-		preIssuer = issuer
-
-		// The issuer of the pre-cert is not going to be the issuer of the final
-		// cert.  Change to use the final issuer's key hash.
-		if len(chain) < 3 {
-			ReturnEntry(leaf)
-			return nil, fmt.Errorf("no issuer cert available for pre-issuer")
-		}
-		issuer = chain[2]
+	// Precertificates issued by a Precertificate Signing Certificate are not
+	// supported.
+	//
+	// SPEC: c2sp.org/static-ct-api@v1.1.0, Submission APIs.
+	// "the log MAY reject precertificates issued using a Precertificate
+	// Signing Certificate."
+	if IsPreIssuer(issuer) {
+		ReturnEntry(leaf)
+		return nil, errors.New("precertificates issued by a Precertificate Signing Certificate are not supported")
 	}
 
 	// Next, post-process the DER-encoded TBSCertificate, to remove the CT poison
-	// extension and possibly update the issuer field.
-	defangedTBS, err := BuildPrecertTBS(cert.RawTBSCertificate, preIssuer)
+	// extension.
+	defangedTBS, err := RemoveCTPoison(cert.RawTBSCertificate)
 	if err != nil {
 		ReturnEntry(leaf)
 		return nil, fmt.Errorf("failed to remove poison extension: %v", err)
@@ -279,11 +190,11 @@ func EntryFromChain(chain []*x509.Certificate, isPrecert bool, timestamp uint64)
 	return leaf, nil
 }
 
-// isPreIssuer indicates if a certificate is a precertificate signing cert.
+// IsPreIssuer indicates if a certificate is a Precertificate Signing Certificate.
 //
 // From RFC6962 s3.1, these certs should contain:
 // (CA:true, Extended Key Usage: Certificate Transparency, OID 1.3.6.1.4.1.11129.2.4.4)
-func isPreIssuer(cert *x509.Certificate) bool {
+func IsPreIssuer(cert *x509.Certificate) bool {
 	if !cert.IsCA {
 		return false
 	}
