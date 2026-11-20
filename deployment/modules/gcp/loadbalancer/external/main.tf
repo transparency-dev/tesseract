@@ -96,6 +96,10 @@ resource "google_compute_backend_bucket" "log_buckets" {
     cache_mode         = "USE_ORIGIN_HEADERS"
     request_coalescing = true
   }
+
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "google_compute_url_map" "url_map" {
