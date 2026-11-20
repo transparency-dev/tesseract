@@ -12,6 +12,11 @@ At the moment, TesseraCT can run on Google Cloud Platform (GCP), Amazon Web
 Services (AWS), POSIX filesystems, or on vanilla
 S3+MySQL storage systems with [different levels of maturity](#mega-status).
 
+> [!IMPORTANT]
+> If you operate or build with TesseraCT, please subscribe to
+> [tesseract-announce@lists.transparency.dev](https://lists.transparency.dev/mailman3/postorius/lists/tesseract-announce.lists.transparency.dev/)
+> for important announcements and release notifications.
+
 ## Table of contents
 
 [:mega: Status](#mega-status) \
@@ -338,4 +343,5 @@ request? you can find us here:
 
 - [GitHub issues](https://github.com/transparency-dev/tesseract/issues)
 - [Slack](https://transparency-dev.slack.com/) ([invitation](https://transparency.dev/slack/))
-- [Mailing list](https://groups.google.com/forum/#!forum/trillian-transparency)
+- [Announcements mailing list](https://lists.transparency.dev/mailman3/postorius/lists/tesseract-announce.lists.transparency.dev/) (`tesseract-announce@lists.transparency.dev`, for important announcements and release notifications)
+- [Discussion mailing list](https://groups.google.com/forum/#!forum/trillian-transparency)
