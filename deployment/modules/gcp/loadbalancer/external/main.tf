@@ -93,7 +93,8 @@ resource "google_compute_backend_bucket" "log_buckets" {
   enable_cdn  = true
 
   cdn_policy {
-    cache_mode = "USE_ORIGIN_HEADERS"
+    cache_mode         = "USE_ORIGIN_HEADERS"
+    request_coalescing = true
   }
 }
 
