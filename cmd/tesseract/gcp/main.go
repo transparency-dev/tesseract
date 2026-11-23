@@ -25,9 +25,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	_ "net/http/pprof"
 	"os"
-
 	"os/signal"
 	"strconv"
 	"strings"
@@ -221,11 +219,13 @@ eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 
 	slog.InfoContext(ctx, "**** CT HTTP Server Starting ****")
-	http.Handle("/", otelhttp.NewHandler(logHandler, "/"))
 
 	// Bring up the HTTP server and serve until we get a signal not to.
+	// Use an explicit handler instead of http.DefaultServeMux so that
+	// transitive dependencies registering /debug/* handlers are not exposed.
 	srv := http.Server{
-		Addr: *httpEndpoint,
+		Addr:    *httpEndpoint,
+		Handler: otelhttp.NewHandler(logHandler, "/"),
 		// Set timeout for reading headers to avoid a slowloris attack.
 		ReadHeaderTimeout: 5 * time.Second,
 		MaxHeaderBytes:    8 << 10, // 8 KiB
