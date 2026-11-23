@@ -18,11 +18,11 @@ import (
 	"context"
 	"crypto/sha256"
 	"crypto/x509"
-	"crypto/x509/pkix"
 	"encoding/asn1"
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -44,12 +44,6 @@ var stringToKeyUsage = map[string]x509.ExtKeyUsage{
 	"MicrosoftServerGatedCrypto": x509.ExtKeyUsageMicrosoftServerGatedCrypto,
 	"NetscapeServerGatedCrypto":  x509.ExtKeyUsageNetscapeServerGatedCrypto,
 }
-
-var (
-	oidExtensionNameConstraints     = []int{2, 5, 29, 30}
-	oidExtensionCertificatePolicies = []int{2, 5, 29, 32}
-	oidAnyPolicyExtension           = []uint64{2, 5, 29, 32, 0}
-)
 
 // ParseExtKeyUsages parses strings into x509ExtKeyUsage.
 // Throws an error if the string does not match with a known key usage.
@@ -224,29 +218,27 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		}
 	}
 
-	// The PEMCertPool leaves out the intermediates to reject.
-	acceptedIntermediates, err := x509util.NewPEMCertPool(cv.rejectIntermediates)
+	intermediatePool, err := x509util.NewPEMCertPool(cv.rejectIntermediates)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create intermediate pool: %v", err)
 	}
 	// All but the first cert form part of the intermediate pool
 	if len(chain) > 1 {
-		acceptedIntermediates.AddCerts(chain[1:])
-	}
-	intermediatePool := x509.NewCertPool()
-	for _, c := range acceptedIntermediates.RawCertificates() {
-		// We'll relax the leaf cert later, after the time validity checks
-		relaxCert(c)
-		intermediatePool.AddCert(c)
+		intermediatePool.AddCerts(chain[1:])
 	}
 
-	// We can now do the verification, with looser verification constraints to:
+	// We can now do the verification. Verify relaxed copies of the certificates
+	// (see x509util.Relax), with looser verification constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	roots := x509.NewCertPool()
-	for _, root := range cv.trustedRoots.RawCertificates() {
-		relaxCert(root)
-		roots.AddCert(root)
+	// The pools returned by PEMCertPool.CertPool already hold relaxed copies.
+	// The leaf's EKUs have been checked above, so accept any EKU in the chain.
+	verifyOpts := x509.VerifyOptions{
+		Roots:               cv.trustedRoots.CertPool(),
+		Intermediates:       intermediatePool.CertPool(),
+		KeyUsages:           []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		CurrentTime:         time.UnixMilli(2),
+		CertificatePolicies: nil,
 	}
 
 	crtsh := make([]string, len(chain))
@@ -254,17 +246,7 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		crtsh[i] = fmt.Sprintf("https://crt.sh/?sha256=%x", sha256.Sum256(c.Raw))
 	}
 
-	verifyOpts := x509.VerifyOptions{
-		Roots:               roots,
-		Intermediates:       intermediatePool,
-		KeyUsages:           []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-		CurrentTime:         time.UnixMilli(2),
-		CertificatePolicies: nil,
-	}
-
-	relaxCert(cert)
-
-	verifiedChains, err := cert.Verify(verifyOpts)
+	verifiedChains, err := x509util.Relax(cert).Verify(verifyOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify chain: %v: %s", err, strings.Join(crtsh, ", "))
 	}
@@ -278,11 +260,28 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 	// requirements detailed in Section 3.1.
 	for _, verifiedChain := range verifiedChains {
 		if chainsEquivalent(chain, verifiedChain) {
-			return verifiedChain, nil
+			return cv.originals(chain, verifiedChain)
 		}
 	}
 
 	return nil, fmt.Errorf("cert chains to an accepted root, but no RFC compliant path found when trying to validate chains: %s", strings.Join(crtsh, ", "))
+}
+
+// originals maps verifiedChain, made of relaxed copies, back to the original
+// certificates: the submitted chain, followed by the original root if the
+// submitted chain did not include it.
+// verifiedChain must be equivalent to chain, see chainsEquivalent.
+func (cv chainValidator) originals(chain, verifiedChain []*x509.Certificate) ([]*x509.Certificate, error) {
+	path := slices.Clone(chain)
+	if len(verifiedChain) > len(chain) {
+		relaxedRoot := verifiedChain[len(verifiedChain)-1]
+		root, ok := cv.trustedRoots.Lookup(relaxedRoot.Raw)
+		if !ok {
+			return nil, fmt.Errorf("root not found in trusted roots: https://crt.sh/?sha256=%x", sha256.Sum256(relaxedRoot.Raw))
+		}
+		path = append(path, root)
+	}
+	return path, nil
 }
 
 // Validate is used by add-chain and add-pre-chain. It checks that the supplied
@@ -337,61 +336,4 @@ func chainsEquivalent(inChain []*x509.Certificate, verifiedChain []*x509.Certifi
 		}
 	}
 	return true
-}
-
-// removeExtension removes a given extension from a list.
-func removeExtension(oid asn1.ObjectIdentifier, extensions []pkix.Extension) {
-	i := 0
-	for _, e := range extensions {
-		if !e.Id.Equal(oid) {
-			extensions[i] = e
-			i++
-		}
-	}
-	extensions = extensions[:i]
-}
-
-// relaxCert modifies parsed certificates fields to relax verification constraints.
-// This DOES NOT modify the Raw certificate.
-func relaxCert(cert *x509.Certificate) {
-	cert.UnhandledCriticalExtensions = nil
-	cert.UnknownExtKeyUsage = nil
-
-	// Name constraints
-	removeExtension(oidExtensionNameConstraints, cert.Extensions)
-	cert.PermittedDNSDomainsCritical = false
-	cert.PermittedDNSDomains = nil
-	cert.ExcludedDNSDomains = nil
-	cert.PermittedIPRanges = nil
-	cert.ExcludedIPRanges = nil
-	cert.PermittedEmailAddresses = nil
-	cert.ExcludedEmailAddresses = nil
-	cert.PermittedURIDomains = nil
-	cert.ExcludedURIDomains = nil
-
-	cert.NotBefore = time.UnixMilli(1)
-	cert.NotAfter = time.UnixMilli(3)
-
-	cert.MaxPathLen = -1
-	cert.MaxPathLenZero = false
-
-	// Policies
-	removeExtension(oidExtensionCertificatePolicies, cert.Extensions)
-	cert.Policies = []x509.OID{mustNewOIDFromInts(oidAnyPolicyExtension)}
-	cert.PolicyIdentifiers = nil
-	cert.PolicyMappings = nil
-	cert.InhibitAnyPolicy = -1
-	cert.InhibitAnyPolicyZero = false
-	cert.InhibitPolicyMapping = -1
-	cert.InhibitPolicyMappingZero = false
-	cert.RequireExplicitPolicy = -1
-	cert.RequireExplicitPolicyZero = false
-}
-
-func mustNewOIDFromInts(ints []uint64) x509.OID {
-	oid, err := x509.OIDFromInts(ints)
-	if err != nil {
-		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
-	}
-	return oid
 }

@@ -38,6 +38,8 @@ type PEMCertPool struct {
 	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
+	// certPool holds relaxed copies of rawCerts, for chain verification only.
+	// See Relax.
 	certPool             *x509.CertPool
 	rejectedFingerprints map[[sha256.Size]byte]struct{}
 }
@@ -103,7 +105,7 @@ func (p *PEMCertPool) AddCerts(certs []*x509.Certificate) int {
 		for fingerprint, cert := range newCerts {
 			p.fingerprintToCertMap[fingerprint] = *cert
 			p.rawCerts = append(p.rawCerts, cert)
-			newPool.AddCert(cert)
+			newPool.AddCert(Relax(cert))
 		}
 		p.certPool = newPool
 	}
@@ -160,6 +162,28 @@ func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
 		return errors.New("failed to parse PEM certs file")
 	}
 	return nil
+}
+
+// Lookup returns the certificate in the pool whose DER encoding is raw, if any.
+//
+// Use it to map a certificate from a chain verified with CertPool back to the
+// original, unrelaxed, certificate.
+func (p *PEMCertPool) Lookup(raw []byte) (*x509.Certificate, bool) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	cert, ok := p.fingerprintToCertMap[sha256.Sum256(raw)]
+	if !ok {
+		return nil, false
+	}
+	return &cert, true
+}
+
+// CertPool returns a pool of relaxed copies of the certificates in this pool,
+// for chain verification only. See Relax.
+func (p *PEMCertPool) CertPool() *x509.CertPool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.certPool
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
