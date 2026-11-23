@@ -234,11 +234,10 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 	// The pools returned by PEMCertPool.CertPool already hold relaxed copies.
 	// The leaf's EKUs have been checked above, so accept any EKU in the chain.
 	verifyOpts := x509.VerifyOptions{
-		Roots:               cv.trustedRoots.CertPool(),
-		Intermediates:       intermediatePool.CertPool(),
-		KeyUsages:           []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-		CurrentTime:         time.UnixMilli(2),
-		CertificatePolicies: nil,
+		Roots:         cv.trustedRoots.CertPool(),
+		Intermediates: intermediatePool.CertPool(),
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		CurrentTime:   x509util.RelaxedVerificationTime,
 	}
 
 	crtsh := make([]string, len(chain))

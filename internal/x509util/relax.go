@@ -26,8 +26,13 @@ import (
 var (
 	oidExtensionNameConstraints     = asn1.ObjectIdentifier{2, 5, 29, 30}
 	oidExtensionCertificatePolicies = asn1.ObjectIdentifier{2, 5, 29, 32}
-	oidAnyPolicyExtension           = []uint64{2, 5, 29, 32, 0}
+	oidAnyPolicy                    = mustOIDFromInts([]uint64{2, 5, 29, 32, 0})
 )
+
+// RelaxedVerificationTime is the time to pass as x509.VerifyOptions.CurrentTime
+// when verifying certificates returned by Relax: it is within the validity
+// period that Relax sets on every certificate.
+var RelaxedVerificationTime = time.UnixMilli(2)
 
 // Relax returns a shallow copy of cert with the parsed fields that
 // crypto/x509's Certificate.Verify enforces, and that CT logs must not police,
@@ -36,7 +41,7 @@ var (
 //   - unknown extended key usages, such as the CT precertificate signing EKU,
 //   - name constraints,
 //   - validity period, replaced with [1ms, 3ms] after the epoch: verify with
-//     a CurrentTime of 2ms after the epoch,
+//     RelaxedVerificationTime,
 //   - path length constraints,
 //   - certificate policies and policy constraints.
 //
@@ -74,7 +79,7 @@ func Relax(cert *x509.Certificate) *x509.Certificate {
 	c.MaxPathLenZero = false
 
 	// Policies.
-	c.Policies = []x509.OID{mustNewOIDFromInts(oidAnyPolicyExtension)}
+	c.Policies = []x509.OID{oidAnyPolicy}
 	c.PolicyIdentifiers = nil
 	c.PolicyMappings = nil
 	c.InhibitAnyPolicy = -1
@@ -87,10 +92,10 @@ func Relax(cert *x509.Certificate) *x509.Certificate {
 	return &c
 }
 
-func mustNewOIDFromInts(ints []uint64) x509.OID {
+func mustOIDFromInts(ints []uint64) x509.OID {
 	oid, err := x509.OIDFromInts(ints)
 	if err != nil {
-		panic(fmt.Sprintf("OIDFromInts(%v) unexpected error: %v", ints, err))
+		panic(fmt.Sprintf("OIDFromInts(%v): %v", ints, err))
 	}
 	return oid
 }
