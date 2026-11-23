@@ -214,3 +214,10 @@ variable "distribution_policy_target_shape" {
     error_message = "distribution_policy_target_shape must be one of: EVEN, BALANCED, ANY, ANY_SINGLE_ZONE."
   }
 }
+
+variable "enable_public_ip" {
+  description = "If true, assigns an ephemeral public IPv4 address to each VM instance. Set to false when outbound internet egress (e.g. witness and CCADB root fetches) is provided via Cloud NAT and Google APIs are reached via Private Google Access."
+  type        = bool
+  default     = true
+  nullable    = false
+}

@@ -60,6 +60,7 @@ module "gce" {
   extra_tesseract_flags                      = var.extra_tesseract_flags
   distribution_policy_zones                  = var.distribution_policy_zones
   distribution_policy_target_shape           = var.distribution_policy_target_shape
+  enable_public_ip                           = var.enable_public_ip
 
   depends_on = [
     module.storage
