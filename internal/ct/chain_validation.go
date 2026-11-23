@@ -117,11 +117,13 @@ type chainValidator struct {
 	extKeyUsages []x509.ExtKeyUsage
 	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
 	rejectExtIds []asn1.ObjectIdentifier
-	// acceptSHA1 specifies whether cert chains using SHA-1 based signing algorithms are allowed.
-	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates []string, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
+// NewChainValidator returns a chainValidator.
+//
+// Chains using SHA-1 based signing algorithms are rejected: crypto/x509 does
+// not support them.
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates []string, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier) *chainValidator {
 	return &chainValidator{
 		trustedRoots:        trustedRoots,
 		rejectIntermediates: rejectIntermediates,
@@ -131,7 +133,6 @@ func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates [
 		notAfterLimit:       notAfterLimit,
 		extKeyUsages:        extKeyUsages,
 		rejectExtIds:        rejectExtIds,
-		acceptSHA1:          acceptSHA1,
 	}
 }
 
@@ -239,11 +240,9 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		intermediatePool.AddCert(c)
 	}
 
-	// We can now do the verification. Use lax509 with looser verification
-	// constraints to:
+	// We can now do the verification, with looser verification constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	// See /internal/lax509/README.md for further information.
 	roots := x509.NewCertPool()
 	for _, root := range cv.trustedRoots.RawCertificates() {
 		relaxCert(root)

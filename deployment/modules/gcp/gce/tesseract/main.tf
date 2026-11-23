@@ -62,7 +62,6 @@ locals {
     "-batch_max_size=${var.batch_max_size}",
     "-batch_max_age=${var.batch_max_age}",
     "-enable_publication_awaiter=${var.enable_publication_awaiter}",
-    "-accept_sha1_signing_algorithms=true",
     "-rate_limit_old_not_before=${var.rate_limit_old_not_before}",
     "-rate_limit_dedup=${var.rate_limit_dedup}",
     length(var.roots_remote_fetch_url) == 0 ? "" : join(" ", formatlist("-roots_remote_fetch_url=%s", var.roots_remote_fetch_url)),

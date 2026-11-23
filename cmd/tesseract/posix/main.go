@@ -85,7 +85,6 @@ var (
 	rejectUnexpired          = flag.Bool("reject_unexpired", false, "If true then TesseraCT rejects certificates that are either currently valid or not yet valid.")
 	extKeyUsages             = flag.String("ext_key_usages", "Any", "If set, will restrict the set of such usages that the server will accept. By default, 'Any' accepts all chains. Accepted values are defined in internal/ct.")
 	rejectExtensions         = flag.String("reject_extension", "", "A list of X.509 extension OIDs, in dotted string form (e.g. '2.3.4.5') which, if present, should cause submissions to be rejected.")
-	acceptSHA1               = flag.Bool("accept_sha1_signing_algorithms", true, "If true, accept chains that use SHA-1 based signing algorithms. This flag will eventually be removed, and such algorithms will be rejected.")
 	enablePublicationAwaiter = flag.Bool("enable_publication_awaiter", true, "If true, waits for the submitted certificate to be covered by a published checkpoint before responding to an add-* request.")
 	witnessPolicyFile        = flag.String("witness_policy_file", "", "(Optional) Path to the file containing the witness policy in the format described at https://git.glasklar.is/sigsum/core/sigsum-go/-/blob/main/doc/policy.md")
 	witnessTimeout           = flag.Duration("witness_timeout", tessera.DefaultWitnessTimeout, "Maximum time to wait for witness responses.")
@@ -151,15 +150,8 @@ func main() {
 		RejectExtensions:         *rejectExtensions,
 		NotAfterStart:            notAfterStart.t,
 		NotAfterLimit:            notAfterLimit.t,
-		AcceptSHA1:               *acceptSHA1,
 		RejectRoots:              rootsRejectFingerprints,
 		RejectIntermediates:      intermediatesRejectFingerprints,
-	}
-	if *acceptSHA1 {
-		slog.InfoContext(ctx, `**** WARNING **** This server will accept chains signed
-using SHA-1 based algorithms. This feature is available to allow chains
-submitted by Chrome's Merge Delay Monitor Root for the time being, but will
-eventually go away. See /internal/lax509/README.md for more information.`)
 	}
 
 	hOpts := tesseract.LogHandlerOpts{

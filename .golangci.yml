@@ -4,9 +4,6 @@ linters:
   enable:
     - depguard
     - sloglint
-  exclusions:
-    paths:
-      - internal/lax509
   settings:
     depguard:
       rules:
@@ -19,7 +16,3 @@ linters:
     sloglint:
       attr-only: true
       context: all
-formatters:
-  exclusions:
-    paths:
-      - internal/lax509

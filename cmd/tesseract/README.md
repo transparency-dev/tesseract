@@ -75,10 +75,6 @@ RFC3339 format, e.g: `2024-01-02T15:04:05Z`.
 strictly _before_ `not_after_limit` will be accepted. Leaving this unset or empty
 means no upper bound on the accepted range. RFC3339 format, e.g:
 `2024-01-02T15:04:05Z`.
-- `accept_sha1_signing_algorithms`: If true, allow chains that use SHA-1 based
-signing algorithms. This flag is a temporary solution to allow chains submitted
-by Chrome's Merge Delay Monitor Root. It will eventually be removed and chains
-using such algorithms will be rejected.
 - `rate_limit_old_not_before`: This optional flag can be set define a limit on how
 many "old" certificates and precertificates will be accepted per second.
 The flag value should be of the form `<age>:<limit>`, where `<limit>` is a
