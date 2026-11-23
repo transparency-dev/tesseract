@@ -207,8 +207,11 @@ resource "google_compute_region_instance_template" "tesseract" {
 
   network_interface {
     network = "default"
-    access_config {
-      // Ephemeral public IP for outbound witness requests.
+    dynamic "access_config" {
+      for_each = var.enable_public_ip ? [1] : []
+      content {
+        // Ephemeral public IP for outbound witness requests when Cloud NAT is not used.
+      }
     }
   }
 

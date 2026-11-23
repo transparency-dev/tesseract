@@ -198,3 +198,25 @@ run "invalid_num_vms_float" {
     var.num_vms,
   ]
 }
+
+run "enable_public_ip_default" {
+  command = plan
+
+  assert {
+    condition     = length(google_compute_region_instance_template.tesseract.network_interface[0].access_config) == 1
+    error_message = "Expected access_config block when enable_public_ip defaults to true."
+  }
+}
+
+run "enable_public_ip_false" {
+  command = plan
+
+  variables {
+    enable_public_ip = false
+  }
+
+  assert {
+    condition     = length(google_compute_region_instance_template.tesseract.network_interface[0].access_config) == 0
+    error_message = "Expected no access_config block when enable_public_ip is false."
+  }
+}
