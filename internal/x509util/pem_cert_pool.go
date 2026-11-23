@@ -25,8 +25,6 @@ import (
 	"log/slog"
 	"os"
 	"sync"
-
-	"github.com/transparency-dev/tesseract/internal/lax509"
 )
 
 // String for certificate blocks in BEGIN / END PEM headers
@@ -40,7 +38,7 @@ type PEMCertPool struct {
 	// maps from sha-256 to certificate, used for dup detection
 	fingerprintToCertMap map[[sha256.Size]byte]x509.Certificate
 	rawCerts             []*x509.Certificate
-	certPool             *lax509.CertPool
+	certPool             *x509.CertPool
 	rejectedFingerprints map[[sha256.Size]byte]struct{}
 }
 
@@ -66,7 +64,7 @@ func NewPEMCertPool(rejectedFingerprints []string) (*PEMCertPool, error) {
 	return &PEMCertPool{
 		mu:                   sync.RWMutex{},
 		fingerprintToCertMap: make(map[[sha256.Size]byte]x509.Certificate),
-		certPool:             lax509.NewCertPool(),
+		certPool:             x509.NewCertPool(),
 		rejectedFingerprints: rejected,
 	}, nil
 }
@@ -162,20 +160,6 @@ func (p *PEMCertPool) AppendCertsFromPEMFile(pemFile string) error {
 		return errors.New("failed to parse PEM certs file")
 	}
 	return nil
-}
-
-// Subjects returns a list of the DER-encoded subjects of all of the certificates in the pool.
-func (p *PEMCertPool) Subjects() (res [][]byte) {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.certPool.Subjects()
-}
-
-// CertPool returns the underlying CertPool.
-func (p *PEMCertPool) CertPool() *lax509.CertPool {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-	return p.certPool
 }
 
 // RawCertificates returns a list of the raw bytes of certificates that are in this pool
