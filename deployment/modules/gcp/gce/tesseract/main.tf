@@ -151,17 +151,17 @@ resource "google_artifact_registry_repository" "tesseract" {
   remote_repository_config {
     description                 = "Pull-through cache of TesseraCT repository"
     disable_upstream_validation = true
-    dynamic common_repository {
+    dynamic "common_repository" {
       for_each = can(regex(".*docker.pkg.dev.*", var.docker_repo)) ? [1] : []
       content {
-        uri   = var.docker_repo
+        uri = var.docker_repo
       }
     }
-    dynamic docker_repository {
+    dynamic "docker_repository" {
       for_each = can(regex(".*docker.pkg.dev.*", var.docker_repo)) ? [] : [1]
       content {
         custom_repository {
-          uri   = var.docker_repo
+          uri = var.docker_repo
         }
       }
     }
@@ -169,7 +169,19 @@ resource "google_artifact_registry_repository" "tesseract" {
 }
 
 
-resource "google_compute_region_instance_template" "tesseract" {
+# Forget any pre-existing `tesseract` template from state without destroying it in GCP:
+# during a blue/green MIG cutover (`retain_legacy_mig = true`), the retained legacy MIG still
+# references its pre-cutover template (including any deposed object left by a failed in-place
+# MIG update), so deleting it before legacy MIG teardown would fail with
+# `resourceInUseByAnotherResource`.
+removed {
+  from = google_compute_region_instance_template.tesseract
+  lifecycle {
+    destroy = false
+  }
+}
+
+resource "google_compute_region_instance_template" "instance_template" {
   // Templates cannot be updated, so we generate a new one every time.
   name_prefix = "tesseract-template-"
   description = "This template is used to create TesseraCT instances."
@@ -249,15 +261,15 @@ resource "google_compute_health_check" "healthz" {
   }
 }
 
-resource "google_compute_region_instance_group_manager" "instance_group_manager" {
-  name   = "${var.base_name}-instance-group-manager"
+resource "google_compute_region_instance_group_manager" "mig" {
+  name   = "${var.base_name}-instance-group-manager${var.mig_suffix}"
   region = var.location
 
   distribution_policy_zones        = var.distribution_policy_zones
   distribution_policy_target_shape = var.distribution_policy_target_shape
 
   version {
-    instance_template = google_compute_region_instance_template.tesseract.id
+    instance_template = google_compute_region_instance_template.instance_template.id
   }
   wait_for_instances        = true
   wait_for_instances_status = "UPDATED"
@@ -275,7 +287,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
   target_size        = var.num_vms
 
   update_policy {
-    type                           = "PROACTIVE"
+    type = "PROACTIVE"
     # GCP Compute Engine API requires instance_redistribution_type to be NONE when
     # distribution_policy_target_shape is not EVEN (e.g. BALANCED or ANY).
     instance_redistribution_type   = var.distribution_policy_target_shape == "EVEN" ? "PROACTIVE" : "NONE"
@@ -283,7 +295,7 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     most_disruptive_allowed_action = "REPLACE"
     # TODO(phbnf): come back to this, it's a beta feature for now
     # min_ready_sec                  = 50
-    replacement_method    = "SUBSTITUTE"
+    replacement_method = "SUBSTITUTE"
     // must be greater or equal than the number of zones, which itself defaults to 3
     max_surge_fixed       = var.distribution_policy_zones == null ? 3 : max(3, length(var.distribution_policy_zones))
     max_unavailable_fixed = 0 // wait for new VMs to be up before turning down the old ones
@@ -304,3 +316,29 @@ resource "google_compute_region_instance_group_manager" "instance_group_manager"
     }
   }
 }
+
+moved {
+  from = google_compute_region_instance_group_manager.instance_group_manager
+  to   = google_compute_region_instance_group_manager.legacy_instance_group_manager[0]
+}
+
+# Retains a pre-existing unsuffixed `<base_name>-instance-group-manager` untouched during a
+# blue/green cutover (for example, when GCE rejects in-place template updates after converting
+# an auto-mode VPC to custom subnet mode). Once Load Balancer traffic has shifted to `mig`,
+# set `retain_legacy_mig = false` to destroy this legacy MIG.
+resource "google_compute_region_instance_group_manager" "legacy_instance_group_manager" {
+  count = var.retain_legacy_mig ? 1 : 0
+
+  name               = "${var.base_name}-instance-group-manager"
+  region             = var.location
+  base_instance_name = var.base_name
+
+  version {
+    instance_template = google_compute_region_instance_template.instance_template.id
+  }
+
+  lifecycle {
+    ignore_changes = all
+  }
+}
+

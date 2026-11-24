@@ -221,3 +221,23 @@ variable "enable_public_ip" {
   default     = true
   nullable    = false
 }
+
+variable "mig_suffix" {
+  description = "Optional suffix appended to the Managed Instance Group name (<base_name>-instance-group-manager<mig_suffix>), e.g. \"-v2\" for blue/green MIG replacement."
+  type        = string
+  default     = ""
+  nullable    = false
+
+  validation {
+    condition     = !var.retain_legacy_mig || var.mig_suffix != ""
+    error_message = "mig_suffix must be non-empty when retain_legacy_mig is true so the new MIG name does not collide with the legacy <base_name>-instance-group-manager MIG."
+  }
+}
+
+variable "retain_legacy_mig" {
+  description = "If true, retains a pre-existing unsuffixed <base_name>-instance-group-manager MIG in state without modifying it while a new suffixed MIG is stood up and Load Balancer traffic is cut over. Set back to false after cutover to destroy the legacy MIG."
+  type        = bool
+  default     = false
+  nullable    = false
+}
+
