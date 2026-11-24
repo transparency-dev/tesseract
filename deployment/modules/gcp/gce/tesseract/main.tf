@@ -206,7 +206,8 @@ resource "google_compute_region_instance_template" "tesseract" {
   }
 
   network_interface {
-    network = "default"
+    network    = "default"
+    subnetwork = "projects/${var.project_id}/regions/${var.location}/subnetworks/default"
     dynamic "access_config" {
       for_each = var.enable_public_ip ? [1] : []
       content {
