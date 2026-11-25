@@ -202,9 +202,21 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	reqCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
 	startTime := time.Now()
 	a.opts.RequestLog.origin(logCtx, a.log.origin)
+
+	// statusCode is the HTTP status code sent to the client. Every return path
+	// below must set it. It is recorded once, here, in the request log and
+	// metrics, so that they always agree with what the client received.
+	var statusCode int
 	defer func() {
-		latency := time.Since(startTime).Seconds()
-		reqDuration.Record(r.Context(), latency, metric.WithAttributes(attrs...))
+		if statusCode == 0 {
+			// The handler panicked: net/http will abort the connection.
+			statusCode = http.StatusInternalServerError
+		}
+		attrs = append(attrs, codeKey.Int(statusCode))
+		a.opts.RequestLog.status(logCtx, statusCode)
+		logger.DebugExtraContext(logCtx, "handler response", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
+		rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
+		reqDuration.Record(r.Context(), time.Since(startTime).Seconds(), metric.WithAttributes(attrs...))
 	}()
 
 	// Verify that the request was received at an URL starting with the origin, as per https://c2sp.org/static-ct-api.
@@ -217,8 +229,8 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TODO(phboneff): add a.Method directly on the handler path and remove this test.
 	if r.Method != a.method {
 		slog.WarnContext(logCtx, "wrong HTTP method", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.String("method", r.Method))
-		a.opts.sendHTTPError(w, http.StatusMethodNotAllowed, fmt.Errorf("method not allowed: %s", r.Method))
-		a.opts.RequestLog.status(logCtx, http.StatusMethodNotAllowed)
+		statusCode = http.StatusMethodNotAllowed
+		a.opts.sendHTTPError(w, statusCode, fmt.Errorf("method not allowed: %s", r.Method))
 		return
 	}
 
@@ -226,8 +238,8 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// POSTs will decode the raw request body as JSON later.
 	if r.Method == http.MethodGet {
 		if err := r.ParseForm(); err != nil {
-			a.opts.sendHTTPError(w, http.StatusBadRequest, fmt.Errorf("failed to parse form data: %s", err))
-			a.opts.RequestLog.status(logCtx, http.StatusBadRequest)
+			statusCode = http.StatusBadRequest
+			a.opts.sendHTTPError(w, statusCode, fmt.Errorf("failed to parse form data: %s", err))
 			return
 		}
 	}
@@ -237,16 +249,17 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(logCtx, a.opts.Deadline)
 	defer cancel()
 
-	statusCode, hattrs, err := a.handler(ctx, a.opts, a.log, w, r)
+	var hattrs []attribute.KeyValue
+	var err error
+	statusCode, hattrs, err = a.handler(ctx, a.opts, a.log, w, r)
 	attrs = append(attrs, hattrs...)
-	attrs = append(attrs, codeKey.Int(statusCode))
-	a.opts.RequestLog.status(ctx, statusCode)
-	logger.DebugExtraContext(ctx, "handler response", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
-	rspCounter.Add(logCtx, 1, metric.WithAttributes(attrs...))
+
 	if err != nil {
+		// If the client went away while the request was being processed, report
+		// it as such rather than as an internal server error.
 		if errors.Is(err, context.Canceled) && errors.Is(r.Context().Err(), context.Canceled) {
 			statusCode = ClientClosedRequestStatus
-			err = fmt.Errorf("client closed the connection: %v", err)
+			err = fmt.Errorf("client closed the connection: %w", err)
 		}
 		if statusCode == http.StatusInternalServerError {
 			slog.ErrorContext(ctx, "handler error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Any("error", err))
@@ -261,11 +274,10 @@ func (a appHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	// Additional check, for consistency the handler must return an error for non-200 st
 	if statusCode != http.StatusOK {
-		slog.WarnContext(ctx, "handler non 200 without error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode), slog.Any("error", err))
+		slog.WarnContext(ctx, "handler non 200 without error", slog.String("origin", a.log.origin), slog.String("name", a.name), slog.Int("status", statusCode))
 		a.opts.sendHTTPError(w, http.StatusInternalServerError, fmt.Errorf("http handler misbehaved, st: %d", statusCode))
-		if statusCode >= 500 {
-			span.SetStatus(codes.Error, "handler non-200 without error")
-		}
+		statusCode = http.StatusInternalServerError
+		span.SetStatus(codes.Error, "handler non-200 without error")
 		return
 	}
 }
@@ -484,7 +496,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 	defer x509util.ReturnEntry(entry) // Return entry to the pool once we're done with it.
 
 	if err := log.storage.AddIssuerChain(ctx, chain[1:]); err != nil {
-		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %s", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("failed to store issuer chain: %w", err)
 	}
 
 	logger.DebugExtraContext(ctx, "storage.Add", slog.String("origin", log.origin), slog.String("method", method))
@@ -505,12 +517,12 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 			return tooManyRequests("tessera_pushback_other")
 		}
 		// If it's not a pushback, just flag that it's an errored request to avoid high cardinality of attribute values.
-		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %v", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't store the leaf: %w", err)
 	}
 
 	index, err := future()
 	if err != nil {
-		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't resolve tessera future: %v", err)
+		return http.StatusInternalServerError, nil, fmt.Errorf("couldn't resolve tessera future: %w", err)
 	}
 
 	var sctInput rfc6962.CertificateTimestamp
@@ -522,7 +534,7 @@ func addChainInternal(ctx context.Context, opts *HandlerOptions, log *log, w htt
 		var err error
 		sctInput, err = log.storage.DedupFuture(ctx, future)
 		if err != nil {
-			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve duplicate: %v", err)
+			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("could not resolve duplicate: %w", err)
 		}
 		if err := sctMatchesEntry(sctInput, *entry, index.Index); err != nil {
 			return http.StatusInternalServerError, []attribute.KeyValue{duplicateKey.Bool(index.IsDup)}, fmt.Errorf("deduplicated entry in storage does not match submitted entry: %v", err)

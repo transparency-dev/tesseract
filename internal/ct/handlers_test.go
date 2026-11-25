@@ -47,6 +47,10 @@ import (
 	"github.com/transparency-dev/tesseract/internal/x509util"
 	"github.com/transparency-dev/tesseract/storage"
 	"github.com/transparency-dev/tesseract/storage/posix"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
 	"golang.org/x/mod/sumdb/note"
 )
 
@@ -68,6 +72,51 @@ var (
 	logDir           = "log"
 	maxCertChainSize = int64(512 << 10) // 512 KiB
 )
+
+// metricReader collects the metrics recorded by this package in tests.
+var metricReader = sdkmetric.NewManualReader()
+
+func TestMain(m *testing.M) {
+	// Instruments are created from the global MeterProvider at init time, and
+	// delegate to whichever MeterProvider is set first.
+	otel.SetMeterProvider(sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader)))
+	os.Exit(m.Run())
+}
+
+// httpMetricCounts returns the current number of responses recorded in the
+// response counter and the request duration histogram for an operation and
+// status code.
+func httpMetricCounts(t *testing.T, op string, code int) (rsp, duration int64) {
+	t.Helper()
+	var rm metricdata.ResourceMetrics
+	if err := metricReader.Collect(t.Context(), &rm); err != nil {
+		t.Fatalf("Collect(): %v", err)
+	}
+	match := func(set attribute.Set) bool {
+		gotOp, _ := set.Value(operationKey)
+		gotCode, _ := set.Value(codeKey)
+		return gotOp.AsString() == op && gotCode.AsInt64() == int64(code)
+	}
+	for _, sm := range rm.ScopeMetrics {
+		for _, m := range sm.Metrics {
+			switch m.Name {
+			case "tesseract.http.response.count":
+				for _, dp := range m.Data.(metricdata.Sum[int64]).DataPoints {
+					if match(dp.Attributes) {
+						rsp += dp.Value
+					}
+				}
+			case "tesseract.http.request.duration":
+				for _, dp := range m.Data.(metricdata.Histogram[float64]).DataPoints {
+					if match(dp.Attributes) {
+						duration += int64(dp.Count)
+					}
+				}
+			}
+		}
+	}
+	return rsp, duration
+}
 
 func hOpts() *HandlerOptions {
 	return &HandlerOptions{
@@ -107,7 +156,7 @@ func (f *fixedTimeSource) Add1m() {
 // setupTestLog creates a test TesseraCT log using a POSIX backend.
 //
 // It returns the log and the path to the storage directory.
-func setupTestLog(t *testing.T) (*log, string) {
+func setupTestLog(t *testing.T, enablePubAwaiter bool) (*log, string) {
 	t.Helper()
 	storageDir := t.TempDir()
 
@@ -130,7 +179,7 @@ func setupTestLog(t *testing.T) (*log, string) {
 		rejectUnexpired: false,
 	}
 
-	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir), timeSource)
+	log, err := NewLog(t.Context(), origin, sctSigner.signer, cv, newPOSIXStorageFunc(t, storageDir, enablePubAwaiter), timeSource)
 	if err != nil {
 		t.Fatalf("newLog(): %v", err)
 	}
@@ -157,7 +206,7 @@ func setupTestServer(t *testing.T, log *log, path string, hOpts *HandlerOptions)
 //   - a POSIX issuer storage system
 //
 // It also prepares directories to host the log and the deduplication database.
-func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
+func newPOSIXStorageFunc(t *testing.T, root string, enablePubAwaiter bool) storage.CreateStorage {
 	t.Helper()
 
 	return func(ctx context.Context, signer note.Signer) (*storage.CTStorage, error) {
@@ -196,7 +245,7 @@ func newPOSIXStorageFunc(t *testing.T, root string) storage.CreateStorage {
 			Reader:              reader,
 			IssuerStorage:       issuerStorage,
 			AwaiterPollInterval: 20 * time.Millisecond,
-			EnablePubAwaiter:    false,
+			EnablePubAwaiter:    enablePubAwaiter,
 		}
 		s, err := storage.NewCTStorage(t.Context(), &sopts)
 		if err != nil {
@@ -237,7 +286,7 @@ func postHandlers(t *testing.T, handlers pathHandlers) pathHandlers {
 }
 
 func TestPostHandlersRejectGet(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the post handler list should reject GET
@@ -258,7 +307,7 @@ func TestPostHandlersRejectGet(t *testing.T) {
 }
 
 func TestGetHandlersRejectPost(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	// Anything in the get handler list should reject POST.
@@ -292,7 +341,7 @@ func TestPostHandlersFailure(t *testing.T) {
 		{"too-large-body", fmt.Sprintf(`{ "chain": [ "%s" ] }`, strings.Repeat("A", int(maxCertChainSize+1))), http.StatusRequestEntityTooLarge},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	handlers := NewPathHandlers(t.Context(), hOpts(), log)
 
 	for path, handler := range postHandlers(t, handlers) {
@@ -318,7 +367,7 @@ func TestPostHandlersFailure(t *testing.T) {
 }
 
 func TestNewPathHandlers(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	t.Run("Handlers", func(t *testing.T) {
 		handlers := NewPathHandlers(t.Context(), &HandlerOptions{PathPrefix: prefix}, log)
 		// Check each entrypoint has a handler
@@ -369,7 +418,7 @@ func mustParseChain(t *testing.T, isPrecert bool, pemChain []string, root *x509.
 }
 
 func TestGetRoots(t *testing.T) {
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.GetRootsPath), hOpts())
 	defer server.Close()
 
@@ -459,7 +508,7 @@ func TestAddChainWhitespace(t *testing.T) {
 		},
 	}
 
-	log, _ := setupTestLog(t)
+	log, _ := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 
@@ -529,7 +578,7 @@ func TestAddChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
@@ -676,7 +725,7 @@ func TestAddPreChain(t *testing.T) {
 		},
 	}
 
-	log, dir := setupTestLog(t)
+	log, dir := setupTestLog(t, false)
 	server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddPreChainPath), hOpts())
 	defer server.Close()
 	defer timeSource.Reset()
@@ -769,6 +818,146 @@ func TestAddPreChain(t *testing.T) {
 	}
 }
 
+// statusRecordingRequestLog records the status codes passed to the request log.
+type statusRecordingRequestLog struct {
+	DefaultRequestLog
+	statuses []int
+}
+
+func (s *statusRecordingRequestLog) status(_ context.Context, code int) {
+	s.statuses = append(s.statuses, code)
+}
+
+// TestHandlersRecordStatus checks that the status code recorded in the
+// request log and metrics is the one sent to the client, on every code path.
+func TestHandlersRecordStatus(t *testing.T) {
+	chain := []string{testdata.CertFromIntermediate, testdata.IntermediateFromRoot, testdata.CACertPEM}
+	preChain := []string{testdata.PrecertPEMValid, testdata.CACertPEM}
+
+	for _, test := range []struct {
+		descr  string
+		method string
+		path   string
+		chain  []string
+		// deadline overrides the default handler deadline, if set.
+		deadline time.Duration
+		// clientClosed simulates a client which has gone away: net/http cancels
+		// the request context when the client connection is closed.
+		clientClosed bool
+		// handler overrides the real handler, if set.
+		handler func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error)
+		want    int
+	}{
+		{
+			descr:  "add-chain-ok",
+			method: http.MethodPost,
+			path:   rfc6962.AddChainPath,
+			chain:  chain,
+			want:   http.StatusOK,
+		},
+		{
+			descr:  "add-pre-chain-ok",
+			method: http.MethodPost,
+			path:   rfc6962.AddPreChainPath,
+			chain:  preChain,
+			want:   http.StatusOK,
+		},
+		{
+			descr:  "wrong-method",
+			method: http.MethodGet,
+			path:   rfc6962.AddChainPath,
+			want:   http.StatusMethodNotAllowed,
+		},
+		{
+			descr:  "wrong-entry-type",
+			method: http.MethodPost,
+			path:   rfc6962.AddPreChainPath,
+			chain:  []string{testdata.TestCertPEM},
+			want:   http.StatusBadRequest,
+		},
+		{
+			descr:        "add-chain-client-closed",
+			method:       http.MethodPost,
+			path:         rfc6962.AddChainPath,
+			chain:        chain,
+			clientClosed: true,
+			want:         ClientClosedRequestStatus,
+		},
+		{
+			descr:        "add-pre-chain-client-closed",
+			method:       http.MethodPost,
+			path:         rfc6962.AddPreChainPath,
+			chain:        preChain,
+			clientClosed: true,
+			want:         ClientClosedRequestStatus,
+		},
+		{
+			descr:    "server-deadline",
+			method:   http.MethodPost,
+			path:     rfc6962.AddChainPath,
+			chain:    chain,
+			deadline: 10 * time.Millisecond,
+			want:     http.StatusInternalServerError,
+		},
+		{
+			// No real handler does this: it guards against misbehaving handlers.
+			descr:  "non-200-without-error",
+			method: http.MethodPost,
+			path:   rfc6962.AddChainPath,
+			handler: func(context.Context, *HandlerOptions, *log, http.ResponseWriter, *http.Request) (int, []attribute.KeyValue, error) {
+				return http.StatusTeapot, nil, nil
+			},
+			want: http.StatusInternalServerError,
+		},
+	} {
+		t.Run(test.descr, func(t *testing.T) {
+			log, _ := setupTestLog(t, true)
+			rl := &statusRecordingRequestLog{}
+			opts := hOpts()
+			opts.RequestLog = rl
+			if test.deadline != 0 {
+				opts.Deadline = test.deadline
+			}
+			handler, ok := NewPathHandlers(t.Context(), opts, log)[path.Join(prefix, test.path)]
+			if !ok {
+				t.Fatalf("Handler not found: %s", test.path)
+			}
+			if test.handler != nil {
+				handler.handler = test.handler
+			}
+
+			var body io.Reader
+			if test.chain != nil {
+				body = createJSONChain(t, loadCertsIntoPoolOrDie(t, test.chain))
+			}
+			ctx, cancel := context.WithCancel(t.Context())
+			defer cancel()
+			if test.clientClosed {
+				cancel()
+			}
+			req := httptest.NewRequestWithContext(ctx, test.method, "http://"+origin+test.path, body)
+			w := httptest.NewRecorder()
+
+			rspBefore, durBefore := httpMetricCounts(t, handler.name, test.want)
+			handler.ServeHTTP(w, req)
+			rspAfter, durAfter := httpMetricCounts(t, handler.name, test.want)
+
+			if got := w.Code; got != test.want {
+				t.Errorf("ServeHTTP() status=%d, want %d, body: %q", got, test.want, w.Body.String())
+			}
+			if diff := cmp.Diff([]int{test.want}, rl.statuses); diff != "" {
+				t.Errorf("RequestLog status mismatch (-want +got):\n%s", diff)
+			}
+			if got := rspAfter - rspBefore; got != 1 {
+				t.Errorf("response counter with code %d increased by %d, want 1", test.want, got)
+			}
+			if got := durAfter - durBefore; got != 1 {
+				t.Errorf("request duration with code %d recorded %d times, want 1", test.want, got)
+			}
+		})
+	}
+}
+
 func TestMaxDedupInFlight(t *testing.T) {
 	var tests = []struct {
 		descr   string
@@ -807,7 +996,7 @@ func TestMaxDedupInFlight(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.descr, func(t *testing.T) {
-			log, _ := setupTestLog(t)
+			log, _ := setupTestLog(t, false)
 			hhOpts := hOpts()
 			hhOpts.RateLimits.Dedup(test.maxRate)
 			server := setupTestServer(t, log, path.Join(prefix, rfc6962.AddChainPath), hhOpts)
