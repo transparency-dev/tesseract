@@ -167,7 +167,7 @@ func TestAppendCertsFromPEMs(t *testing.T) {
 				t.Fatalf("NewPEMCertPool() err=%v", err)
 			}
 			gotParsed, gotAdded := p.AppendCertsFromPEMs(tt.pems...)
-			poolLen := len(p.Subjects())
+			poolLen := len(p.RawCertificates())
 			if gotParsed != tt.wantParsed || gotAdded != tt.wantAdded {
 				t.Errorf("AppendCertsFromPEMs() = (%v, %v), want (%v, %v)", gotParsed, gotAdded, tt.wantParsed, tt.wantAdded)
 			}

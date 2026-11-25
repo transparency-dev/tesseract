@@ -22,11 +22,11 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/transparency-dev/tesseract/internal/lax509"
 	"github.com/transparency-dev/tesseract/internal/x509util"
 )
 
@@ -111,11 +111,13 @@ type chainValidator struct {
 	extKeyUsages []x509.ExtKeyUsage
 	// rejectExtIds contains a list of X.509 extension IDs to reject during chain verification.
 	rejectExtIds []asn1.ObjectIdentifier
-	// acceptSHA1 specifies whether cert chains using SHA-1 based signing algorithms are allowed.
-	acceptSHA1 bool
 }
 
-func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates []string, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier, acceptSHA1 bool) *chainValidator {
+// NewChainValidator returns a chainValidator.
+//
+// Chains using SHA-1 based signing algorithms are rejected: crypto/x509 does
+// not support them.
+func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates []string, rejectExpired, rejectUnexpired bool, notAfterStart, notAfterLimit *time.Time, extKeyUsages []x509.ExtKeyUsage, rejectExtIds []asn1.ObjectIdentifier) *chainValidator {
 	return &chainValidator{
 		trustedRoots:        trustedRoots,
 		rejectIntermediates: rejectIntermediates,
@@ -125,7 +127,6 @@ func NewChainValidator(trustedRoots *x509util.PEMCertPool, rejectIntermediates [
 		notAfterLimit:       notAfterLimit,
 		extKeyUsages:        extKeyUsages,
 		rejectExtIds:        rejectExtIds,
-		acceptSHA1:          acceptSHA1,
 	}
 }
 
@@ -226,16 +227,17 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		intermediatePool.AddCerts(chain[1:])
 	}
 
-	// We can now do the verification. Use lax509 with looser verification
-	// constraints to:
+	// We can now do the verification. Verify relaxed copies of the certificates
+	// (see x509util.Relax), with looser verification constraints to:
 	//  - allow pre-certificates and chains with pre-issuers
 	//  - allow certificate without policing them since this is not CT's responsibility
-	// See /internal/lax509/README.md for further information.
-	verifyOpts := lax509.VerifyOptions{
+	// The pools returned by PEMCertPool.CertPool already hold relaxed copies.
+	// The leaf's EKUs have been checked above, so accept any EKU in the chain.
+	verifyOpts := x509.VerifyOptions{
 		Roots:         cv.trustedRoots.CertPool(),
 		Intermediates: intermediatePool.CertPool(),
-		KeyUsages:     cv.extKeyUsages,
-		AcceptSHA1:    cv.acceptSHA1,
+		KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
+		CurrentTime:   x509util.RelaxedVerificationTime,
 	}
 
 	crtsh := make([]string, len(chain))
@@ -243,7 +245,7 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 		crtsh[i] = fmt.Sprintf("https://crt.sh/?sha256=%x", sha256.Sum256(c.Raw))
 	}
 
-	verifiedChains, err := lax509.Verify(cert, verifyOpts)
+	verifiedChains, err := x509util.Relax(cert).Verify(verifyOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify chain: %v: %s", err, strings.Join(crtsh, ", "))
 	}
@@ -257,11 +259,28 @@ func (cv chainValidator) validate(chain []*x509.Certificate) ([]*x509.Certificat
 	// requirements detailed in Section 3.1.
 	for _, verifiedChain := range verifiedChains {
 		if chainsEquivalent(chain, verifiedChain) {
-			return verifiedChain, nil
+			return cv.originals(chain, verifiedChain)
 		}
 	}
 
 	return nil, fmt.Errorf("cert chains to an accepted root, but no RFC compliant path found when trying to validate chains: %s", strings.Join(crtsh, ", "))
+}
+
+// originals maps verifiedChain, made of relaxed copies, back to the original
+// certificates: the submitted chain, followed by the original root if the
+// submitted chain did not include it.
+// verifiedChain must be equivalent to chain, see chainsEquivalent.
+func (cv chainValidator) originals(chain, verifiedChain []*x509.Certificate) ([]*x509.Certificate, error) {
+	path := slices.Clone(chain)
+	if len(verifiedChain) > len(chain) {
+		relaxedRoot := verifiedChain[len(verifiedChain)-1]
+		root, ok := cv.trustedRoots.Lookup(relaxedRoot.Raw)
+		if !ok {
+			return nil, fmt.Errorf("root not found in trusted roots: https://crt.sh/?sha256=%x", sha256.Sum256(relaxedRoot.Raw))
+		}
+		path = append(path, root)
+	}
+	return path, nil
 }
 
 // Validate is used by add-chain and add-pre-chain. It checks that the supplied
