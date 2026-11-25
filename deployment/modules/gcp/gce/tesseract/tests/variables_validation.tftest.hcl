@@ -220,3 +220,48 @@ run "enable_public_ip_false" {
     error_message = "Expected no access_config block when enable_public_ip is false."
   }
 }
+
+run "mig_defaults" {
+  command = plan
+
+  assert {
+    condition     = google_compute_region_instance_group_manager.instance_group_manager.name == "dummy-base-instance-group-manager"
+    error_message = "Expected the default MIG name to be unsuffixed."
+  }
+
+  assert {
+    condition     = length(google_compute_region_instance_group_manager.legacy_instance_group_manager) == 0
+    error_message = "Expected no legacy MIG by default."
+  }
+}
+
+run "mig_blue_green" {
+  command = plan
+
+  variables {
+    mig_suffix        = "-v2"
+    retain_legacy_mig = true
+  }
+
+  assert {
+    condition     = google_compute_region_instance_group_manager.instance_group_manager.name == "dummy-base-instance-group-manager-v2"
+    error_message = "Expected the MIG name to carry mig_suffix."
+  }
+
+  assert {
+    condition     = google_compute_region_instance_group_manager.legacy_instance_group_manager[0].name == "dummy-base-instance-group-manager"
+    error_message = "Expected the legacy MIG to keep the unsuffixed name."
+  }
+}
+
+run "invalid_retain_legacy_mig_without_suffix" {
+  command = plan
+
+  variables {
+    retain_legacy_mig = true
+  }
+
+  expect_failures = [
+    var.mig_suffix,
+  ]
+}

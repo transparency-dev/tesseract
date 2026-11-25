@@ -169,19 +169,7 @@ resource "google_artifact_registry_repository" "tesseract" {
 }
 
 
-# Forget any pre-existing `tesseract` template from state without destroying it in GCP:
-# during a blue/green MIG cutover (`retain_legacy_mig = true`), the retained legacy MIG still
-# references its pre-cutover template (including any deposed object left by a failed in-place
-# MIG update), so deleting it before legacy MIG teardown would fail with
-# `resourceInUseByAnotherResource`.
-removed {
-  from = google_compute_region_instance_template.tesseract
-  lifecycle {
-    destroy = false
-  }
-}
-
-resource "google_compute_region_instance_template" "instance_template" {
+resource "google_compute_region_instance_template" "tesseract" {
   // Templates cannot be updated, so we generate a new one every time.
   name_prefix = "tesseract-template-"
   description = "This template is used to create TesseraCT instances."
@@ -261,7 +249,7 @@ resource "google_compute_health_check" "healthz" {
   }
 }
 
-resource "google_compute_region_instance_group_manager" "mig" {
+resource "google_compute_region_instance_group_manager" "instance_group_manager" {
   name   = "${var.base_name}-instance-group-manager${var.mig_suffix}"
   region = var.location
 
@@ -269,7 +257,7 @@ resource "google_compute_region_instance_group_manager" "mig" {
   distribution_policy_target_shape = var.distribution_policy_target_shape
 
   version {
-    instance_template = google_compute_region_instance_template.instance_template.id
+    instance_template = google_compute_region_instance_template.tesseract.id
   }
   wait_for_instances        = true
   wait_for_instances_status = "UPDATED"
@@ -317,15 +305,25 @@ resource "google_compute_region_instance_group_manager" "mig" {
   }
 }
 
-moved {
-  from = google_compute_region_instance_group_manager.instance_group_manager
-  to   = google_compute_region_instance_group_manager.legacy_instance_group_manager[0]
-}
-
-# Retains a pre-existing unsuffixed `<base_name>-instance-group-manager` untouched during a
+# Holds a pre-existing unsuffixed `<base_name>-instance-group-manager` untouched during a
 # blue/green cutover (for example, when GCE rejects in-place template updates after converting
-# an auto-mode VPC to custom subnet mode). Once Load Balancer traffic has shifted to `mig`,
-# set `retain_legacy_mig = false` to destroy this legacy MIG.
+# an auto-mode VPC to custom subnet mode), while `instance_group_manager` is stood up alongside
+# it as `<base_name>-instance-group-manager<mig_suffix>`.
+#
+# There is deliberately no `moved` block here: `moved` cannot be made conditional, and an
+# unconditional move would destroy/recreate the MIG of every deployment using the defaults.
+# Instead, before first applying with `retain_legacy_mig = true`, move the existing MIG into
+# this address, and forget the template(s) it references, since they can't be deleted while
+# the legacy MIG still uses them:
+#
+#   tofu state mv \
+#     'module.gce.google_compute_region_instance_group_manager.instance_group_manager' \
+#     'module.gce.google_compute_region_instance_group_manager.legacy_instance_group_manager[0]'
+#   tofu state rm 'module.gce.google_compute_region_instance_template.tesseract'
+#
+# Once Load Balancer traffic has shifted to `instance_group_manager`, set
+# `retain_legacy_mig = false` to destroy this legacy MIG, then delete the forgotten
+# template(s) out-of-band.
 resource "google_compute_region_instance_group_manager" "legacy_instance_group_manager" {
   count = var.retain_legacy_mig ? 1 : 0
 
@@ -334,7 +332,7 @@ resource "google_compute_region_instance_group_manager" "legacy_instance_group_m
   base_instance_name = var.base_name
 
   version {
-    instance_template = google_compute_region_instance_template.instance_template.id
+    instance_template = google_compute_region_instance_template.tesseract.id
   }
 
   lifecycle {
