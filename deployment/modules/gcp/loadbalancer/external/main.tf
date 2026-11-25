@@ -34,7 +34,7 @@ module "gce-lb-http" {
   // Use the Cloud Armor policy, if it's enabled.
   security_policy = one(module.cloud_armor[*].policy.self_link)
 
-  backends = { for name, v in var.logs:
+  backends = { for name, v in var.logs :
     "${name}-backend" => {
       protocol    = "HTTP"
       port        = 80
@@ -57,16 +57,16 @@ module "gce-lb-http" {
       }
 
       groups = [
-        {
-          // A Backend group must have beed deployed independently at this URI.
-          group          = "projects/${var.project_id}/regions/${v.region}/instanceGroups/${name}-instance-group-manager"
+        for ig_name in lookup(var.instance_group_names, name, ["${name}-instance-group-manager"]) : {
+          // A Backend group must have been deployed independently at this URI.
+          group          = "projects/${var.project_id}/regions/${v.region}/instanceGroups/${ig_name}"
           balancing_mode = "RATE"
           // Based on the most recent load tests /docs/performance.md
           // Caution:
-          //  - The target maximum RPS/QPS can be exceeded if all backends are at or above capacity. 
+          //  - The target maximum RPS/QPS can be exceeded if all backends are at or above capacity.
           //  - Traffic could be routed to instances without going through this load balancer.
           max_rate_per_instance = 1000
-        },
+        }
       ]
 
       iap_config = {
@@ -141,7 +141,7 @@ module "cloud_armor" {
 }
 
 resource "random_id" "suffix" {
-  for_each = var.logs
+  for_each    = var.logs
   byte_length = 4
 
   keepers = {

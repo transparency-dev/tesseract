@@ -5,7 +5,7 @@ terraform {
 locals {
   # If bucket_name is provided, use it. 
   # Otherwise, default to the origin.
-  bucket_name = var.bucket_name != null ? var.bucket_name: var.origin
+  bucket_name = var.bucket_name != null ? var.bucket_name : var.origin
 }
 
 module "storage" {
@@ -61,6 +61,8 @@ module "gce" {
   distribution_policy_zones                  = var.distribution_policy_zones
   distribution_policy_target_shape           = var.distribution_policy_target_shape
   enable_public_ip                           = var.enable_public_ip
+  mig_suffix                                 = var.mig_suffix
+  retain_legacy_mig                          = var.retain_legacy_mig
 
   depends_on = [
     module.storage
@@ -68,7 +70,7 @@ module "gce" {
 }
 
 module "ilb" {
-  count = var.create_internal_load_balancer ? 1 : 0
+  count  = var.create_internal_load_balancer ? 1 : 0
   source = "../../loadbalancer/internal"
 
   env           = var.env
