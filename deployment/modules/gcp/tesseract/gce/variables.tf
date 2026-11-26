@@ -14,7 +14,7 @@ variable "origin" {
 }
 
 variable "bucket_name" {
-  description = "Log bucket name. Defaults to `origin` if unspecified." 
+  description = "Log bucket name. Defaults to `origin` if unspecified."
   type        = string
   default     = null
 }
@@ -34,6 +34,12 @@ variable "not_after_limit" {
 variable "location" {
   description = "Location in which to create resources"
   type        = string
+}
+
+variable "gce_location" {
+  description = "Location in which to create GCE and internal load balancer resources. Defaults to `location` if unspecified."
+  type        = string
+  default     = null
 }
 
 variable "env" {
