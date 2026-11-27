@@ -56,6 +56,14 @@ Roots which hex-encoded SHA256 or SubjectPublicKeyInfo SHA256 is mentioned in
 
 ##### Other filtering
 
+As allowed by [static-ct-api](https://c2sp.org/static-ct-api@v1.1.0),
+TesseraCT rejects chains containing a
+[Precertificate Signing Certificate](https://www.rfc-editor.org/rfc/rfc6962#section-3.1),
+whether it issued a precertificate or a final certificate. This behaviour cannot
+be disabled.
+
+The following flags can be used to further filter submissions:
+
 - `intermediates_reject_fingerprints`: Hex-encoded SHA-256 fingerprint of an
 intermediate certificate or its SubjectPublicKeyInfo to reject. May be specified
 multiple times.

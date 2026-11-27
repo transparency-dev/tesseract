@@ -527,6 +527,11 @@ func TestAddChain(t *testing.T) {
 			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
 			want:          http.StatusOK,
 		},
+		{
+			descr: "precert-signing-certificate",
+			chain: []string{testdata.CertFromPreIntermediate, testdata.PreIntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusBadRequest,
+		},
 	}
 
 	log, dir := setupTestLog(t)
@@ -673,6 +678,11 @@ func TestAddPreChain(t *testing.T) {
 			wantIdx:       0,
 			wantLogSize:   2,
 			wantTimestamp: fakeTimeStart.Add(3 * time.Minute),
+		},
+		{
+			descr: "precert-signing-certificate",
+			chain: []string{testdata.PreCertFromPreIntermediate, testdata.PreIntermediateFromRoot, testdata.CACertPEM},
+			want:  http.StatusBadRequest,
 		},
 	}
 
